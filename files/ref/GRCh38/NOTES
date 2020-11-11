@@ -1,0 +1,8 @@
+### grc_report.tab ###
+
+Retrieved from:
+ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/GCA_000001405.15_GRCh38_assembly_report+ucsc_names.txt
+
+Removed comment lines and hash-mark from header line.
+
+Pipeline uses "UCSC-style-name" and "Sequence-Name" to translate contig names to GRCh38.

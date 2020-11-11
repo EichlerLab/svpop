@@ -1,0 +1,30 @@
+FIELD	TYPE	NAME	DESC	LONG_DESC
+#CHROM	string	chrom	Reference chromosome	Reference chromosome
+POS	uint	chromStart	Start position	Start position
+END	uint	chromEnd	End position	End position
+ID	string	name	Variant ID	Variant ID
+SCORE	uint	score	Score	Score
+STRAND	char[1]	strand	+ or - for strand	Strand
+POS_THICK	uint	thickStart	Coding region start	Coding region start
+END_THICK	uint	thickEnd	Coding region end	Coding region end
+COL	uint	reserved	Blue (insertion), red (deletion), green (inversion)	Blue (insertion), red (deletion), green (inversion)
+SVTYPE	string	svType	SV Type	Variant type
+SVLEN	uint	svLen	SV Length	Variant size
+CALLERSET_SOURCE	string	csSrc	Callerset source	Callerset source
+CALLERSET_LIST	lstring	csLst	Callersets	List of callers
+CALLERSET_N	uint	csN	Callerset N	Number of callers supporting the variant.
+CALLERSET_VARIANTS_RO	lstring	csRo	Callerset RO	Reciprocal overlap from caller support.
+MERGE_SOURCE	string	mergeSrc	Source sample	Sample representing this variant call.
+MERGE_AC	uint	mergeAc	Merged from N samples	Number of samples with this call.
+MERGE_SAMPLES	lstring	mergeSamp	Merged from samples	Comma-separated list of samples supporting this call.
+MERGE_VARIANTS	lstring	mergeVar	Merged variants	Merged variant IDs.
+MERGE_VARIANTS_RO	lstring	mergeRo	Merged variants RO	Merged variant RO (reciprocal overlap).
+CONTIG_SUPPORT	string	contigSupport	Contig Supp.	Number of SMRT-SV contigs with the SV.
+CONTIG_DEPTH	string	contigDepth	Contig Dp.	Number of SMRT-SV contigs covering the SV locus.
+SAMPLE	string	sample	Sample name	TEMP - Should be removed by the datatable code (fixed, remove this line when tables are re-built)
+REF	lstring	refBase	Ref base	Reference base (SNV).
+ALT	lstring	altBase	Alt base	Alternate base (SNV).
+DP	int	depth	Depth	Alignment depth in sample.
+GT	string	genotype	Genotype	Genotype.
+GQ	int	genotypeQual	Genotype Qual	Genotype quality.
+QA	int	genotypeQualAlt	ALT qual sum	Sum of quality of the alternate observations.

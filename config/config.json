@@ -1,0 +1,129 @@
+{
+  "varset": {
+    "set": {
+      "kidd2010": {
+        "indel": "files/varset/kidd2010/TableS2a.tab",
+        "vntr": "files/varset/kidd2010/TableS2b.tab",
+        "inv": "files/varset/kidd2010/TableS2c.tab",
+        "name": "Kidd (2010)"
+      },
+      "sudmant2015a": {
+        "vcf": "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/integrated_sv_map/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.vcf.gz",
+        "name": "Simons Diversity Panel"
+      },
+      "hgsvc1": {
+        "bed": "/net/eichler/vol27/projects/hgsvc/nobackups/data/hgsvc1/variants/sv_pub/bed/{sample}_sv_{svtype}.bed.gz",
+        "fa": "/net/eichler/vol27/projects/hgsvc/nobackups/data/hgsvc1/variants/sv_pub/bed/fa/{sample}_sv_{svtype}.fa.gz",
+        "name": "HGSVC 2019"
+      },
+      "hallsv": {
+        "vcf": "/net/eichler/vol27/projects/structural_variation/nobackups/priv/hall/1KGP_trios.final.vcf.gz",
+        "name": "Lumpy (Hall)"
+      },
+      "dbvar": {
+        "ins": "https://ftp.ncbi.nlm.nih.gov/pub/dbVar/sandbox/sv_datasets/nonredundant/insertions/GRCh38.nr_insertions.tsv.gz",
+        "del": "https://ftp.ncbi.nlm.nih.gov/pub/dbVar/sandbox/sv_datasets/nonredundant/deletions/GRCh38.nr_deletions.tsv.gz",
+        "vcf": "ftp://ftp.ncbi.nlm.nih.gov/pub/dbVar/data/Homo_sapiens/by_assembly/GRCh38/vcf/GRCh38.variant_call.all.vcf.gz",
+        "name": "dbVar"
+      },
+      "dbsnp151": {
+        "vcf": "ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606_b151_GRCh38p7/VCF/All_20180418.vcf.gz",
+        "name": "dbSNP 151"
+      },
+      "1kgp1": {
+        "url": "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/integrated_call_sets/ALL.wgs.integrated_phase1_v3.20101123.snps_indels_sv.sites.vcf.gz",
+        "name": "1KG Phase 1"
+      },
+      "1kgp3": {
+        "url": "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/integrated_sv_map/supporting/GRCh38_positions/ALL.wgs.integrated_sv_map_v2_GRCh38.20130502.svs.genotypes.vcf.gz",
+        "name": "1KG Phase 3"
+      },
+      "ak1": {
+        "name": "AK1 (Seo 2016)"
+      },
+      "hx1": {
+        "name": "HX1 (Shi 2016)",
+        "sv_bed": "http://www.openbioinformatics.org/hx1/data/cnv_sv/pacbio_sv_calls.bed.gz"
+      },
+      "huddleston2017": {
+        "name": "Huddleston Pseudodiploid (2017)"
+      },
+      "mills2011": {
+        "name": "Mills (2011)"
+      },
+      "gonl": {
+        "vcf": "https://molgenis26.target.rug.nl/downloads/gonl_public/variants/release6.1/20161013_GoNL_AF_nongenotyped_SVs.vcf.gz",
+        "name": "GoNL 6.1"
+      },
+      "audano2019": {
+        "sv": "files/varset/audano2019/SVSummaryTable.tab.gz",
+        "dup": "files/varset/audano2019/sv_dup.bed.gz",
+        "indel": "files/varset/audano2019/indel_insdel.bed.gz",
+        "name": "Audano (2019)"
+      },
+      "pbsv": {
+        "14455": {
+          "sv": "/net/eichler/vol27/projects/autism_genome_assembly/nobackups/sv/pbsv/14455/pbsv_sv.vcf.gz",
+          "bnd": "/net/eichler/vol27/projects/autism_genome_assembly/nobackups/sv/pbsv/14455/pbsv_bnd.vcf.gz"
+        }
+      },
+      "denovodb": {
+        "version": "1.6.1",
+        "bed": "files/varset/denovodb/{version}/bed/{vartype}_{svtype}.bed.gz",
+        "fa": "files/varset/denovodb/{version}/fa/{vartype}_{svtype}.fa.gz",
+        "full": "files/varset/denovodb/{version}/dndb_all.tab.gz"
+      }
+    },
+    "merge": {
+      "pub_illumina": {
+        "description": "Published Short-Read SV Calls",
+        "name": "Published Short-Read SVs",
+        "varset": ["1kgp3", "1kgp1", "sudmant2015a", "mills2011", "gonl"]
+      },
+      "pub_pacbio": {
+        "description": "Published Long-Read SV Calls",
+        "name": "Published Long-Read SVs",
+        "varset": ["hgsvcpilot-unified", "huddleston2017", "ak1", "hx1"]
+      },
+      "pub_short": {
+        "description": "Published Short-Read SV Calls",
+        "name": "Published Short-Read SVs",
+        "varset": ["1kgp3", "1kgp1", "sudmant2015a", "mills2011", "gonl", "kidd2010"]
+      },
+      "hgsvc": {
+        "description": "HGSVC SV Calls",
+        "name": "HGSVC",
+        "varset": ["hgsvc_HG00514", "hgsvc_HG00733", "hgsvc_NA19240"]
+      },
+      "hgsvc1grc": {
+        "description": "HGSVC1 and GRC SV Calls",
+        "name": "HGSVC & GRC 2019",
+        "varset": ["hgsvc1", "audano2019"]
+      },
+      "pub_all": {
+        "Description": "All published population SVs",
+        "name": "Published SVs",
+        "varset": ["hgsvc1", "audano2019", "huddleston2017", "ak1", "hx1", "1kgp3", "1kgp1", "sudmant2015a", "mills2011", "kidd2010", "dbvar", "gonl"],
+        "merge_strategy": "nr:szro=50:offset=200"
+      },
+      "pub_lr": {
+        "Description": "All published long-read population SVs",
+        "name": "Published LR SVs",
+        "varset": ["hgsvc1", "audano2019", "huddleston2017", "ak1", "hx1"],
+        "merge_strategy": "nr:szro=50:offset=200"
+      }
+    }
+  },
+  "merge_def": {
+    "szro-50-200": "nr:szro=50:offset=200",
+    "refalt-200": "nr:offset=200:refalt:szro=1"
+  },
+  "data": {
+    "omim": {
+      "path": "/net/eichler/vol27/projects/structural_variation/nobackups/priv/omim"
+    },
+    "oreganno": {
+      "path": "http://www.oreganno.org/dump/ORegAnno_Combined_2016.01.19.tsv"
+    }
+  }
+}

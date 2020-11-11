@@ -1,0 +1,64 @@
+"""
+Get alignment depth in windows for a SMRT-SV sample.
+"""
+
+############
+### Init ###
+############
+
+### Imports ###
+
+# Import
+import pandas as pd
+import numpy as np
+
+import collections
+import gzip
+import intervaltree
+import pysam
+
+
+### Get svpop directory ###
+
+SVPOP_DIR = os.path.dirname(workflow.snakefile)
+
+
+### Config ###
+
+CONFIG_FILE_NAME = 'config/config.json'
+
+configfile: os.path.join(SVPOP_DIR, CONFIG_FILE_NAME)
+configfile: CONFIG_FILE_NAME
+
+
+### Samples Table ###
+
+SAMPLE_TABLE_COL_TYPES = {
+    'SOURCE': np.object,
+    'SAMPLE': np.object,
+    'ETHNICITY': np.object,
+    'DATA': np.object,
+    'VERSION': np.object
+}
+
+SAMPLE_TABLE = pd.read_csv(config.get('variant_table'), sep='\t', header=0, dtype=SAMPLE_TABLE_COL_TYPES)
+SAMPLE_TABLE.set_index(['SOURCE', 'SAMPLE'], inplace=True, drop=False)
+
+
+### Shell prefix ###
+
+shell.prefix('. {}/config/setenv.sh; '.format(SVPOP_DIR))
+
+
+###################
+### Definitions ###
+###################
+
+
+
+
+#############
+### Rules ###
+#############
+
+include: 'rules/depth/depth.snakefile'
