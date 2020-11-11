@@ -116,29 +116,3 @@ Format: `{sourcetype_a}+{sourcename_a}+{sample_a}_vs_{sourcetype_b}+{sourcename_
 If the variant set field contains "_vs_" (is `all` in the above eample), then comparisons can be done with differently-filtered
 variants. For example, `notr_vs_all` would compare variants outside tandem repeats (`notr`) with all variants `all`.
 
-
-### Built-in variant sets
-
-There are several external variant sets incorporated into the pipeline as "varsets".
-
-For these variants, the sourcetype is "varset" and the sourcename specifies the source study.
-
-* 1kgp1: 1000 Genomes calls, phase 1
-* 1kgp3: 1000 Genomes calls, phase 3
-* mills2011: 1000 Genomes SV callsets (Mills 2011)
-* sudmant2015a: 1000 Genomes SV callsets (Sudmant 2015)
-* ak1: AK1 (Seo 2016, Nature)
-* audano2019: Major SVs (Audano 2019, Cell)
-* dbsnp: dbSNP
-* dbvar: dbVar
-* donovodb: denovo-db
-* gonl: GoNL
-* hgsvcpilot: HGSVC pilot (Chaisson, Sanders, Zhao, HGSVC consortium, 2019. Nat. Com)
-* huddleston2017: SMRT-SV paper (CHM1 & CHM13, Huddleston 2017. Gen. Res.)
-* hx1: HX1 assembly paper (Shi et al. 2016. Nat. Com.)
-* kidd2010: Kidd 2010 FOSMID clone SVs (kidd et al. 2010. Cell)
-
-These variants can be compared and merged like any other callset.
-
-Typically, the same will be "all" to get all variants. For some studies, such as the HGSVC pilot, calls for a single
-sample are available.
