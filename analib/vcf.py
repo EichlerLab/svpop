@@ -113,7 +113,12 @@ def header_list(
         header_list.append(f"""##source={variant_source}\n""")
 
     if ref_file_name and ref_file_name.strip():
-        header_list.append("""##reference=file://{}\n""".format(os.path.basename(ref_file_name.strip())))
+        ref_file_name = ref_file_name.strip()
+
+        if '://' not in ref_file_name:
+            header_list.append("""##reference=file://{}\n""".format(os.path.basename(ref_file_name.strip())))
+        else:
+            header_list.append("""##reference={}\n""".format(ref_file_name.strip()))
 
     # Reference contigs
     for index, row in df_ref.reset_index().iterrows():

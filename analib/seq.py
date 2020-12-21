@@ -22,7 +22,7 @@ def bed_to_seqrecord_iter(df, skip_na=True):
     :return: An iterator for `SeqRecord` objects.
     """
 
-    # Iterrate over dataframe and return SeqRecords
+    # Iterate over dataframe and return SeqRecords
 
     for index, row in df.iterrows():
 

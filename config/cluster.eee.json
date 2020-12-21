@@ -36,6 +36,11 @@
     "mem": "{params.mem}"
   },
 
+  "variant_caller_extern_get_bed": {
+    "mem": "8G",
+    "rt": "6:00:00"
+  },
+
   "depth_data_sample_wiggle": {
     "mem": "8G",
     "rt": "8:00:00"

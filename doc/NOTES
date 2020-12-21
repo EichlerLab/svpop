@@ -4,7 +4,7 @@ Autism Quad svpop directory:
 Source types:
 caller: One caller for one sample
 callerset: Merged callers for one sample
-Sampleset: Merge samples (can merge callers or callersets)
+sampleset: Merge samples (can merge callers or callersets)
 
 Example: The quad creatse a callerset for each sample, and then merges each callerset into a sampleset.
 

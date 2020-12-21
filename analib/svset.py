@@ -458,6 +458,26 @@ class FieldFilterRunner(FilterRunner):
         # Return
         return df
 
+### Filter: autosome ###
+
+# Filter out X and Y
+
+class AutosomeFilterRunner(FilterRunner):
+
+    def __init__(self, filter_name, filter_arg, wildcards):
+
+        # Init parent
+        super(AutosomeFilterRunner, self).__init__(filter_name, filter_arg, wildcards)
+
+        # Init filter
+        self.init_filter()
+
+    def run(self, df):
+
+        df = df.loc[df['#CHROM'].apply(lambda val: re.match('^chr[XY](_.*)?.*', val) is None)]
+
+        # Return
+        return df
 
 ### Filter: all ###
 
@@ -493,6 +513,7 @@ filter_runner_dict = {
     'notrsdrmsk': TRSDRMSKFilterRunner,
     'intrsdrmsk': TRSDRMSKFilterRunner,
     'field': FieldFilterRunner,
+    'autosome': AutosomeFilterRunner,
     'all': NullFilterRunner
 }
 
