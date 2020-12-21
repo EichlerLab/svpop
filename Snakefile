@@ -134,6 +134,8 @@ include: 'rules/variant/caller/std_vcf/bed.snakefile'
 include: 'rules/variant/caller/smrtsv/bed.snakefile'
 include: 'rules/variant/caller/smrtsv/bed_dup.snakefile'
 include: 'rules/variant/caller/sniffles/bed.snakefile'
+include: 'rules/variant/caller/svim/bed.snakefile'
+include: 'rules/variant/caller/svimASM/bed.snakefile'
 
 include: 'rules/variant/caller/anno/aligndepth.snakefile'
 include: 'rules/variant/caller/anno/altmap.snakefile'
