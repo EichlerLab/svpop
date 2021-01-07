@@ -248,8 +248,9 @@ def merge_variants_nr(bed_list, sample_names, merge_params, subset_chrom=None, t
 
     print('Merging: {}'.format(sample_name))
 
-    df = pd.read_csv(
-        bed_list[0], sep='\t', header=0,
+    df = analib.pd.read_csv_chrom(
+        bed_list[0], chrom=subset_chrom,
+        sep='\t', header=0,
         usecols=lambda col: col in {'#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN', 'REF', 'ALT'}
     )
 
@@ -340,8 +341,9 @@ def merge_variants_nr(bed_list, sample_names, merge_params, subset_chrom=None, t
 
         print('Merging: {}'.format(sample_name))
 
-        df_next = pd.read_csv(
-            bed_list[index], sep='\t', header=0,
+        df_next = analib.pd.read_csv_chrom(
+            bed_list[index], chrom=subset_chrom,
+            sep='\t', header=0,
             usecols=lambda col: col in {'#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN', 'REF', 'ALT'}
         )
 
@@ -786,14 +788,11 @@ def merge_variants_nrid(bed_list, sample_names, merge_params, subset_chrom=None,
     for index in range(n_samples):
         sample_name = sample_names[index]
 
-        df_sample = pd.read_csv(
-            bed_list[index],
+        df_sample = analib.pd.read_csv_chrom(
+            bed_list[index], chrom=subset_chrom,
             sep='\t',
             usecols=('#CHROM', 'ID')
         )
-
-        if subset_chrom is not None:
-            df_sample = df_sample.loc[df_sample['#CHROM'] == subset_chrom]
 
         for variant_id in set(df_sample['ID']):
             support_sample_list[variant_id].append(sample_name)

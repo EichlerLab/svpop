@@ -135,7 +135,7 @@
     "rt": "48:00:00"
   },
   "variant_caller_global_concat_insdel": {
-    "mem": "8G"
+    "mem": "16G"
   },
   "variant_anno_reg_oreganno_intersect": {
     "mem": "1G",

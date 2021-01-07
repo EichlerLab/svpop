@@ -14,14 +14,14 @@ IDEO_HIST_PARAMS = {
     'x_adjust': 0.1,  # Adjust x in by this proportion to make space for y-axis labels
     'y_pad': 0.3,     # Add this proportion to the total height and distribute between plots as padding
     'band_color': {   # Color for bands keyed by "gieStain" is chromosome BED (from UCSC).
-        'gneg': '0.25',
-        'gpos25': '0.4375',
-        'gpos50': '0.625',
-        'gpos75': '0.8125',
-        'gpos100': '1.00',
+        'gneg': '0.875',
+        'gpos100': '0.00',
+        'gpos75': '0.16',
+        'gpos50': '0.32',
+        'gpos25': '0.48',
         'acen': 'darkred',
-        'gvar': '1.00',
-        'stalk': '0.50'
+        'gvar': '0.00',
+        'stalk': '0.64'
     },
     'chroms': [  # Chromosome order. This order minimizes dead space in multi-faceted plot with two columns (hg38)
         'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chrY',

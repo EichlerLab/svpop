@@ -11,6 +11,42 @@ from multiprocessing import Pool
 
 import analib.util
 
+def read_csv_chrom(
+        in_file_name, chrom=None, chunksize=5000, **kwargs
+):
+    """
+    Read a DataFrame in chunks and save only records for a chromosome. Prevents reading a whole DataFrame into memory
+    when only a chromosome is needed.
+
+    :param in_file_name: Input file name.
+    :param chrom: Chromosome or `None` to read the whole table.
+    :param chunksize: Size of chunks to read.
+    :param kwargs: Additional arguments to `pd.read_csv`.
+
+    :return: A Pandas DataFrame.
+    """
+
+    # Check for base case (no chrom set, just return the dataframe)
+    if chrom is None:
+        return pd.read_csv(in_file_name, **kwargs)
+
+    # Read
+    df_list = list()
+
+    df_iter = pd.read_csv(in_file_name, iterator=True, chunksize=chunksize, **kwargs)
+
+    for df in df_iter:
+        if chrom is not None and '#CHROM' not in df.columns:
+            raise RuntimeError(f'Cannot subset "{in_file_name}" for chromosome "{chrom}": No "#CHROM" field')
+
+        if chrom is not None:
+            df_list.append(df.loc[df['#CHROM'] == chrom])
+        else:
+            df_list.append(df)
+
+    # Return
+    return pd.concat(df_list, axis=0)
+
 
 def _apply_parallel_cb_result(index, df_split_results, p_pool, thread_done):
     """

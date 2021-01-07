@@ -36,8 +36,7 @@ rule variant_anno_repeat_rmsk_table:
                     'REP_PROP', 'SV_PROP', 'ALIGN_SCORE',
                     'DIFF_PROP', 'DEL_PROP', 'INS_PROP',
                     'SV_MATCH_START', 'SV_MATCH_END', 'SV_MATCH_LEFT',
-                    'STRAND', 'REP_START', 'REP_END', 'REP_LEFT',
-                    'RMSK_ID', 'BETTER_OVERLAP_HIT'
+                    'STRAND', 'REP_START', 'REP_END', 'REP_LEFT'
                 ]
             )
 
@@ -60,6 +59,12 @@ rule variant_anno_repeat_rmsk_table:
                 # Split
                 tok = re.split('\s+', line.strip())
 
+                # Check number of tokens
+                if len(tok) < 14:
+                    raise RuntimeError('Parse error on line {}: Expected at least 14 whitespace-delimited fields: Found {}'.format(line_count, len(tok)))
+
+                tok = tok[:14]
+
                 # Remove parenthesis
                 tok[7] = re.sub('\((.*)\)', '\\1', tok[7])
                 tok[11] = re.sub('\((.*)\)', '\\1', tok[11])
@@ -74,19 +79,12 @@ rule variant_anno_repeat_rmsk_table:
                 if tok[8] == 'C':
                     tok[8] = '-'
 
-                # Add last field if missing (* if another higher-quality hit overlaps, missing otherwise)
-                if len(tok) == 15:
-                    tok += ['']
-                elif len(tok) != 16:
-                    raise RuntimeError('Parse error on line {}: Expected 15 or 16 whitespace-delimited fields: Found {}'.format(line_count, len(tok)))
-
                 # Append to token list
                 record_list.append(pd.Series(
                     tok,
                     index=[
                         'ALIGN_SCORE', 'DIFF_PROP', 'DEL_PROP', 'INS_PROP', 'ID', 'SV_MATCH_START', 'SV_MATCH_END',
-                        'SV_MATCH_LEFT', 'STRAND', 'REPEAT_TYPE', 'REPEAT_FAMILY', 'REP_START', 'REP_END', 'REP_LEFT',
-                        'RMSK_ID', 'BETTER_OVERLAP_HIT'
+                        'SV_MATCH_LEFT', 'STRAND', 'REPEAT_TYPE', 'REPEAT_FAMILY', 'REP_START', 'REP_END', 'REP_LEFT'
                     ]
                 ))
 
@@ -95,7 +93,7 @@ rule variant_anno_repeat_rmsk_table:
         df.set_index('ID', inplace=True, drop=False)
 
         # Fix fields
-        df['BETTER_OVERLAP_HIT'] = df['BETTER_OVERLAP_HIT'].apply(lambda val: val == '*')
+        #df['BETTER_OVERLAP_HIT'] = df['BETTER_OVERLAP_HIT'].apply(lambda val: val == '*')
 
         df['ALIGN_SCORE'] = df['ALIGN_SCORE'].astype(np.int32)
         df['DIFF_PROP'] = df['DIFF_PROP'].astype(np.float32)
@@ -107,7 +105,6 @@ rule variant_anno_repeat_rmsk_table:
         df['REP_START'] = df['REP_START'].astype(np.int32)
         df['REP_END'] = df['REP_END'].astype(np.int32)
         df['REP_LEFT'] = df['REP_LEFT'].astype(np.int32)
-        df['RMSK_ID'] = df['RMSK_ID'].astype(np.int32)
 
         # Add proportions
         df['SVLEN'] = pd.read_csv(input.bed, sep='\t', header=0, usecols=('ID', 'SVLEN'), index_col='ID', squeeze=True)
