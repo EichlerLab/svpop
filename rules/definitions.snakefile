@@ -122,7 +122,7 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
 
     # Get sample name
     if sourcetype == 'sampleset':
-        sampleset_entry = analib.sampleset.get_config_entry(sourcename, sample, config)
+        sampleset_entry = svpoplib.sampleset.get_config_entry(sourcename, sample, config)
 
         sample = sampleset_entry['name']
 
@@ -150,7 +150,7 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
         seq_set_name = get_seq_set_name(tok[1] if len(tok) > 1 else None)
 
         if sourcename.startswith('extern-'):
-            sample_prefix = analib.variant_extern.get_config(sourcename[len('extern-'):], config)['name']
+            sample_prefix = svpoplib.variant_extern.get_config(sourcename[len('extern-'):], config)['name']
 
         else:
             caller_name = {
@@ -181,7 +181,7 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
                 sample_prefix = caller_name
 
     elif sourcetype == 'varset':
-        varset_entry = analib.varset.get_config_entry(sourcename, None, config)
+        varset_entry = svpoplib.varset.get_config_entry(sourcename, None, config)
 
         sample_prefix = varset_entry['name']
 

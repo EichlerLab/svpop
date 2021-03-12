@@ -11,8 +11,12 @@ done
 
 SOURCE_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-# Modules
-module load miniconda/4.5.12
+# Source setenv.sh
+SETENV=${SOURCE_DIR}/local/setenv.sh
+
+if [[ -f ${SETENV} ]]; then
+  source ${SETENV}
+fi
 
 # Init
 mkdir -p log

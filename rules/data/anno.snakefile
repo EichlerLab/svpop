@@ -505,9 +505,9 @@ rule data_rmsk_to_bed:
 # Concatenate consecutive records if they have the same identity.
 rule data_sd_max_merge:
     input:
-        bed='temp/data/anno/sd/sd-max-{match_type}.bed'
+        bed='temp/data/anno/sd/sd-max-{match_type}.bed.gz'
     output:
-        bed='data/anno/sd/sd-max-{match_type}.bed'
+        bed='data/anno/sd/sd-max-{match_type}.bed.gz'
     run:
 
         # Read
@@ -574,27 +574,28 @@ rule data_sd_max_merge:
         # Merge and write
         df_merge = pd.concat(record_list, axis=1).T
 
-        df_merge.to_csv(output.bed, sep='\t', index=False)
+        df_merge.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 # data_sd_max
 #
 # Get maximum identity per window.
 rule data_sd_max:
     input:
-        bed='data/anno/sd/sd.bed',
-        frag_bed='temp/data/anno/sd/sd-max-fragmented.bed'
+        bed='data/anno/sd/sd.bed.gz',
+        frag_bed='temp/data/anno/sd/sd-max-fragmented.bed.gz'
     output:
-        bed=temp('temp/data/anno/sd/sd-max-{match_type}.bed')
+        bed=temp('temp/data/anno/sd/sd-max-{match_type}.bed.gz')
     params:
         frac_field=lambda wildcards: 'fracMatch' if wildcards.match_type == 'frac' else ('fracMatchIndel' if wildcards.match_type == 'fracindel' else 'ERR-UNKNOWN-FIELD')
     wildcard_constraints:
         match_type='(frac|fracindel)'
     shell:
-        """awk -vOFS="\\t" '"""
+        """zcat {input.bed} | awk -vOFS="\\t" '"""
             """NR==1 {{ for (i=1; i<=NF; i++) {{ f[$i] = i }} }} """
             """{{ print $(f["#chrom"]), $(f["chromStart"]), $(f["chromEnd"]), $(f["{params.frac_field}"]) }} """
-        """' {input.bed} | """
-        """bedtools map -a {input.frag_bed} -b stdin -c 4 -o max """
+        """' | """
+        """bedtools map -a {input.frag_bed} -b stdin -c 4 -o max | """
+        """gzip """
         """> {output.bed}"""
 
 # data_sd_max_fragment
@@ -602,9 +603,9 @@ rule data_sd_max:
 # Fragment SD records to non-overlapping segments.
 rule data_sd_max_fragment:
     input:
-        bed='data/anno/sd/sd.bed'
+        bed='data/anno/sd/sd.bed.gz'
     output:
-        bed=temp('temp/data/anno/sd/sd-max-fragmented.bed')
+        bed=temp('temp/data/anno/sd/sd-max-fragmented.bed.gz')
     run:
 
         # Read
@@ -626,7 +627,7 @@ rule data_sd_max_fragment:
 
 
         # Open output file
-        with open(output.bed, 'w') as out_file:
+        with gzip.open(output.bed, 'wt') as out_file:
 
             # Process each chromosome
             for chrom in sorted(set(df['#chrom'])):
@@ -677,10 +678,12 @@ rule data_sd_to_bed:
     input:
         txt='temp/data/anno/ucsc/database/genomicSuperDups.txt'
     output:
-        bed='data/anno/sd/sd.bed'
+        bed='data/anno/sd/sd.bed.gz'
     shell:
-        """echo -e "#chrom\\tchromStart\\tchromEnd\\tname\\tstrand\\totherChrom\\totherStart\\totherEnd\\totherSize\\tfracMatch\\tfracMatchIndel" > {output.bed}; """
-        """awk -vOFS="\\t" '{{print $2, $3, $4, $5, $7, $8, $9, $10, $11, $27, $28}}' {input.txt} >> {output.bed}"""
+        """{{\n"""
+        """    echo -e "#chrom\\tchromStart\\tchromEnd\\tname\\tstrand\\totherChrom\\totherStart\\totherEnd\\totherSize\\tfracMatch\\tfracMatchIndel"; \n"""
+        """    awk -vOFS="\\t" '{{print $2, $3, $4, $5, $7, $8, $9, $10, $11, $27, $28}}' {input.txt} \n"""
+        """}} | gzip > {output.bed}"""
 
 
 #
@@ -694,9 +697,9 @@ rule data_get_trf_txt_to_bed:
     input:
         txt='temp/data/anno/ucsc/database/simpleRepeat.txt'
     output:
-        bed='data/anno/trf/trf.bed'
+        bed='data/anno/trf/trf.bed.gz'
     shell:
-        """awk 'BEGIN {{OFS="\\t"}} {{print $2, $3, $4}}' {input.txt} > {output.bed}"""
+        """awk 'BEGIN {{OFS="\\t"}} {{print $2, $3, $4}}' {input.txt} | gzip > {output.bed}"""
 
 
 #
@@ -708,10 +711,10 @@ rule data_get_trf_txt_to_bed:
 # Get a BED file of regions upstream and downstream of refseq annotations.
 rule data_anno_refseq_updown_bed:
     input:
-        bed='data/anno/refseq/refseq.bed'
+        bed='data/anno/refseq/refseq.bed.gz'
     output:
-        bed_up='data/anno/refseq/region/flank_{flank}/refseq_up.bed',
-        bed_dn='data/anno/refseq/region/flank_{flank}/refseq_dn.bed'
+        bed_up='data/anno/refseq/region/flank_{flank}/refseq_up.bed.gz',
+        bed_dn='data/anno/refseq/region/flank_{flank}/refseq_dn.bed.gz'
     run:
 
         flank = int(wildcards.flank)
@@ -742,8 +745,8 @@ rule data_anno_refseq_updown_bed:
         df_dn.sort_values(['#chrom', 'txStart'], inplace=True)
 
         # Write
-        df_up.to_csv(output.bed_up, sep='\t', index=False)
-        df_dn.to_csv(output.bed_dn, sep='\t', index=False)
+        df_up.to_csv(output.bed_up, sep='\t', index=False, compression='gzip')
+        df_dn.to_csv(output.bed_dn, sep='\t', index=False, compression='gzip')
 
 # data_anno_refseq_bed
 #
@@ -752,13 +755,13 @@ rule data_anno_refseq_bed:
     input:
         refseq='temp/data/anno/ucsc/database/refGene.txt'
     output:
-        bed='data/anno/refseq/refseq.bed'
+        bed='data/anno/refseq/refseq.bed.gz'
     shell:
         """{{\n"""
             """echo -e "#chrom\ttxStart\ttxEnd\tname\tstrand\tcomName\tcdsStart\tcdsEnd\texonStarts\texonEnds"; \n"""
             """awk -vOFS="\\t" '{{print $3, $5, $6, $2, $4, $13, $7, $8, $10, $11}}' {input.refseq} | \n"""
             """sort -k1,1 -k2,2n \n"""
-        """}} > {output.bed}"""
+        """}} | gzip > {output.bed}"""
 
 
 #
@@ -912,7 +915,7 @@ rule data_anno_grc_patch_to_tab:
         df = df.loc[df['Chromosome'].apply(lambda val: val in {str(val) for val in range(1, 23)} | {'X', 'Y'})]
 
         # Get chromosomes and filter "na" regions
-        df['Chromosome'] = analib.ref.grc_to_hg_chrom(df['Chromosome'], 'GRCh38')
+        df['Chromosome'] = svpoplib.ref.grc_to_hg_chrom(df['Chromosome'], 'GRCh38')
 
         # Mark patch and filter non PATCH or ALT (some are "na")
         df['Assembly-Unit-Full'] = df['Assembly-Unit']

@@ -20,7 +20,7 @@ import time
 import pandas as pd
 import numpy as np
 
-import analib
+import svpoplib
 
 from Bio import SeqIO
 import Bio.bgzf
@@ -98,7 +98,18 @@ else:
 
 ### Shell prefix ###
 
-shell.prefix('. {}/config/setenv.sh; '.format(SVPOP_DIR))
+SHELL_PREFIX = ''
+
+SETENV_SITE = f'{SVPOP_DIR}/config/setenv.sh'
+SETENV_LOCAL = 'config/setenv.sh'
+
+if os.path.isfile(SETENV_SITE):
+    SHELL_PREFIX += f'source {SETENV_SITE}; '
+
+if os.path.isfile(SETENV_LOCAL):
+    SHELL_PREFIX += f'source {SETENV_LOCAL}; '
+
+shell.prefix(SHELL_PREFIX)
 
 
 ### Global wildcard constraints ###
@@ -118,81 +129,84 @@ include: 'rules/data/ref.snakefile'
 ## Variants ##
 
 # Variant tools
-include: 'rules/variant/intersect.snakefile'
-include: 'rules/variant/intersect_nearest.snakefile'
-include: 'rules/variant/svset.snakefile'
+# include: 'rules/variant/intersect.snakefile'
+# include: 'rules/variant/intersect_nearest.snakefile'
+# include: 'rules/variant/svset.snakefile'
 include: 'rules/variant/variant_global.snakefile'
 
-# Variant callers
-include: 'rules/variant/caller/bionano/bed.snakefile'
-include: 'rules/variant/caller/deepvariant/bed.snakefile'
-include: 'rules/variant/caller/extern/bed.snakefile'
-include: 'rules/variant/caller/melt/bed.snakefile'
-include: 'rules/variant/caller/pbsv/bed.snakefile'
-include: 'rules/variant/caller/phasedsv/bed.snakefile'
-include: 'rules/variant/caller/std_vcf/bed.snakefile'
-include: 'rules/variant/caller/smrtsv/bed.snakefile'
-include: 'rules/variant/caller/smrtsv/bed_dup.snakefile'
-include: 'rules/variant/caller/sniffles/bed.snakefile'
-include: 'rules/variant/caller/svim/bed.snakefile'
-include: 'rules/variant/caller/svimASM/bed.snakefile'
+# Variant BED parsers
+include: 'rules/variant/bed/pav/pavbed.snakefile'
+# include: 'rules/variant/caller/bionano/bed.snakefile'
+# include: 'rules/variant/caller/deepvariant/bed.snakefile'
+# include: 'rules/variant/caller/extern/bed.snakefile'
+# include: 'rules/variant/caller/melt/bed.snakefile'
+# include: 'rules/variant/caller/pbsv/bed.snakefile'
+# include: 'rules/variant/caller/phasedsv/bed.snakefile'
+# include: 'rules/variant/caller/std_vcf/bed.snakefile'
+# include: 'rules/variant/caller/smrtsv/bed.snakefile'
+# include: 'rules/variant/caller/smrtsv/bed_dup.snakefile'
+# include: 'rules/variant/caller/sniffles/bed.snakefile'
+# include: 'rules/variant/caller/svim/bed.snakefile'
+# include: 'rules/variant/caller/svimASM/bed.snakefile'
 
-include: 'rules/variant/caller/anno/aligndepth.snakefile'
-include: 'rules/variant/caller/anno/altmap.snakefile'
-include: 'rules/variant/caller/anno/global.snakefile'
-include: 'rules/variant/caller/anno/homopolymer.snakefile'
-include: 'rules/variant/caller/anno/regions.snakefile'
-include: 'rules/variant/caller/anno/refseq.snakefile'
-include: 'rules/variant/caller/anno/regulation.snakefile'
-include: 'rules/variant/caller/anno/repeats.snakefile'
-include: 'rules/variant/caller/anno/seq_content.snakefile'
-
-include: 'rules/variant/caller/global.snakefile'
-include: 'rules/variant/caller/tables.snakefile'
-include: 'rules/variant/caller/vcf.snakefile'
+# Annotations
+# include: 'rules/variant/caller/anno/aligndepth.snakefile'
+include: 'rules/variant/anno/altmap.snakefile'
+include: 'rules/variant/anno/repeats.snakefile'
+# include: 'rules/variant/caller/anno/global.snakefile'
+# include: 'rules/variant/caller/anno/homopolymer.snakefile'
+# include: 'rules/variant/caller/anno/regions.snakefile'
+# include: 'rules/variant/caller/anno/refseq.snakefile'
+# include: 'rules/variant/caller/anno/regulation.snakefile'
+# include: 'rules/variant/caller/anno/repeats.snakefile'
+# include: 'rules/variant/caller/anno/seq_content.snakefile'
+#
+# include: 'rules/variant/caller/global.snakefile'
+# include: 'rules/variant/caller/tables.snakefile'
+# include: 'rules/variant/caller/vcf.snakefile'
 
 # Caller set
-include: 'rules/variant/callerset/bed.snakefile'
-include: 'rules/variant/callerset/anno.snakefile'
+# include: 'rules/variant/callerset/bed.snakefile'
+# include: 'rules/variant/callerset/anno.snakefile'
 
 # Sample set
-include: 'rules/variant/sampleset/bed.snakefile'
-include: 'rules/variant/sampleset/anno.snakefile'
-include: 'rules/variant/sampleset/tables.snakefile'
+# include: 'rules/variant/sampleset/bed.snakefile'
+# include: 'rules/variant/sampleset/anno.snakefile'
+# include: 'rules/variant/sampleset/tables.snakefile'
 
 # Variant sets (published or variants from other sources)
-include: 'rules/variant/varset/varset.snakefile'
-
-#include: 'rules/variant/varset/set/1kgp1.snakefile'
-include: 'rules/variant/varset/set/1kgp3.snakefile'
-include: 'rules/variant/varset/set/ak1.snakefile'
-include: 'rules/variant/varset/set/audano2019.snakefile'
-#include: 'rules/variant/varset/set/dbsnp.snakefile'
-include: 'rules/variant/varset/set/dbvar.snakefile'
-include: 'rules/variant/varset/set/denovodb.snakefile'
-#include: 'rules/variant/varset/set/gonl.snakefile'
-#include: 'rules/variant/varset/set/hallsv.snakefile'
-include: 'rules/variant/varset/set/hgsvc1.snakefile'
-include: 'rules/variant/varset/set/huddleston2017.snakefile'
-include: 'rules/variant/varset/set/hx1.snakefile'
-#include: 'rules/variant/varset/set/kidd2010.snakefile'
-#include: 'rules/variant/varset/set/mills2011.snakefile'
-include: 'rules/variant/varset/set/sudmant2015a.snakefile'
+# include: 'rules/variant/varset/varset.snakefile'
+#
+# #include: 'rules/variant/varset/set/1kgp1.snakefile'
+# include: 'rules/variant/varset/set/1kgp3.snakefile'
+# include: 'rules/variant/varset/set/ak1.snakefile'
+# include: 'rules/variant/varset/set/audano2019.snakefile'
+# #include: 'rules/variant/varset/set/dbsnp.snakefile'
+# include: 'rules/variant/varset/set/dbvar.snakefile'
+# include: 'rules/variant/varset/set/denovodb.snakefile'
+# #include: 'rules/variant/varset/set/gonl.snakefile'
+# #include: 'rules/variant/varset/set/hallsv.snakefile'
+# include: 'rules/variant/varset/set/hgsvc1.snakefile'
+# include: 'rules/variant/varset/set/huddleston2017.snakefile'
+# include: 'rules/variant/varset/set/hx1.snakefile'
+# #include: 'rules/variant/varset/set/kidd2010.snakefile'
+# #include: 'rules/variant/varset/set/mills2011.snakefile'
+# include: 'rules/variant/varset/set/sudmant2015a.snakefile'
 
 
 ## Tracks ##
 
-include: 'rules/tracks/variant.snakefile'
+# include: 'rules/tracks/variant.snakefile'
 
 
 ## Depth ##
 
-include: 'rules/depth/depth.snakefile'
+# include: 'rules/depth/depth.snakefile'
 
 
 ## Genotyping ##
 
-include: 'rules/gt/genotype.snakefile'
+# include: 'rules/gt/genotype.snakefile'
 
 
 ### Includes ###

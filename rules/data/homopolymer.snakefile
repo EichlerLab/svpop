@@ -10,7 +10,7 @@ rule hpref_merge_bed:
     input:
         bed=expand(
             'temp/data/anno/homopolymer/{{rep_len}}_regions_{chrom}.bed.gz',
-            chrom=sorted(list(analib.ref.get_df_fai(config['reference_fai']).index))
+            chrom=sorted(list(svpoplib.ref.get_df_fai(config['reference_fai']).index))
         )
     output:
         bed='data/anno/homopolymer/{rep_len}_regions_all.bed'

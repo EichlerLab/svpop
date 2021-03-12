@@ -99,6 +99,51 @@ def variant_global_sample_info_entry_element(sample, element, default=None, null
 ### Rules ###
 #############
 
+# variant_global_filter_fa
+rule variant_global_filter_fa:
+    input:
+        bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        fa='temp/variant/caller/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz'
+    output:
+        fa='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
+    run:
+
+        # Read variant IDs
+        id_set = set(
+            pd.read_csv(input.bed, sep='\t', usecols=('ID', ), squeeze=True)
+        )
+
+        # Filter
+        with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
+            SeqIO.write(svpoplib.seq.fa_to_record_iter(input.fa, id_set), out_file, 'fasta')
+
+
+# variant_global_filter_region
+#
+# Apply a BED filter to SVs.
+rule variant_global_filter_region:
+    input:
+        bed='temp/variant/caller/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz',
+        filter=lambda wildcards: svpoplib.variant.get_filter_bed(wildcards.filter, UCSC_REF_NAME, config, SVPOP_DIR)
+    output:
+        bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        bed_filt='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/filter_dropped/{vartype}_{svtype}_dropped.bed.gz'
+    wildcard_constraints:
+        filter='((?!all)[^\/]*)|all.+',
+        svtype='ins|del|inv|dup|rgn|sub'
+    run:
+
+        if wildcards.filter != 'all':
+            shell(
+                """bedtools intersect -wa -v -sorted -a {input.bed} -b {input.filter} -header | gzip > {output.bed}; """
+                """bedtools intersect -wa -u -sorted -a {input.bed} -b {input.filter} -header | gzip > {output.bed_filt}; """
+            )
+        else:
+            shell(
+                """cp {input.bed} {output.bed}; """
+                """touch {output.bed_filt}; """
+            )
+
 # variant_global_byref_to_bylen
 #
 # Variant byref to bylen.
@@ -140,9 +185,9 @@ rule variant_global_vcf_gz:
 # Uncompress for tools that cannot read a gzipped FASTA.
 rule variant_global_uncompress_fa:
     input:
-        fa='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{varset}/{filter}/{vartype}_{svtype}.fa.gz'
+        fa='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
     output:
-        fa=temp('temp/variant/{sourcetype}/{sourcename}/fasta/{sample}/{varset}/{filter}/{vartype}_{svtype}.fa')
+        fa=temp('temp/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa')
     run:
 
         if os.stat(input.fa).st_size > 0:

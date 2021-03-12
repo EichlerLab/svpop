@@ -10,7 +10,7 @@ rule data_ref_contig_table:
         tsv='data/ref/contig_info.tsv.gz'
     run:
 
-        analib.ref.get_ref_info(
+        svpoplib.ref.get_ref_info(
             config['reference']
         ).to_csv(
             output.tsv, sep='\t', index=True, compression='gzip'
