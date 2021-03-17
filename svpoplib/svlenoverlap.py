@@ -2,6 +2,11 @@
 Get nearest variant by SVLEN overlap. Used for merging and comparing callsets.
 """
 
+import numpy as np
+import pandas as pd
+
+import svpoplib
+
 def nearest_by_svlen_overlap(
         df_source, df_target,
         szro_min=None,
@@ -334,7 +339,7 @@ def _overlap_worker(
         df_distance = df_target_row_pool.apply(lambda row: pd.Series(
             [
                 row['OFFSET'],
-                reciprocal_overlap(pos, end, row['POS'], row['END']),
+                svpoplib.variant.reciprocal_overlap(pos, end, row['POS'], row['END']),
                 row['SZRO'],
                 row['OFFSET'] / svlen
             ],

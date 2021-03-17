@@ -8,6 +8,7 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 import re
+import sys
 import traceback
 
 import svpoplib
@@ -1212,32 +1213,59 @@ def get_support_table(df, df_next, threads, offset_max, ro_szro_min, match_ref, 
                     def callback_handler(ex):
                         df_support_list[record_pair_index] = ex
 
-                        pool.terminate()
+                        print(f'Failed {record_pair_index}: {ex}', file=sys.stderr)
+                        traceback.print_tb(ex.__traceback__)
+                        sys.stderr.flush()
 
-                        print(traceback.format_exc())
+                        try:
+                            print(f'Terminating: {record_pair_index}', file=sys.stderr)
+                            sys.stderr.flush()
+
+                            pool.terminate()
+
+                        except Exception as ex:
+                            print(f'Caught error while terminating: {record_pair_index}: {ex}', file=sys.stderr)
+                            sys.stderr.flush()
+
+                        print(f'Exiting error handler: {record_pair_index}')
 
                     return callback_handler
 
                 # Submit jobs
                 for record_pair_index in range(len(record_pair_list)):
-                    pool.apply_async(
-                        svpoplib.svlenoverlap.nearest_by_svlen_overlap,
-                        (
-                            df_chrom.loc[
-                                df_chrom['ID'].apply(lambda var_id: var_id in record_pair_list[record_pair_index][0])
-                            ],
-                            df_next_chrom.loc[
-                                df_next_chrom['ID'].apply(lambda var_id: var_id in record_pair_list[record_pair_index][1])
-                            ]
-                        ),
-                        kwd_args,
-                        _apply_parallel_cb_result(record_pair_index, df_support_list),
-                        _apply_parallel_cb_error(record_pair_index, df_support_list)
-                    )
+
+                    try:
+                        pool.apply_async(
+                            svpoplib.svlenoverlap.nearest_by_svlen_overlap,
+                            (
+                                df_chrom.loc[
+                                    df_chrom['ID'].apply(lambda var_id: var_id in record_pair_list[record_pair_index][0])
+                                ],
+                                df_next_chrom.loc[
+                                    df_next_chrom['ID'].apply(lambda var_id: var_id in record_pair_list[record_pair_index][1])
+                                ]
+                            ),
+                            kwd_args,
+                            _apply_parallel_cb_result(record_pair_index, df_support_list),
+                            _apply_parallel_cb_error(record_pair_index, df_support_list)
+                        )
+
+                    except:
+                        pass
 
                 # Wait for jobs
+                print('Waiting...')
+                sys.stderr.flush()
+                sys.stdout.flush()
+
                 pool.close()
                 pool.join()
+                sys.stderr.flush()
+                sys.stdout.flush()
+
+                print('Done Waiting.')
+                sys.stderr.flush()
+                sys.stdout.flush()
 
                 # Check for exceptions
                 for df_support in df_support_list:

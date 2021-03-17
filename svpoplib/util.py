@@ -75,7 +75,6 @@ def get_traceback_details(e):
 
     return traceback_details
 
-
 def as_bool(val):
     """
     Translate value as a boolean. If `val` is boolean, return `val`. If val is a string, `True` if lower-case string
