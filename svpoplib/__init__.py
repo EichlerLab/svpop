@@ -9,6 +9,7 @@ from . import gt
 from . import pd
 from . import ref
 from . import refseq
+from . import rules
 from . import sampleset
 from . import seq
 from . import sm
@@ -16,6 +17,7 @@ from . import svlenoverlap
 from . import svmerge
 from . import svset
 from . import util
+from . import varbed
 from . import variant
 from . import variant_extern
 from . import varset

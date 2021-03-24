@@ -40,8 +40,11 @@ SVPOP_DIR = os.path.dirname(workflow.snakefile)
 ### Config ###
 
 CONFIG_FILE_NAME = 'config/config.json'
+CONFIG_FILE_NAME_INSTALLED = os.path.join(SVPOP_DIR, 'local', CONFIG_FILE_NAME)
 
-configfile: os.path.join(SVPOP_DIR, CONFIG_FILE_NAME)
+if os.path.isfile(CONFIG_FILE_NAME_INSTALLED):
+    configfile: CONFIG_FILE_NAME_INSTALLED
+
 configfile: CONFIG_FILE_NAME
 
 if 'ucsc_ref_name' not in config:
@@ -59,11 +62,13 @@ if 'reference_fai' not in config:
 ### Samples Table ###
 
 SAMPLE_TABLE_COL_TYPES = {
-    'SOURCE': np.object,
+    'NAME': np.object,
+    'SET': np.object,
     'SAMPLE': np.object,
-    'SEQ_SET': np.object,
+    'TYPE': np.object,
     'DATA': np.object,
-    'VERSION': np.object
+    'VERSION': np.object,
+    'PARAMS': np.object
 }
 
 SAMPLE_TABLE_FILE_NAME = config.get('variant_table', 'config/samples.tsv')
@@ -71,12 +76,33 @@ SAMPLE_TABLE_FILE_NAME = config.get('variant_table', 'config/samples.tsv')
 if os.path.isfile(SAMPLE_TABLE_FILE_NAME):
     SAMPLE_TABLE = pd.read_csv(SAMPLE_TABLE_FILE_NAME, sep='\t', header=0, dtype=SAMPLE_TABLE_COL_TYPES)
 
-    if 'SEQ_SET' not in SAMPLE_TABLE.columns:
-        SAMPLE_TABLE['SEQ_SET'] = np.nan
+    # Error on missing columns
+    missing_columns = [col for col in ('NAME', 'TYPE', 'DATA') if col not in SAMPLE_TABLE.columns]
 
-    SAMPLE_TABLE.set_index(['SOURCE', 'SAMPLE', 'SEQ_SET'], inplace=True, drop=False)
+    if missing_columns:
+        raise RuntimeError('Missing sample table columns: {}'.format(', '.join(missing_columns)))
+
+    if 'SET' not in SAMPLE_TABLE.columns:
+        SAMPLE_TABLE['SET'] = np.nan
+
+    if 'SAMPLE' not in SAMPLE_TABLE.columns:
+        SAMPLE_TABLE['SAMPLE'] = 'DEFAULT'
+
+    SAMPLE_TABLE['SAMPLE'] = SAMPLE_TABLE['SAMPLE'].fillna('DEFAULT')
+
+    if 'VERSION' not in SAMPLE_TABLE.columns:
+        SAMPLE_TABLE['VERSION'] = np.nan
+
+    if 'PARAMS' not in SAMPLE_TABLE.columns:
+        SAMPLE_TABLE['PARAMS'] = np.nan
+
+    SAMPLE_TABLE.set_index(['NAME', 'SET', 'SAMPLE'], inplace=True, drop=False)
 else:
-    SAMPLE_TABLE = pd.DataFrame([], columns=['SOURCE', 'SAMPLE', 'DATA', 'VERSION'])
+    SAMPLE_TABLE = pd.DataFrame(
+        [], columns=['NAME', 'SET', 'SAMPLE', 'TYPE', 'DATA', 'VERSION', 'PARAMS']
+    ).set_index(
+        ['NAME', 'SET', 'SAMPLE'], drop=False
+    )
 
 
 ### Sample info table ###
@@ -140,7 +166,7 @@ include: 'rules/variant/bed/pav/pavbed.snakefile'
 # include: 'rules/variant/caller/deepvariant/bed.snakefile'
 # include: 'rules/variant/caller/extern/bed.snakefile'
 # include: 'rules/variant/caller/melt/bed.snakefile'
-# include: 'rules/variant/caller/pbsv/bed.snakefile'
+include: 'rules/variant/bed/pbsv/bed.snakefile'
 # include: 'rules/variant/caller/phasedsv/bed.snakefile'
 # include: 'rules/variant/caller/std_vcf/bed.snakefile'
 # include: 'rules/variant/caller/smrtsv/bed.snakefile'

@@ -450,7 +450,7 @@ def merge_variants_nr(bed_list, sample_names, merge_params, subset_chrom=None, t
                 df_sub, df_next_sub, threads, offset_max, szro_min, match_ref, match_alt
             )
 
-            df_support_szro = df_support_szro.loc[(df_support_szro['OFFSET'] <= offset_max) | (df_support_szro['SZRO'] >= szro_min)]
+            df_support_szro = df_support_szro.loc[(df_support_szro['OFFSET'] <= offset_max) & (df_support_szro['SZRO'] >= szro_min)]
 
             id_set = set(df_support_szro['ID'])
             id_next_set = set(df_support_szro['TARGET_ID'])
