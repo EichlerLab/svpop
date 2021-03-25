@@ -161,12 +161,16 @@ include: 'rules/data/ref.snakefile'
 include: 'rules/variant/variant_global.snakefile'
 
 # Variant BED parsers
-include: 'rules/variant/bed/pav/pavbed.snakefile'
+# include: 'rules/variant/bed/bed.snakefile'
+include: 'rules/variant/bed/pavbed.snakefile'
+include: 'rules/variant/bed/pbsv.snakefile'
+
+
 # include: 'rules/variant/caller/bionano/bed.snakefile'
 # include: 'rules/variant/caller/deepvariant/bed.snakefile'
 # include: 'rules/variant/caller/extern/bed.snakefile'
 # include: 'rules/variant/caller/melt/bed.snakefile'
-include: 'rules/variant/bed/pbsv/bed.snakefile'
+
 # include: 'rules/variant/caller/phasedsv/bed.snakefile'
 # include: 'rules/variant/caller/std_vcf/bed.snakefile'
 # include: 'rules/variant/caller/smrtsv/bed.snakefile'

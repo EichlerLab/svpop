@@ -230,7 +230,7 @@ rule variant_pbsv_bed_tsv_to_bed_sv:
         no_rename = ['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN', 'SEQ', 'PBSV_ID', 'PBSV_ID_COUNT']
 
         df.columns = [('PBSV_' + col if col not in no_rename else col) for col in df.columns]
-        
+
         df.sort_values(['#CHROM', 'POS'], inplace=True)
 
         # Write FASTA files
