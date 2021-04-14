@@ -8,7 +8,6 @@ import pandas as pd
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from Bio.Data import IUPACData
 
 
 def bed_to_seqrecord_iter(df, skip_na=True):
@@ -30,7 +29,7 @@ def bed_to_seqrecord_iter(df, skip_na=True):
             continue
 
         yield SeqRecord(
-            Seq(row['SEQ'], IUPACData.unambiguous_dna_letters),
+            Seq(row['SEQ']),
             id=row['ID'],
             description=''
         )
