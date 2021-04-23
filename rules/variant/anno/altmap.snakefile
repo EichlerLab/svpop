@@ -63,8 +63,8 @@ rule variant_caller_anno_altmap_bed:
 
         # Define headers for writing empty files for 0 alignments.
         header_list = [
-            '#CHROM', 'POS', 'END', 'ID',
-            'MAPQ',
+            '#CHROM', 'POS', 'END', 'ID', 'MAPQ',
+            'FLAGS', 'IS_REV',
             'MATCH_BP', 'MISMATCH_BP', 'INS_BP', 'INS_N', 'DEL_BP', 'DEL_N',
             'CLIPPED_BP', 'CLIPPED_N',
             'MAP_LEN', 'SV_CHROM',
@@ -100,6 +100,8 @@ rule variant_caller_anno_altmap_bed:
                             record.reference_start + record.reference_length,
                             record.query_name,
                             record.mapq,
+                            record.flag,
+                            record.is_reverse,
                             cigar_stat_bp[CIGAR_INT['=']],
                             cigar_stat_bp[CIGAR_INT['X']],
                             cigar_stat_bp[CIGAR_INT['I']],
@@ -112,6 +114,7 @@ rule variant_caller_anno_altmap_bed:
                         ],
                         index=[
                             '#CHROM', 'POS', 'END', 'ID', 'MAPQ',
+                            'FLAGS', 'IS_REV',
                             'MATCH_BP', 'MISMATCH_BP',
                             'INS_BP', 'INS_N', 'DEL_BP', 'DEL_N',
                             'CLIPPED_BP', 'CLIPPED_N', 'MAP_LEN'

@@ -32,10 +32,15 @@ def read_csv_chrom(
 
     # Read
     df_list = list()
+    col_list = None  # Save list of columns and return appropriate columns if no rows are found
 
     df_iter = pd.read_csv(in_file_name, iterator=True, chunksize=chunksize, **kwargs)
 
     for df in df_iter:
+
+        if col_list is None:
+            col_list = df.columns
+
         if chrom is not None and '#CHROM' not in df.columns:
             raise RuntimeError(f'Cannot subset "{in_file_name}" for chromosome "{chrom}": No "#CHROM" field')
 
@@ -45,7 +50,10 @@ def read_csv_chrom(
             df_list.append(df)
 
     # Return
-    return pd.concat(df_list, axis=0)
+    if len(df_list) > 0:
+        return pd.concat(df_list, axis=0)
+    else:
+        return pd.DataFrame([], columns=col_list)
 
 
 def _apply_parallel_cb_result(index, df_split_results, p_pool, thread_done):

@@ -159,7 +159,7 @@ class TRFilterRunner(FilterRunner):
 
         # Required files
         self.required_files = {
-            'bed_tr': 'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/trf/trf_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tab'
+            'bed_tr': 'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/trf/trf_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz'
         }
 
         # Init filter
@@ -198,7 +198,7 @@ class SDFilterRunner(FilterRunner):
 
         # Required files
         self.required_files = {
-            'bed_sd': 'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/sd/sd_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tab'
+            'bed_sd': 'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/sd/sd_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz'
         }
 
         # Init filter
@@ -237,7 +237,7 @@ class RMSKFilterRunner(FilterRunner):
 
         # Required files
         self.required_files = {
-            'bed_rmsk': 'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/rmsk/rmsk-any-all_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tab'
+            'bed_rmsk': 'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-any-all_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz'
         }
 
         # Init filter
@@ -278,8 +278,8 @@ class TRSDFilterRunner(FilterRunner):
 
         # Required files
         self.required_files = {
-            'bed_sd': 'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/sd/sd_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tab',
-            'bed_tr': 'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/trf/trf_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tab'
+            'bed_sd': 'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/sd/sd_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz',
+            'bed_tr': 'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/trf/trf_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz'
         }
 
         # Init filter
@@ -322,9 +322,9 @@ class TRSDRMSKFilterRunner(FilterRunner):
 
         # Required files
         self.required_files = {
-            'bed_sd': 'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/sd/sd_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tab',
-            'bed_tr': 'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/trf/trf_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tab',
-            'bed_rmsk': 'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/rmsk/rmsk-any-all_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tab'
+            'bed_sd': 'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/sd/sd_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz',
+            'bed_tr': 'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/trf/trf_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz',
+            'bed_rmsk': 'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-any-all_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz'
         }
 
         # Init filter

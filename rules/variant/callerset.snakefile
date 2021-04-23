@@ -1,0 +1,195 @@
+"""
+Merge variants from multiple callers for a single sample.
+"""
+
+###################
+### Definitions ###
+###################
+
+
+
+#############
+### Rules ###
+#############
+
+# variant_callerset_bed_merge
+#
+# Merge callerset variants from multiple sources for one sample.
+rule variant_callerset_merge:
+    input:
+        bed=expand(
+            'temp/variant/callerset/{{sourcename}}/{{sample}}/{{filter}}/all/bed/{{vartype}}_{{svtype}}/chrom_{chrom}.bed.gz',
+            chrom=svpoplib.ref.get_df_fai(config['reference_fai']).index
+        )
+    output:
+        bed='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz'
+    wildcard_constraints:
+        vartype='sv|indel|snv',
+        svtype='ins|del|inv|dup|snv',
+        sample='[^/]+'
+    run:
+
+        df = pd.concat(
+            [pd.read_csv(bed_file_name, sep='\t') for bed_file_name in input.bed],
+            sort=False,
+            axis=0
+        ).sort_values(
+            ['#CHROM', 'POS']
+        )
+
+        # Write
+        df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
+
+
+# variant_callerset_bed_merge_chrom
+#
+# Merge one chromosome.
+rule variant_callerset_merge_chrom:
+    input:
+        bed=lambda wildcards:
+        svpoplib.callerset.get_caller_set_input(
+            wildcards.sourcename,
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+            config,
+            wildcards
+        )
+    output:
+        bed=temp('temp/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}/chrom_{chrom}.bed.gz')
+    params:
+        cpu=lambda wildcards: svpoplib.callerset.cluster_param_cpu(wildcards, config),
+        mem=lambda wildcards: svpoplib.callerset.cluster_param_mem(wildcards, config),
+        rt=lambda wildcards: svpoplib.callerset.cluster_param_rt(wildcards, config)
+    run:
+
+        # Get entry
+        callerset_entry = svpoplib.callerset.get_config_entry(wildcards.sourcename, config)
+
+        merge_strategy = svpoplib.sampleset.get_merge_strategy(callerset_entry, wildcards.vartype, wildcards.svtype)
+
+        # Merge
+        df = svpoplib.svmerge.merge_variants(
+            input.bed,
+            callerset_entry['name_list'],
+            merge_strategy['strategy'],
+            subset_chrom=wildcards.chrom,
+            threads=params.cpu
+        )
+
+        # Rename MERGE for callerset
+        rename_dict = {
+            'MERGE_SRC': 'CALLERSET_SRC',
+            'MERGE_SRC_ID': 'CALLERSET_SRC_ID',
+            'MERGE_AC': 'CALLERSET_N',
+            'MERGE_AF': 'CALLERSET_PROP',
+            'MERGE_SAMPLES': 'CALLERSET_LIST',
+            'MERGE_VARIANTS': 'CALLERSET_VARIANTS',
+            'MERGE_RO': 'CALLERSET_RO',
+            'MERGE_DIST': 'CALLERSET_DIST',
+            'MERGE_SZRO': 'CALLERSET_SZRO',
+            'MERGE_OFFSZ': 'CALLERSET_OFFSZ'
+        }
+
+        df.columns = [rename_dict.get(col, col) for col in df.columns]
+
+        if 'DISC_CLASS' in df.columns:
+            del(df['DISC_CLASS'])
+
+        # Bylen to byref
+        if df.shape[0] > 0:
+            df['END'] = df.apply(lambda row: (row['POS'] + 1) if row['SVTYPE'] == 'INS' else row['END'], axis=1)
+
+        # Write
+        df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
+
+# variant_callerset_anno_merge
+#
+# Merge annotations for a caller set.
+rule variant_callerset_fa:
+    input:
+        bed='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        tab=lambda wildcards: svpoplib.callerset.get_caller_set_input(
+            wildcards.sourcename,
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+            config,
+            wildcards
+        )
+    output:
+        fa='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
+    params:
+        mem=lambda wildcards: svpoplib.callerset.cluster_param_anno_mem(wildcards, config),
+    wildcard_constraints:
+        filter='\\w+',
+        annodir='[a-zA-Z0-9\\.\\-]+',
+        sample='[a-zA-Z0-9\\.-]+',
+        svtype='ins|del|inv|dup|sub|rgn|snv',
+    run:
+
+        # Read
+        df = pd.read_csv(input.bed, sep='\t', header=0, usecols=('ID', 'CALLERSET_SRC_ID', 'CALLERSET_SRC'))
+
+        # Get sources.
+        callerset_input = svpoplib.callerset.get_caller_set_input(
+            wildcards.sourcename,
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+            config,
+            wildcards
+        )
+
+        # Get entry
+        callerset_entry = svpoplib.callerset.get_config_entry(wildcards.sourcename, config)
+
+        # Open FA and write
+        with Bio.bgzf.BgzfWriter(output.fa, 'wt') as out_file:
+            SeqIO.write(
+                svpoplib.callerset.fa_iter(df, callerset_entry, callerset_input),
+                out_file,
+                'fasta'
+            )
+
+
+
+# variant_callerset_anno_merge
+#
+# Merge annotations for a caller set.
+rule variant_callerset_anno_merge:
+    input:
+        bed='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        anno=lambda wildcards: svpoplib.callerset.get_caller_set_input(
+            wildcards.sourcename,
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz',
+            config,
+            wildcards
+        )
+    output:
+        anno='results/variant/callerset/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
+    params:
+        mem=lambda wildcards: svpoplib.callerset.cluster_param_anno_mem(wildcards, config),
+    wildcard_constraints:
+        filter='\\w+',
+        annodir='[a-zA-Z0-9\\.\\-]+',
+        sample='[a-zA-Z0-9\\.-]+',
+        svtype='ins|del|inv|dup|sub|rgn|snv',
+        ext='tsv|bed'
+    run:
+
+        # Read
+        df = pd.read_csv(input.bed, sep='\t', header=0)
+
+        # Get sources.
+        callerset_input = svpoplib.callerset.get_caller_set_input(
+            wildcards.sourcename,
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz',
+            config,
+            wildcards
+        )
+
+        # Get entry
+        callerset_entry = svpoplib.callerset.get_config_entry(wildcards.sourcename, config)
+
+        # Merge annotations
+        df_merge = svpoplib.callerset.merge_annotations(
+            df, callerset_input, callerset_entry
+        )
+
+        # Write
+        df_merge.to_csv(output.anno, sep='\t', index=False, compression='gzip')

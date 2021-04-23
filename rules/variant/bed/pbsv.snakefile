@@ -30,14 +30,14 @@ def variant_bed_pbsv_tsv_inv_dup(wildcards):
 
     sample_entry = svpoplib.rules.sample_table_entry('pbsv', SAMPLE_TABLE, wildcards=wildcards)
 
-    if wildcards.varsvtype not in {'sv_inv', 'dup_dup'}:
-        raise RuntimeError('PBSV Parser input function received varsvtype = {varsvtype}: Expected "sv_inv" or "dup_dup"'.format(**wildcards))
+    if wildcards.varsvtype not in {'sv_inv', 'sv_dup'}:
+        raise RuntimeError('PBSV Parser input function received varsvtype = {varsvtype}: Expected "sv_inv" or "sv_dup"'.format(**wildcards))
 
     if wildcards.varsvtype == 'sv_inv' or 'vartype' not in sample_entry['WILDCARDS']:
-        return 'temp/variant/caller/pbsv-{seq_set}/bed/{sample}/tsv/variants_sv.tsv.gz'.format(**wildcards)
+        return 'temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/bed/{sample}/tsv/variants_sv.tsv.gz'.format(**wildcards)
 
     else:
-        return 'temp/variant/caller/pbsv-{seq_set}/bed/{sample}/tsv/variants_dup.tsv.gz'.format(**wildcards)
+        return 'temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/bed/{sample}/tsv/variants_dup.tsv.gz'.format(**wildcards)
 
 #############
 ### Rules ###
@@ -50,11 +50,11 @@ rule variant_pbsv_bed_tab_to_bed_dupinv:
     input:
         tsv=variant_bed_pbsv_tsv_inv_dup
     output:
-        bed=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/{varsvtype}.bed.gz'),
-        fa=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/fa/{varsvtype}.fa.gz'),
-        filtered='results/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/filtered/filtered_{varsvtype}.bed.gz'
+        bed=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/{varsvtype}.bed.gz'),
+        fa=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/{varsvtype}.fa.gz'),
+        filtered='results/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/filtered/filtered_{varsvtype}.bed.gz'
     wildcard_constraints:
-        varsvtype='sv_inv|dup_dup'
+        varsvtype='sv_inv|sv_dup'
     run:
 
         vartype, svtype = (val.upper() for val in wildcards.varsvtype.split('_'))
@@ -138,17 +138,17 @@ rule variant_pbsv_bed_tab_to_bed_dupinv:
 # Parse SV/indel variants to a BED file.
 rule variant_pbsv_bed_tsv_to_bed_sv:
     input:
-        tsv='temp/variant/caller/pbsv-{seq_set}/bed/{sample}/tsv/variants_sv.tsv.gz'
+        tsv='temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/bed/{sample}/tsv/variants_sv.tsv.gz'
     output:
-        indel_ins=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/indel_ins.bed.gz'),
-        indel_del=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/indel_del.bed.gz'),
-        sv_ins=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/sv_ins.bed.gz'),
-        sv_del=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/sv_del.bed.gz'),
-        fa_indel_ins=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/fa/indel_ins.fa.gz'),
-        fa_indel_del=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/fa/indel_del.fa.gz'),
-        fa_sv_ins=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/fa/sv_ins.fa.gz'),
-        fa_sv_del=temp('temp/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/pre_filter/fa/sv_del.fa.gz'),
-        filtered='results/variant/caller/pbsv-{seq_set}/{sample}/all/all/bed/filtered/filtered_sv_insdel.bed.gz'
+        indel_ins=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/indel_ins.bed.gz'),
+        indel_del=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/indel_del.bed.gz'),
+        sv_ins=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/sv_ins.bed.gz'),
+        sv_del=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/sv_del.bed.gz'),
+        fa_indel_ins=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/indel_ins.fa.gz'),
+        fa_indel_del=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/indel_del.fa.gz'),
+        fa_sv_ins=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/sv_ins.fa.gz'),
+        fa_sv_del=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/sv_del.fa.gz'),
+        filtered='results/variant/caller/pbsv/{sourcename_base}-{seq_set}/{sample}/all/all/bed/filtered/filtered_sv_insdel.bed.gz'
     run:
 
         # Read and format/subset to this sample
@@ -157,7 +157,7 @@ rule variant_pbsv_bed_tsv_to_bed_sv:
         df = svpoplib.varbed.bcftools_query_to_tsv(df, wildcards.sample)
 
         # Subset on SVTYPE
-        df = df.loc[df['SVTYPE'].apply(lambda val: val in {'INS', 'DEL'})]
+        df = df.loc[df['SVTYPE'].apply(lambda val: val in {'INS', 'DEL'})].copy()
 
         del(
             df['CIPOS'],
@@ -267,18 +267,17 @@ rule variant_pbsv_bed_tsv_to_bed_sv:
         df_sub.loc[df_sub['SVTYPE'] == 'DEL'].to_csv(output.sv_del, sep='\t', na_rep='NA', index=False, compression='gzip')
 
 
-# variant_dv_vcf_to_tsv
+# variant_pbsv_bed_vcf_to_tsv
 #
 # VCF to TSV file.
 rule variant_pbsv_bed_vcf_to_tsv:
     input:
-        vcf=lambda wildcards: svpoplib.rules.sample_table_entry('pbsv', SAMPLE_TABLE, wildcards=wildcards)['DATA']
+        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename_base, SAMPLE_TABLE, wildcards=wildcards, type='pbsv')['DATA']
     output:
-        tsv=temp('temp/variant/caller/pbsv-{seq_set}/bed/{sample}/tsv/variants_{vartype}.tsv.gz')
+        tsv=temp('temp/variant/caller/pbsv/{sourcename_base}-{seq_set}/bed/{sample}/tsv/variants_{vartype}.tsv.gz')
     params:
-        query_string=VARIANT_BED_PBSV_BCFTOOLS_QUERY  # Could adjust by PBSV version if needed
+        query_string=VARIANT_BED_PBSV_BCFTOOLS_QUERY  # Could adjust by caller version if needed
     shell:
         """bcftools query -H -f{params.query_string} {input.vcf} | """
         """gzip """
         """> {output.tsv}"""
-

@@ -18,17 +18,21 @@ Prepare annotation input files.
 # are merged.
 rule data_merge_bed_regions:
     input:
-        bed='data/anno/{annotype}/{annoname}.bed',
+        bed='data/anno/{annotype}/{annoname}.bed.gz',
         fai=config['reference'] + '.fai'
     output:
-        bed='data/anno/{annotype}/{annoname}_regions_{distance,\d+}_{flank,\d+}.bed'
+        bed='data/anno/{annotype}/{annoname}_regions_{distance}_{flank}.bed.gz'
+    wildcard_constraints:
+        distance=r'\d+',
+        flank=r'\d+'
     shell:
-        """awk -vOFS="\\t" '{{print $1, $2, $3}}' {input.bed} | """
+        """awk -vOFS="\\t" '{{print $1, $2, $3}}' <(zcat {input.bed}) | """
+        """python3 {SVPOP_DIR}/scripts/filter_chrom.py -g {input.fai} | """
         """bedtools merge -d {wildcards.distance} -header | """
         """bedtools slop -b {wildcards.flank} -g {input.fai} -header | """
         """awk '$2 >= 0' | """
-        """bedtools merge -header """
-        """> {output.bed}"""
+        """bedtools merge -header | """
+        """gzip > {output.bed}"""
 
 #
 # ORegAnno
@@ -39,23 +43,36 @@ rule data_merge_bed_regions:
 # Prepare ORegAnno BED.
 rule data_oreganno:
     input:
-        txt='temp/data/anno/ucsc/database/oreganno.txt'
+        txt='temp/data/anno/ucsc/database/oreganno.txt.gz'
     output:
-        bed='data/anno/oreganno/oreganno.bed'
+        bed='data/anno/oreganno/oreganno.bed.gz'
     shell:
-        """echo -e "#CHROM\tPOS\tEND\tID\tSTRAND\tNAME" > {output.bed}; """
-        """awk -vOFS="\t" '{{print $2, $3, $4, $5, $6, $7}}' {input.txt} >> {output.bed}"""
+        """{{\n"""
+        """    echo -e "#CHROM\tPOS\tEND\tID\tSTRAND\tNAME";\n"""
+        """    awk -vOFS="\t" '{{print $2, $3, $4, $5, $6, $7}}' <(zcat {input.txt});\n"""
+        """}} | gzip > {output.bed}"""
+
+# data_oreganno_table_gz
+#
+# Compress ORegAnno annotation table.
+rule data_oreganno_table_gz:
+    input:
+        tsv='temp/data/anno/oreganno/oreganno-table.tsv'
+    output:
+        tsv='data/anno/oreganno/oreganno-table.tsv.gz'
+    shell:
+        """gzip -c {input.tsv} > {output.tsv}"""
 
 # data_oreganno_table
 #
 # Get a table of oreganno annotations.
 rule data_oreganno_table:
     output:
-        tab='data/anno/oreganno/oreganno-table.tab'
+        tsv=temp('temp/data/anno/oreganno/oreganno-table.tsv')
     params:
         url=config['data']['oreganno']['path']
     shell:
-        """wget {params.url} -O {output.tab}"""
+        """wget {params.url} -O {output.tsv}"""
 
 #
 # ENCODE 2020 (DHS: Vierstra 2020, CCRE: Consortium 2020)
@@ -161,9 +178,9 @@ rule data_encode_dhs2020_dl:
 # Subset DHS by minimum score.
 rule data_encode_dhs_cluster_score:
     input:
-        bed='data/anno/dhs_cluster/dhs_cluster_all.bed'
+        bed='data/anno/dhs_cluster/dhs_cluster_all.bed.gz'
     output:
-        bed='data/anno/dhs_cluster/dhs_cluster_{score,[^(all)].*}.bed'
+        bed='data/anno/dhs_cluster/dhs_cluster_{score,[^(all)].*}.bed.gz'
     run:
 
         min_score = int(wildcards.score)
@@ -172,16 +189,16 @@ rule data_encode_dhs_cluster_score:
 
         df = df.loc[df['DHS_SCORE'] >= min_score]
 
-        df.to_csv(output.bed, sep='\t', index=False)
+        df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 # data_encode_dhs_cluster
 #
 # Get DHS cluster BED.
 rule data_encode_dhs_cluster:
     input:
-        txt='temp/data/anno/ucsc/database/wgEncodeRegDnaseClustered.txt'
+        txt='temp/data/anno/ucsc/database/wgEncodeRegDnaseClustered.txt.gz'
     output:
-        bed='data/anno/dhs_cluster/dhs_cluster_all.bed'
+        bed='data/anno/dhs_cluster/dhs_cluster_all.bed.gz'
     run:
 
         df = pd.read_csv(
@@ -190,7 +207,7 @@ rule data_encode_dhs_cluster:
             usecols=('#CHROM', 'POS', 'END', 'DHS_NAME', 'DHS_SCORE', 'DHS_SOURCE_COUNT', 'DHS_SOURCE_IDS', 'DHS_SOURCE_SCORES')
         )
 
-        df.to_csv(output.bed, sep='\t', index=False)
+        df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 
 #
@@ -203,31 +220,33 @@ rule data_encode_dhs_cluster:
 rule data_encode_merge_cells:
     input:
         bed=expand(
-            'data/anno/encode/threshold/{{mark}}_{cell_line}_{{threshold}}.bed',
+            'data/anno/encode/threshold/{{mark}}_{cell_line}_{{threshold}}.bed.gz',
             cell_line=('GM12878', 'H1-hESC', 'HSMM', 'HUVEC', 'K562', 'NHEK', 'NHLF')
         )
     output:
-        bed='data/anno/encode/threshold/{mark}_all_{threshold}.bed'
+        bed='data/anno/encode/threshold/{mark}_all_{threshold}.bed.gz'
     shell:
         """{{\n"""
-        """    head -n 1 {input.bed[0]};\n"""
-        """    cat {input.bed} | egrep -v "^#" | sort -k 1,1 -k2,2n;\n"""
+        """    head -n 1 <(zcat {input.bed[0]});\n"""
+        """    cat <(zcat {input.bed}) | egrep -v "^#" | sort -k 1,1 -k2,2n;\n"""
         """}} | """
-        """bedtools merge -i stdin -header """
-        """> {output.bed}"""
+        """bedtools merge -i stdin -header | """
+        """gzip > {output.bed}"""
 
 # data_encode_threshold_merge
 #
 # Filter by threshold and merge windows within 100 bp.
 rule data_encode_threshold_merge:
     input:
-        bed='data/anno/encode/full/{mark}_{cell_line}_all.bed'
+        bed='data/anno/encode/full/{mark}_{cell_line}_all.bed.gz'
     output:
-        bed='data/anno/encode/threshold/{mark}_{cell_line,[^(all)].*}_{threshold,[^(all)].*}.bed'
+        bed='data/anno/encode/threshold/{mark}_{cell_line,[^(all)].*}_{threshold,[^(all)].*}.bed.gz'
     shell:
-        """awk -vOFS="\\t" '(NR == 1 || $4 >= {wildcards.threshold}) {{print $1, $2, $3}}' {input.bed} | """
-        """bedtools merge -i stdin -d 100 -header"""
-        """>> {output.bed}"""
+        """{{\n"""
+        """    zcat {input.bed} | \n"""
+        """    awk -vOFS="\\t" '(NR == 1 || $4 >= {wildcards.threshold}) {{print $1, $2, $3}}' | \n"""
+        """    bedtools merge -i stdin -d 100 -header;"""
+        """}} | gzip > {output.bed}"""
 
 # data_encode_bw_to_bed
 #
@@ -236,15 +255,14 @@ rule data_encode_bw_to_bed:
     input:
         bw='temp/data/anno/encode/bw/encode_{mark}_{cell_line}.bigWig'
     output:
-        bed='data/anno/encode/full/{mark}_{cell_line}_all.bed',
-        bed_tmp=temp('temp/data/anno/encode/full/{mark}_{cell_line}_all.bed')
+        bed='data/anno/encode/full/{mark}_{cell_line}_all.bed.gz',
+        bed_tmp=temp('temp/data/anno/encode/full/{mark}_{cell_line}_all.bed.gz')
     shell:
         """bigWigToBedGraph {input.bw} {output.bed_tmp}; """
         """{{\n"""
         """    echo -e "#CHROM\tPOS\tEND\tENCODE_SIGNAL";\n"""
         """    cat {output.bed_tmp}\n"""
-        """}} """
-        """> {output.bed}"""
+        """}} | gzip > {output.bed}"""
 
 # data_encode_dl
 #
@@ -274,63 +292,14 @@ rule data_encode_dl:
 # CpG unmasked (includes records in RepeatMasked regions).
 rule data_cpg_unmasked:
     input:
-        txt='temp/data/anno/ucsc/database/cpgIslandExtUnmasked.txt'
+        txt='temp/data/anno/ucsc/database/cpgIslandExtUnmasked.txt.gz'
     output:
-        bed='data/anno/cpgisland/cpgisland_unmasked.bed'
+        bed='data/anno/cpgisland/cpgisland_unmasked.bed.gz'
     shell:
-        """echo -e "#CHROM\tPOS\tEND\tNAME\tLENGTH\tCPG_NUM\tGC_NUM\tCPG_PCT\tGT_PCT\tOBS_EXP" > {output.bed}; """
-        """awk -vOFS="\t" '{{print $2, $3, $4, $5, $6, $7, $8, $9, $10, $11}}' {input.txt} >> {output.bed}"""
-
-
-#
-# VEP (The Ensembl Variant Effect Predictor)
-#
-
-# data_vep_prepare_fasta
-#
-# Prepare VEP FASTA reference.
-rule data_vep_prepare_fasta:
-    input:
-        fasta='temp/data/vep/ver_{vep_version}/fasta/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz'
-    output:
-        fasta='data/vep/ver_{vep_version}/fasta/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz',
-        fai='data/vep/ver_{vep_version}/fasta/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz.fai',
-        gzi='data/vep/ver_{vep_version}/fasta/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz.gzi'
-    shell:
-        """zcat {input.fasta} | """
-        """bgzip >{output.fasta}; """
-        """samtools faidx {output.fasta}"""
-
-# data_vep_dl_fasta
-#
-# Download VEP reference FASTA.
-rule data_vep_dl_fasta:
-    output:
-        fasta=temp('temp/data/vep/ver_{vep_version}/fasta/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz')
-    shell:
-        """wget ftp://ftp.ensembl.org/pub/release-{wildcards.vep_version}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz """
-            """-O {output.fasta}"""
-
-# data_vep_prepare_cache
-#
-# Expand the VEP cache.
-rule data_vep_prepare_cache:
-    input:
-        tar='temp/data/vep/ver_{vep_version}/cache/homo_sapiens_vep_{vep_version}_GRCh38.tar.gz'
-    output:
-        info='data/vep/ver_{vep_version}/cache/homo_sapiens/{vep_version}_GRCh38/info.txt'
-    shell:
-        """tar -zxvf {input.tar} -C data/vep/ver_{wildcards.vep_version}/cache"""
-
-# data_vep_dl_cache
-#
-# Download VEP cache.
-rule data_vep_dl_cache:
-    output:
-        tar=temp('temp/data/vep/ver_{vep_version}/cache/homo_sapiens_vep_{vep_version}_GRCh38.tar.gz')
-    shell:
-        """wget ftp://ftp.ensembl.org/pub/release-{wildcards.vep_version}/variation/VEP/homo_sapiens_vep_{wildcards.vep_version}_GRCh38.tar.gz """
-            """-O {output.tar}"""
+        """{{\n"""
+        """    echo -e "#CHROM\tPOS\tEND\tNAME\tLENGTH\tCPG_NUM\tGC_NUM\tCPG_PCT\tGT_PCT\tOBS_EXP";\n"""
+        """    awk -vOFS="\t" '{{print $2, $3, $4, $5, $6, $7, $8, $9, $10, $11}}' <(zcat {input.txt});\n"""
+        """}} | gzip > {output.bed}"""
 
 
 #
@@ -374,7 +343,7 @@ rule data_rmsk_subset_bed:
     input:
         bed='data/anno/rmsk/full_table/rmsk_all.bed.gz'
     output:
-        bed='data/anno/rmsk/rmsk-{filter_spec}-{ident}.bed'
+        bed='data/anno/rmsk/rmsk-{filter_spec}-{ident}.bed.gz'
     wildcard_constraints:
         filter_spec='[a-z0-9]+',
         ident='((lt|gt)[\d]+)|([\d]+to[\d]+)|all'
@@ -459,7 +428,7 @@ rule data_rmsk_subset_bed:
             raise RuntimeError('No RMSK records after filtering by filter_spec: {}'.format(wildcards.filter_spec))
 
         # Write
-        df.to_csv(output.bed, sep='\t', index=False)
+        df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 
 
@@ -468,7 +437,7 @@ rule data_rmsk_subset_bed:
 # Make RepeatMasker annotation BED file.
 rule data_rmsk_to_bed:
     input:
-        txt='temp/data/anno/ucsc/database/rmsk.txt'
+        txt='temp/data/anno/ucsc/database/rmsk.txt.gz'
     output:
         bed='data/anno/rmsk/full_table/rmsk_all.bed.gz'
     run:
@@ -508,6 +477,8 @@ rule data_sd_max_merge:
         bed='temp/data/anno/sd/sd-max-{match_type}.bed.gz'
     output:
         bed='data/anno/sd/sd-max-{match_type}.bed.gz'
+    wildcard_constraints:
+        match_type='frac|fracindel'
     run:
 
         # Read
@@ -586,13 +557,13 @@ rule data_sd_max:
     output:
         bed=temp('temp/data/anno/sd/sd-max-{match_type}.bed.gz')
     params:
-        frac_field=lambda wildcards: 'fracMatch' if wildcards.match_type == 'frac' else ('fracMatchIndel' if wildcards.match_type == 'fracindel' else 'ERR-UNKNOWN-FIELD')
+        frac_field=lambda wildcards: 'FRAC_MATCH' if wildcards.match_type == 'frac' else ('FRAC_MATCH_INDEL' if wildcards.match_type == 'fracindel' else 'ERR-UNKNOWN-FIELD')
     wildcard_constraints:
         match_type='(frac|fracindel)'
     shell:
         """zcat {input.bed} | awk -vOFS="\\t" '"""
             """NR==1 {{ for (i=1; i<=NF; i++) {{ f[$i] = i }} }} """
-            """{{ print $(f["#chrom"]), $(f["chromStart"]), $(f["chromEnd"]), $(f["{params.frac_field}"]) }} """
+            """{{ print $(f["#CHROM"]), $(f["POS"]), $(f["END"]), $(f["{params.frac_field}"]) }} """
         """' | """
         """bedtools map -a {input.frag_bed} -b stdin -c 4 -o max | """
         """gzip """
@@ -630,11 +601,11 @@ rule data_sd_max_fragment:
         with gzip.open(output.bed, 'wt') as out_file:
 
             # Process each chromosome
-            for chrom in sorted(set(df['#chrom'])):
+            for chrom in sorted(set(df['#CHROM'])):
 
-                df_chrom = df.loc[df['#chrom'] == chrom]
+                df_chrom = df.loc[df['#CHROM'] == chrom]
 
-                pos_list = sorted(set(df_chrom['chromStart']) | set(df_chrom['chromEnd'] - 1))
+                pos_list = sorted(set(df_chrom['POS']) | set(df_chrom['END'] - 1))
 
                 # Find max regions
                 max_region_list = list()
@@ -644,17 +615,17 @@ rule data_sd_max_fragment:
 
                 for index, row in df_chrom.iterrows():
 
-                    if row['chromStart'] > max_end:
+                    if row['POS'] > max_end:
 
                         # List last record
                         if start_pos < max_end:
                             max_region_list.append((start_pos, max_end))
 
-                        start_pos = row['chromStart']
-                        max_end = row['chromEnd']
+                        start_pos = row['POS']
+                        max_end = row['END']
 
                     else:
-                        max_end = np.max([max_end, row['chromEnd']])
+                        max_end = np.max([max_end, row['END']])
 
                 # List last max record
                 if start_pos < max_end:
@@ -676,13 +647,13 @@ rule data_sd_max_fragment:
 # SD track to BED.
 rule data_sd_to_bed:
     input:
-        txt='temp/data/anno/ucsc/database/genomicSuperDups.txt'
+        txt='temp/data/anno/ucsc/database/genomicSuperDups.txt.gz'
     output:
         bed='data/anno/sd/sd.bed.gz'
     shell:
         """{{\n"""
-        """    echo -e "#chrom\\tchromStart\\tchromEnd\\tname\\tstrand\\totherChrom\\totherStart\\totherEnd\\totherSize\\tfracMatch\\tfracMatchIndel"; \n"""
-        """    awk -vOFS="\\t" '{{print $2, $3, $4, $5, $7, $8, $9, $10, $11, $27, $28}}' {input.txt} \n"""
+        """    echo -e "#CHROM\\tPOS\\tEND\\tNAME\\tSTRAND\\tOTHER_CHROM\\tOTHER_POS\\tOTHER_END\\tOTHER_SIZE\\tFRAC_MATCH\\tFRAC_MATCH_INDEL"; \n"""
+        """    awk -vOFS="\\t" '{{print $2, $3, $4, $5, $7, $8, $9, $10, $11, $27, $28}}' <(zcat {input.txt}) \n"""
         """}} | gzip > {output.bed}"""
 
 
@@ -695,11 +666,14 @@ rule data_sd_to_bed:
 # TRF to BED.
 rule data_get_trf_txt_to_bed:
     input:
-        txt='temp/data/anno/ucsc/database/simpleRepeat.txt'
+        txt='temp/data/anno/ucsc/database/simpleRepeat.txt.gz'
     output:
         bed='data/anno/trf/trf.bed.gz'
     shell:
-        """awk 'BEGIN {{OFS="\\t"}} {{print $2, $3, $4}}' {input.txt} | gzip > {output.bed}"""
+        """{{\n"""
+        """    echo -e "#CHROM\tPOS\tEND";\n"""
+        """    awk 'BEGIN {{OFS="\\t"}} {{print $2, $3, $4}}' <(zcat {input.txt});\n"""
+        """}} | gzip > {output.bed}"""
 
 
 #
@@ -753,13 +727,13 @@ rule data_anno_refseq_updown_bed:
 # RefSeq BED.
 rule data_anno_refseq_bed:
     input:
-        refseq='temp/data/anno/ucsc/database/refGene.txt'
+        refseq='temp/data/anno/ucsc/database/refGene.txt.gz'
     output:
         bed='data/anno/refseq/refseq.bed.gz'
     shell:
         """{{\n"""
             """echo -e "#chrom\ttxStart\ttxEnd\tname\tstrand\tcomName\tcdsStart\tcdsEnd\texonStarts\texonEnds"; \n"""
-            """awk -vOFS="\\t" '{{print $3, $5, $6, $2, $4, $13, $7, $8, $10, $11}}' {input.refseq} | \n"""
+            """awk -vOFS="\\t" '{{print $3, $5, $6, $2, $4, $13, $7, $8, $10, $11}}' <(zcat {input.refseq}) | \n"""
             """sort -k1,1 -k2,2n \n"""
         """}} | gzip > {output.bed}"""
 
@@ -773,12 +747,14 @@ rule data_anno_refseq_bed:
 # Get chromosome bands and add a header line
 rule data_get_chrom_bands:
     input:
-        txt='temp/data/anno/ucsc/database/cytoBand.txt'
+        txt='temp/data/anno/ucsc/database/cytoBand.txt.gz'
     output:
-        bed='data/anno/bands/bands.bed'
+        bed='data/anno/bands/bands.bed.gz'
     shell:
-        """echo -e "#chrom\tstart\tend\tname\tgieStain" > {output.bed}; """
-        """cat {input.txt} | sort -k 1,1 -k 2,2n >> {output.bed}"""
+        """{{"""
+        """    echo -e "#chrom\tstart\tend\tname\tgieStain";\n"""
+        """    zcat {input.txt} | sort -k 1,1 -k 2,2n;\n"""
+        """}} | gzip > {output.bed}"""
 
 
 #
@@ -791,22 +767,24 @@ rule data_get_chrom_bands:
 # path") through scaffolds to create the primary assembly.
 rule data_get_agp:
     input:
-        agp='temp/data/anno/ucsc/bigZips/{UCSC_REF_NAME}.agp'
+        txt=lambda wildcards: 'temp/data/anno/ucsc/bigZips/{UCSC_REF_NAME}.agp.gz'.format(UCSC_REF_NAME=UCSC_REF_NAME)
     output:
-        agp='data/anno/agp/agp.bed'
+        bed='data/anno/agp/agp.bed.gz'
     shell:
-        """echo -e "object\tobject_beg\tobject_end\tpart_number\tcomponent_type\tcomponent_id\tcomponent_beg\tcomponent_end\torientation" > {output.agp}; """
-        """cat {input.agp} >> {output.agp}; """
+        """{{\n"""
+        """   echo -e "object\tobject_beg\tobject_end\tpart_number\tcomponent_type\tcomponent_id\tcomponent_beg\tcomponent_end\torientation"\n"""
+        """   zcat {input.txt};\n"""
+        """}} | gzip > {output.bed}; """
 
 # variant_anno_agp_switch_bed
 #
 # Get a BED file of intervals around AGP switchpoints (where contigs in the reference are joined).
 rule variant_anno_agp_switch_bed:
     input:
-        bed='data/anno/agp/agp.bed',
+        bed='data/anno/agp/agp.bed.gz',
         fai=config['reference'] + '.fai'
     output:
-        bed='data/anno/agp/agp_switch_{flank}.bed'
+        bed='data/anno/agp/agp_switch_{flank}.bed.gz'
     run:
 
         # NOTE: Using the BED record CHROM and START as AGP switchpoints. END will be ignored.
@@ -858,7 +836,7 @@ rule variant_anno_agp_switch_bed:
 
         # Write
         df = df.loc[: , ('#CHROM', 'POS', 'END', 'AGP_CONTIG_UP', 'AGP_CONTIG_DOWN')]
-        df.to_csv(output.bed, sep='\t', index=False)
+        df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 #
 # Gaps
@@ -869,12 +847,14 @@ rule variant_anno_agp_switch_bed:
 # Gap to BED.
 rule data_gap_txt_to_bed:
     input:
-        txt='temp/data/anno/ucsc/database/gap.txt'
+        txt='temp/data/anno/ucsc/database/gap.txt.gz'
     output:
-        bed='data/anno/gap/gap.bed'
+        bed='data/anno/gap/gap.bed.gz'
     shell:
-        """echo -e "#CHROM\tSTART\tEND\tNAME\tSIZE\tTYPE\tBRIDGE" > {output.bed}; """
-        """awk -vOFS="\\t" '{{print $2, $3, $4, $2 "-" ($3 + 1) "-" $7 "-" $8 "-" $9, $7, $8, $9}}' {input.txt} >> {output.bed}"""
+        """{{\n"""
+        """    echo -e "#CHROM\tSTART\tEND\tNAME\tSIZE\tTYPE\tBRIDGE";\n"""
+        """    awk -vOFS="\\t" '{{print $2, $3, $4, $2 "-" ($3 + 1) "-" $7 "-" $8 "-" $9, $7, $8, $9}}' <(zcat {input.txt});\n"""
+        """}} | gzip > {output.bed}"""
 
 
 #
@@ -882,102 +862,14 @@ rule data_gap_txt_to_bed:
 #
 rule data_varset_anno_cen:
     input:
-        cen='temp/data/anno/ucsc/database/centromeres.txt'
+        txt='temp/data/anno/ucsc/database/centromeres.txt.gz'
     output:
-        cen='data/anno/cen/cen.bed'
+        bed='data/anno/cen/cen.bed.gz'
     run:
 
-        df = pd.read_csv(input.cen, sep='\t', header=None, names=('BIN', '#CHROM', 'POS', 'END', 'ID'), usecols=('#CHROM', 'POS', 'END', 'ID'))
+        df = pd.read_csv(input.txt, sep='\t', header=None, names=('BIN', '#CHROM', 'POS', 'END', 'ID'), usecols=('#CHROM', 'POS', 'END', 'ID'))
 
-        df.to_csv(output.cen, sep='\t', index=False)
-
-
-#
-# GRC patches
-#
-
-# data_anno_grc_patch_to_tab
-#
-# Ged BED file of GRC patches.
-rule data_anno_grc_patch_to_tab:
-    input:
-        tab='temp/data/anno/grcpatch/grcpatch.tab'
-    output:
-        bed_all='data/anno/grcpatch/grcpatch_all.bed',
-        bed_fix='data/anno/grcpatch/grcpatch_fix.bed',
-        bed_alt='data/anno/grcpatch/grcpatch_alt.bed'
-    run:
-
-        # Read
-        df = pd.read_csv(input.tab, sep='\t', header=0)
-
-        # Set chr names (GRC to UCSC conventions)
-        df = df.loc[df['Chromosome'].apply(lambda val: val in {str(val) for val in range(1, 23)} | {'X', 'Y'})]
-
-        # Get chromosomes and filter "na" regions
-        df['Chromosome'] = svpoplib.ref.grc_to_hg_chrom(df['Chromosome'], 'GRCh38')
-
-        # Mark patch and filter non PATCH or ALT (some are "na")
-        df['Assembly-Unit-Full'] = df['Assembly-Unit']
-        df['Assembly-Unit'] = df['Assembly-Unit'].apply(lambda val: 'ALT' if val.startswith('ALT') else ('FIX' if val == 'PATCHES' else 'OTHER'))
-
-        df = df.loc[df['Assembly-Unit'].apply(lambda val: val in {'ALT', 'FIX'})]
-
-        # Make BED
-        df['Chromosome-Start'] -= 1
-
-        # Sort
-        df.set_index(['Chromosome', 'Chromosome-Start', 'Chromosome-Stop'], inplace=True)
-        df.index.rename(('#CHROM', 'POS', 'END'), inplace=True)
-
-        # Sort
-        df.sort_index(inplace=True)
-
-        # Write
-        df.to_csv(output.bed_all, sep='\t', index=True)
-        df.loc[df['Assembly-Unit'] == 'FIX'].to_csv(output.bed_fix, sep='\t', index=True)
-        df.loc[df['Assembly-Unit'] == 'ALT'].to_csv(output.bed_alt, sep='\t', index=True)
-
-
-# data_anno_grc_patch_dl
-#
-# Download GRC patches (GRCh38, patch 12)
-rule data_anno_grc_patch_dl:
-    output:
-        txt=temp('temp/data/anno/grcpatch/grcpatch_comments.txt'),
-        tab=temp('temp/data/anno/grcpatch/grcpatch.tab')
-    run:
-
-        # Download
-        shell(
-            """wget -P $(dirname {output.txt}) ftp://ftp.ncbi.nlm.nih.gov/genomes/genbank/vertebrate_mammalian/Homo_sapiens/all_assembly_versions/GCA_000001405.27_GRCh38.p12/GCA_000001405.27_GRCh38.p12_assembly_regions.txt; """
-            """mv temp/data/anno/grcpatch/GCA_000001405.27_GRCh38.p12_assembly_regions.txt {output.txt}"""
-        )
-
-        # Remove comments, but keep heading line
-        last_line = None
-
-        with open(output.txt, 'r') as in_file:
-            with open(output.tab, 'w') as out_file:
-
-                # Find header
-                for line in in_file:
-                    line = line.strip()
-
-                    if not line.startswith('#'):
-                        out_file.write(last_line.lstrip('#').strip())
-                        out_file.write('\n')
-                        out_file.write(line)
-                        out_file.write('\n')
-
-                        break
-
-                    last_line = line
-
-                # Write remaining lines
-                for line in in_file:
-                    out_file.write(line.strip())
-                    out_file.write('\n')
+        df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 #
 # Get UCSC Track
@@ -988,7 +880,8 @@ rule data_anno_grc_patch_dl:
 # Download annotations from UCSC.
 rule data_anno_dl_ucsc:
     output:
-        dl=temp('temp/data/anno/ucsc/{subdir,database|bigZips}/{basename}')
+        txt=temp('temp/data/anno/ucsc/{subdir}/{basename}.gz')
+    wildcard_constraints:
+        subdir='database|bigZips'
     shell:
-        """wget -P $(dirname {output.dl}) http://hgdownload.soe.ucsc.edu/goldenPath/{UCSC_REF_NAME}/{wildcards.subdir}/{wildcards.basename}.gz; """
-        """gunzip {output.dl}.gz"""
+        """wget -P $(dirname {output.txt}) http://hgdownload.soe.ucsc.edu/goldenPath/{UCSC_REF_NAME}/{wildcards.subdir}/{wildcards.basename}.gz"""

@@ -6,7 +6,8 @@ import collections
 import pandas as pd
 import re
 
-def bcftools_query_to_tsv(df, sample, strict_sample=False, filter_gt=True):
+
+def bcftools_query_to_tsv(df, sample, strict_sample=False, filter_gt=True, multi_gt_override=False):
     """
     Process a table output from `bcftools query`. Correct column names and extract a target sample.
 
@@ -15,7 +16,9 @@ def bcftools_query_to_tsv(df, sample, strict_sample=False, filter_gt=True):
     :param strict_sample: If the VCF has only one sample, require the same name to match the `sample` field. Otherwise,
         accept any sample name (default).
     :param filter_gt: Filter by the GT column. Only variants with an alternate allele are accepted. If GT is missing and
-        there was only one sample, filtering on GT is skipped.
+        there was only one sample, filtering on GT is skipped. If `filter_gt` is False and there is more than one
+        sample, an error is output unless `multi_gt_override` is `True`; this will output the same variant callset for
+        all samples in the VCF and ignore genotypes.
 
     :return: Formatted dataframe containing variant calls for one sample.
     """
@@ -32,6 +35,11 @@ def bcftools_query_to_tsv(df, sample, strict_sample=False, filter_gt=True):
     vcf_sample_set = {val.rsplit(':', 1)[0] for val in df.columns if ':' in val}
     vcf_sample_count = len(vcf_sample_set)
 
+    # Check number of samples
+    if not filter_gt and vcf_sample_count > 1 and not multi_gt_override:
+        raise RuntimeError(f'Must filter by genotype if more than one sample is present in the VCF (found {vcf_sample_count}): Set "multi_gt_override=True" to override and output the same calls for all samples in the VCF')
+
+    # Adjust column labels and select target sample
     if vcf_sample_count > 1:
 
         # Multiple samples in VCF
@@ -43,7 +51,7 @@ def bcftools_query_to_tsv(df, sample, strict_sample=False, filter_gt=True):
         target_sample = sample
 
     else:
-        # zero or sample
+        # zero or one sample
 
         # Fail if strict_samples and sample name does not match
         if strict_sample and sample not in vcf_sample_set:

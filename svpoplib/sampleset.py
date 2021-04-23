@@ -13,15 +13,15 @@ import svpoplib.sm
 DEFAULT_RESOURCES = {
     'sampleset': {
         'cpu': '4',
-        'mem': '4G',
+        'mem': '12000',
         'rt': '48:00:00',
-        'anno_mem': '12G'
+        'anno_mem': '12000'
     },
     'callerset': {
         'cpu': '4',
-        'mem': '4G',
+        'mem': '12000',
         'rt': '48:00:00',
-        'anno_mem': '8G'
+        'anno_mem': '8000'
     }
 }
 
@@ -66,6 +66,8 @@ def get_config_entry(sampleset_name, sampleset_list, config):
     if sampleset_config is None:
         raise RuntimeError('Missing definition in config for sampleset: {}'.format(sampleset_name))
 
+    sampleset_config = sampleset_config.copy()
+
     # Parse entries
     sampleset_entry = dict()
 
@@ -109,6 +111,10 @@ def get_config_entry(sampleset_name, sampleset_list, config):
         raise RuntimeError('Restricted key "sampleset_name" was found in sampleset {}'.format(sampleset_name))
 
     sampleset_entry['sampleset_name'] = sampleset_name
+
+    # Get params
+    sampleset_entry['param_string'] = sampleset_entry.get('params', None)
+    sampleset_entry['params'] = svpoplib.util.parse_param_string(sampleset_entry['param_string'])
 
     # Return entry
     return sampleset_entry
@@ -228,7 +234,7 @@ def cluster_param_cpu(wildcards, config):
 
     return int(
         get_merge_strategy(
-            get_config_entry(wildcards.sampleset, wildcards.samplelist, config),
+            get_config_entry(wildcards.sourcename, wildcards.sample, config),
             wildcards.vartype,
             wildcards.svtype
         ).get('cpu', DEFAULT_RESOURCES['sampleset']['cpu'])
@@ -242,7 +248,7 @@ def cluster_param_mem(wildcards, config):
 
     return \
         get_merge_strategy(
-            get_config_entry(wildcards.sampleset, wildcards.samplelist, config),
+            get_config_entry(wildcards.sourcename, wildcards.sample, config),
             wildcards.vartype,
             wildcards.svtype
         ).get('mem', DEFAULT_RESOURCES['sampleset']['mem'])
@@ -255,7 +261,7 @@ def cluster_param_rt(wildcards, config):
 
     return \
         get_merge_strategy(
-            get_config_entry(wildcards.sampleset, wildcards.samplelist, config),
+            get_config_entry(wildcards.sourcename, wildcards.sample, config),
             wildcards.vartype,
             wildcards.svtype
         ).get('rt', DEFAULT_RESOURCES['sampleset']['rt'])
@@ -268,7 +274,7 @@ def cluster_param_anno_mem(wildcards, config):
 
     return \
         get_merge_strategy(
-            get_config_entry(wildcards.sampleset, wildcards.samplelist, config),
+            get_config_entry(wildcards.sourcename, wildcards.sample, config),
             wildcards.vartype,
             wildcards.svtype
         ).get('anno_mem', DEFAULT_RESOURCES['sampleset']['anno_mem'])
@@ -387,3 +393,63 @@ def get_merge_strategy(sampleset_entry, vartype, svtype):
     }
 
     return merge_dict
+
+
+def fa_write_func(df, wildcards, sampleset_entry, fa_input_pattern):
+    """
+    Function to yield a sequence record iterator for rule variant_sampleset_fa_merge.
+
+    :param df: DataFrame with SAMPLE, ID_SAMPLE (original pre-merged ID), and ID.
+    :param wildcards: Rule wildcards.
+    :param sampleset_entry: Sampleset entry.
+    :param fa_input_pattern: FASTA file input pattern for input into the merge.
+
+    :return: SeqRecord iterator.
+    """
+
+    # Get format processing items
+    fa_dict = {sample: fa_file for sample, fa_file in svpoplib.sampleset.get_sample_set_input(
+        wildcards.sourcename,
+        wildcards.sample,
+        fa_input_pattern,
+        config,
+        wildcards,
+        as_tuple=True
+    )}
+
+    # Get parameters
+    if 'fa_incomplete' in sampleset_entry['params']:
+        fa_incomplete = svpoplib.util.as_bool(sampleset_entry['params'].get('fa_incomplete'), none_val=True)
+    else:
+        fa_incomplete = False
+
+    # Process samples
+    for sample in sampleset_entry['samples']:
+
+        id_dict = dict(df.loc[df['SAMPLE'] == sample, ['ID_SAMPLE', 'ID']].set_index('ID_SAMPLE').squeeze())
+        id_set = set(id_dict.keys())
+
+        # Open file
+        in_file_name = fa_dict[sample]
+
+        found_ids = set()
+
+        with gzip.open(in_file_name, 'rt') as in_file:
+            for record in SeqIO.parse(in_file, 'fasta'):
+
+                found_ids.add(record.id)
+
+                if record.id in id_set:
+                    record.id = id_dict[record.id]
+                    yield record
+
+        # Check for missing IDs
+        if not fa_incomplete:
+            missing_ids = id_set - found_ids
+
+            if missing_ids:
+                raise RuntimeError('Missing {} variant ID(s) for sample {} when merging FASTAs: {}{}: {}'.format(
+                    len(missing_ids), sample,
+                    ', '.join(sorted(missing_ids)[:3]), '...' if len(missing_ids) > 3 else '',
+                    in_file_name
+                ))

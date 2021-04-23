@@ -306,7 +306,7 @@ rule variant_anno_repeat_trf_run:
             shell(
                 """INPUT_FA=$(readlink -f {input.fa}); """
                 """cd $(dirname {output.out}); """
-                """{SVPOP_DIR}/scripts/anno/trf ${{INPUT_FA}} 2 7 7 80 10 20 2000 -ngs -h > $(basename {output.out})"""
+                """trf ${{INPUT_FA}} 2 7 7 80 10 20 2000 -ngs -h > $(basename {output.out})"""
             )
         else:
             shell("""touch {output.out}""")

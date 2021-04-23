@@ -2,15 +2,22 @@
 Functions designed to directly support rules, such as input functions for Snakemake rules.
 """
 
+import os
+import pandas as pd
 import re
 
-def sample_table_entry(name, sample_table, sample=None, wildcards=None):
+import svpoplib
+
+
+def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=None):
     """
     Get an entry from sample_table (SAMPLE_TABLE read by `Snakefile`).
 
     :param name: Sample table record name.
+    :param sample_table: Sample table DataFrame.
     :param sample: Sample name. If not present, extract from "sample" entry in `wildcards`.
     :param wildcards: If present, parse the table entry with this value. Otherwise, parse with sample=sample.
+    :param type: Entry must be declared as this type (points to parser used to process the input data).
 
     :return: A configuration entry (Pandas.Series).
     """
@@ -50,6 +57,13 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None):
 
     sample_entry = sample_table.loc[(name, seq_set, entry_sample)].copy()
 
+    # Check type
+    if type is not None:
+        if sample_entry['TYPE'] != type:
+            raise RuntimeError('Source type mismatch  for sample entry ({}, {}, {}): Expected type "{}", entry has type "{}"'.format(
+                name, sample, seq_set, type, sample_entry['TYPE']
+            ))
+
     # Save wildcards (some rules need to know which wildcards were replaced)
     # Track sample name (actual sample name or DEFAULT) an the original DATA pattern.
     sample_entry['WILDCARDS'] = set(re.findall(r'\{([^\{\}]+)\}', sample_entry['DATA']))
@@ -84,7 +98,67 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None):
 
         sample_entry['DATA'] = sample_entry['DATA'].format(sample=sample)
 
+    # Set params
+    sample_entry['PARAM_STRING'] = sample_entry['PARAMS']
+    sample_entry['PARAMS'] = svpoplib.util.parse_param_string(sample_entry['PARAM_STRING'])
+
     return sample_entry
+
+
+def get_bed_fa_input(sample_entry, wildcards, default=None):
+    """
+    Locate FASTA sequence input file.
+
+    :param sample_entry: Entry from the sample table.
+
+    :return: FASTA input file location
+    """
+
+    # Check for explicit location
+    if 'fa_pattern' in sample_entry['PARAMS']:
+        if sample_entry['PARAMS'] is None or not sample_entry['PARAMS'].strip():
+            return default
+
+        return sample_entry['PARAMS'].format(**wildcards)
+
+    fa_file_name = os.path.join(
+        os.path.dirname(sample_entry['DATA']),
+        'fa',
+        '{vartype}_{svtype}.fa.gz'.format(**wildcards)
+    )
+
+    if os.path.isfile(fa_file_name):
+        return fa_file_name
+
+    return default
+
+
+def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=None, type=None):
+    """
+    Parse a file pattern with wildcards derived from rule wildcards and the sample config.
+
+    :param file_pattern: Pattern to parse. Format patterns are filled by wildcards with "seq_set", "sourcename_base",
+        and "source_type" derived from the sample entry.
+    :param name: Sample table record name.
+    :param sample_table: Sample table DataFrame.
+    :param sample: Sample name. If not present, extract from "sample" entry in `wildcards`.
+    :param wildcards: If present, parse the table entry with this value. Otherwise, parse with sample=sample.
+    :param type: Entry must be declared as this type (points to parser used to process the input data).
+
+    :return: `file_pattern` with patterns filled in.
+    """
+
+    # Get sample entry
+    sample_entry = sample_table_entry(name=name, sample_table=sample_table, sample=sample, wildcards=wildcards, type=type)
+
+    # Set wildcards
+    wildcards = dict(wildcards)
+
+    wildcards['seq_set'] = sample_entry['SET']
+    wildcards['sourcename_base'] = sample_entry['NAME']
+    wildcards['source_type'] = sample_entry['TYPE']
+
+    return file_pattern.format(**wildcards)
 
 
 # def variant_global_sample_info_entry(sample):

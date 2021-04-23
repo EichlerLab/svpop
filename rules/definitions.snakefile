@@ -28,7 +28,7 @@ def get_svtype_label(svtype):
     elif svtype == 'dup':
         return 'Duplications'
 
-    elif svtype == 'all':
+    elif svtype == 'insdelinv':
         return 'INS/DEL/INV'
 
     elif svtype == 'insdel':

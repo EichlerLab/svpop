@@ -9,12 +9,6 @@ import snakemake.io
 import svpoplib.sm
 
 
-DEFAULT_MERGE_CPU = '4'
-DEFAULT_MERGE_MEM = '4G'
-DEFAULT_MERGE_RT = '48:00:00'
-DEFAULT_ANNO_MEM = '8G'
-
-
 def get_config_entry(callerset, config):
     """
     Get config entry for this caller set and check it.
@@ -31,6 +25,8 @@ def get_config_entry(callerset, config):
 
     if callerset_entry is None:
         raise RuntimeError('Missing definition in config for callerset: {}'.format(callerset))
+
+    callerset_entry = callerset_entry.copy()
 
     # Check for path_list and name_list
     missing_list = [key for key in {'callsets', 'name_list', 'merge'} if key not in callerset_entry]
@@ -64,6 +60,10 @@ def get_config_entry(callerset, config):
         callerset_entry['description'] = None
     else:
         callerset_entry['description'] = callerset_entry['description'].strip()
+
+    # Get params
+    callerset_entry['param_string'] = callerset_entry.get('params', None)
+    callerset_entry['params'] = svpoplib.util.parse_param_string(callerset_entry['param_string'])
 
     # Return entry
     return callerset_entry
@@ -169,6 +169,40 @@ def merge_annotations(df_merge, callerset_input, callerset_entry, sort_columns=[
     return df_anno
 
 
+def fa_iter(df, callerset_entry, callerset_input):
+    """
+    Return FASTA records for callerset merges. Selects the lead variant FASTA record for each merged variant.
+
+    :param df: Dataframe with ID, CALLERSET_SRC_ID and CALLERSET_SRC columns.
+    :param callerset_entry: Callerset entry (`svpoplib.callerset.get_config_entry(wildcards.sourcename, config)`).
+    :param callerset_input: List of input FASTA file in the same order as `callerset_entry['name_list']`
+
+    :return: An iterator for selected FASTA records.
+    """
+
+    # Get parameters
+    if 'fa_incomplete' in callerset_entry['params']:
+        fa_incomplete = svpoplib.util.as_bool(callerset_entry['params'].get('fa_incomplete'), none_val=True)
+    else:
+        fa_incomplete = False
+
+    for index in range(len(callerset_entry['name_list'])):
+        caller = callerset_entry['name_list'][index]
+
+        df_caller = df.loc[df['CALLERSET_SRC'] == caller]
+
+        id_dict = dict(
+            zip(
+                df_caller['CALLERSET_SRC_ID'], df_caller['ID']
+            )
+        )
+
+        for record in svpoplib.seq.fa_to_record_iter(
+            callerset_input[index], id_dict, require_all=not fa_incomplete
+        ):
+            yield record
+
+
 def cluster_param_cpu(wildcards, config):
     """
     Get number of cores to be allocated for variant merge jobs.
@@ -176,7 +210,7 @@ def cluster_param_cpu(wildcards, config):
 
     return int(
         svpoplib.sampleset.get_merge_strategy(
-            get_config_entry(wildcards.callerset, config),
+            get_config_entry(wildcards.sourcename, config),
             wildcards.vartype,
             wildcards.svtype
         ).get('cpu', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['cpu'])
@@ -190,7 +224,7 @@ def cluster_param_mem(wildcards, config):
 
     return \
         svpoplib.sampleset.get_merge_strategy(
-            get_config_entry(wildcards.callerset, config),
+            get_config_entry(wildcards.sourcename, config),
             wildcards.vartype,
             wildcards.svtype
         ).get('mem', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['mem'])
@@ -203,7 +237,7 @@ def cluster_param_rt(wildcards, config):
 
     return \
         svpoplib.sampleset.get_merge_strategy(
-            get_config_entry(wildcards.callerset, config),
+            get_config_entry(wildcards.sourcename, config),
             wildcards.vartype,
             wildcards.svtype
         ).get('rt', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['rt'])
@@ -216,7 +250,7 @@ def cluster_param_anno_mem(wildcards, config):
 
     return \
         svpoplib.sampleset.get_merge_strategy(
-            get_config_entry(wildcards.callerset, config),
+            get_config_entry(wildcards.sourcename, config),
             wildcards.vartype,
             wildcards.svtype
         ).get('anno_mem', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['anno_mem'])
@@ -228,7 +262,7 @@ def cluster_param_anno_mem(wildcards, config):
 #     """
 #
 #     return int(get_config_entry(
-#         wildcards.callerset, config
+#         wildcards.sourcename, config
 #     ).get('cpu', '4'))
 #
 #
@@ -238,7 +272,7 @@ def cluster_param_anno_mem(wildcards, config):
 #     """
 #
 #     return get_config_entry(
-#         wildcards.callerset, config
+#         wildcards.sourcename, config
 #     ).get('mem', '2G')
 #
 #
@@ -248,7 +282,7 @@ def cluster_param_anno_mem(wildcards, config):
 #     """
 #
 #     return get_config_entry(
-#         wildcards.callerset, config
+#         wildcards.sourcename, config
 #     ).get('anno_mem', '4G')
 #
 #
@@ -258,5 +292,5 @@ def cluster_param_anno_mem(wildcards, config):
 #     """
 #
 #     return get_config_entry(
-#         wildcards.callerset, config
+#         wildcards.sourcename, config
 #     ).get('rt', '48:00:00')

@@ -124,7 +124,7 @@ else:
 
 ### Shell prefix ###
 
-SHELL_PREFIX = ''
+SHELL_PREFIX = 'set -euo pipefail; '
 
 SETENV_SITE = f'{SVPOP_DIR}/config/setenv.sh'
 SETENV_LOCAL = 'config/setenv.sh'
@@ -155,15 +155,23 @@ include: 'rules/data/ref.snakefile'
 ## Variants ##
 
 # Variant tools
-# include: 'rules/variant/intersect.snakefile'
-# include: 'rules/variant/intersect_nearest.snakefile'
-# include: 'rules/variant/svset.snakefile'
+include: 'rules/variant/intersect.snakefile'
+include: 'rules/variant/intersect_nearest.snakefile'
 include: 'rules/variant/variant_global.snakefile'
+include: 'rules/variant/svset.snakefile'
+include: 'rules/variant/svtypecombined.snakefile'
+include: 'rules/variant/bedconversion.snakefile'
 
-# Variant BED parsers
-# include: 'rules/variant/bed/bed.snakefile'
+# include: 'rules/variant/intersect_nearest.snakefile'
+
+# Variant BED parsers for callers (commented - need to update for flexible input parsing)
 include: 'rules/variant/bed/pavbed.snakefile'
 include: 'rules/variant/bed/pbsv.snakefile'
+include: 'rules/variant/bed/sniffles.snakefile'
+include: 'rules/variant/bed/svim.snakefile'
+include: 'rules/variant/bed/bed.snakefile'
+
+# Other variant BED rules
 
 
 # include: 'rules/variant/caller/bionano/bed.snakefile'
@@ -180,12 +188,17 @@ include: 'rules/variant/bed/pbsv.snakefile'
 # include: 'rules/variant/caller/svimASM/bed.snakefile'
 
 # Annotations
-# include: 'rules/variant/caller/anno/aligndepth.snakefile'
+
 include: 'rules/variant/anno/altmap.snakefile'
+include: 'rules/variant/anno/refseq.snakefile'
+include: 'rules/variant/anno/regions.snakefile'
+include: 'rules/variant/anno/regulation.snakefile'
 include: 'rules/variant/anno/repeats.snakefile'
+
+# include: 'rules/variant/caller/anno/aligndepth.snakefile'
 # include: 'rules/variant/caller/anno/global.snakefile'
 # include: 'rules/variant/caller/anno/homopolymer.snakefile'
-# include: 'rules/variant/caller/anno/regions.snakefile'
+
 # include: 'rules/variant/caller/anno/refseq.snakefile'
 # include: 'rules/variant/caller/anno/regulation.snakefile'
 # include: 'rules/variant/caller/anno/repeats.snakefile'
@@ -195,12 +208,11 @@ include: 'rules/variant/anno/repeats.snakefile'
 # include: 'rules/variant/caller/tables.snakefile'
 # include: 'rules/variant/caller/vcf.snakefile'
 
-# Caller set
-# include: 'rules/variant/callerset/bed.snakefile'
-# include: 'rules/variant/callerset/anno.snakefile'
+# Callerset
+include: 'rules/variant/callerset.snakefile'
 
 # Sample set
-# include: 'rules/variant/sampleset/bed.snakefile'
+include: 'rules/variant/sampleset/bed.snakefile'
 # include: 'rules/variant/sampleset/anno.snakefile'
 # include: 'rules/variant/sampleset/tables.snakefile'
 

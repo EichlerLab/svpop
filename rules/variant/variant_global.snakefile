@@ -26,15 +26,21 @@ Global rules for variants.
 # Apply a BED filter to SVs.
 rule variant_global_filter_region:
     input:
-        bed='temp/variant/caller/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz',
-        fa='temp/variant/caller/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz',
+        bed=lambda wildcards: svpoplib.rules.parse_wildcards(
+            'temp/variant/caller/{source_type}/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz',
+            wildcards.sourcename_base, SAMPLE_TABLE, wildcards.sample, wildcards
+        ),
+        fa=lambda wildcards: svpoplib.rules.parse_wildcards(
+            'temp/variant/caller/{source_type}/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz',
+            wildcards.sourcename_base, SAMPLE_TABLE, wildcards.sample, wildcards
+        ),
         filter=lambda wildcards: svpoplib.variant.get_filter_bed(wildcards.filter, UCSC_REF_NAME, config, SVPOP_DIR)
     output:
-        bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
-        fa='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
-        bed_filt='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/filter_dropped/{vartype}_{svtype}_dropped.bed.gz'
+        bed='results/variant/caller/{sourcename_base}-{seq_set}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        fa='results/variant/caller/{sourcename_base}-{seq_set}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+        bed_filt='results/variant/caller/{sourcename_base}-{seq_set}/{sample}/{filter}/all/bed/filter_dropped/{vartype}_{svtype}_dropped.bed.gz'
     wildcard_constraints:
-        svtype='ins|del|inv|dup|rgn|sub'
+        svtype='ins|del|inv|snv|dup|rgn|sub'
     run:
 
         # Find FASTA file
@@ -58,44 +64,22 @@ rule variant_global_filter_region:
             id_set = set(pd.read_csv(output.bed, sep='\t', usecols=('ID', ))['ID'])
 
             with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
-                SeqIO.write(svpoplib.seq.fa_to_record_iter(input.fa, id_set), out_file, 'fasta')
+                SeqIO.write(svpoplib.seq.fa_to_record_iter(input.fa, id_set, require_all=False), out_file, 'fasta')
 
         else:
             # Write empty FASTA
             with open(output.fa, 'w') as out_file:
                 pass
 
-# variant_global_byref_to_bylen
-#
-# Variant byref to bylen.
-rule variant_global_byref_to_bylen:
-    input:
-        bed='results/variant/{sourcetype}/{sourcename}/{sample}/{svset}/{filter}/bed/{vartype}_{svtype}.bed.gz'
-    output:
-        bed='temp/variant/{sourcetype}/{sourcename}/{sample}/{svset}/{filter}/bed/bylen/{vartype}_{svtype}.bed.gz'
-    run:
-
-        if wildcards.svtype == 'ins':
-            # Read
-            df = pd.read_csv(input.bed, sep='\t', header=0)
-
-            df['END'] = df['POS'] + df['SVLEN']
-            df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
-
-        else:
-            shell(
-                """ln -sf ../byref/{wildcards.vartype}_{wildcards.svtype}.bed {output.bed}; """
-            )
-
 # variant_global_vcf_gz
 #
 # Compress VCF files
 rule variant_global_vcf_gz:
     input:
-        vcf='temp/{sourcetype}/{sourcename}/{sample}/{varset}/{filter}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf'
+        vcf='temp/{sourcetype}/{sourcename}/{sample}/{filter}/{varset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf'
     output:
-        vcf='results/{sourcetype}/{sourcename}/{sample}/{varset}/{filter}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz',
-        tbi='results/{sourcetype}/{sourcename}/{sample}/{varset}/{filter}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz.tbi'
+        vcf='results/{sourcetype}/{sourcename}/{sample}/{filter}/{varset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz',
+        tbi='results/{sourcetype}/{sourcename}/{sample}/{filter}/{varset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz.tbi'
     wildcard_constraints:
         ref='grc|hc',
         fmt='sv|alt'

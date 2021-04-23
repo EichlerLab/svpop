@@ -373,8 +373,9 @@ def merge_variants_nr(bed_list, sample_names, merge_params, subset_chrom=None, t
             ))
 
         # Subset chromosome
-        if subset_chrom is not None:
-            df_next = df_next.loc[df_next['#CHROM'] == subset_chrom]
+        # Done by pd.read_csv_chrom
+        #if subset_chrom is not None:
+        #    df_next = df_next.loc[df_next['#CHROM'] == subset_chrom]
 
         # Check for REF and ALT
         if match_ref and 'REF' not in df_next.columns:
@@ -1083,17 +1084,17 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
             df_merge[col] = df_merge[col].astype(OPT_COL_DTYPE[col])
 
     # Add discovery class
-    if 'DISC_CLASS' not in col_list and 'MERGE_AF' in opt_columns and 'MERGE_AC' in opt_columns:
-        if df_merge.shape[0] > 0:
-            df_merge['DISC_CLASS'] = get_disc_class(df_merge)
-            col_list.append('DISC_CLASS')
-        else:
-            df_merge = pd.DataFrame([], columns=col_list + ['DISC_CLASS'])
+#    if 'DISC_CLASS' not in col_list and 'MERGE_AF' in opt_columns and 'MERGE_AC' in opt_columns:
+#        if df_merge.shape[0] > 0:
+#            df_merge['DISC_CLASS'] = get_disc_class(df_merge)
+#            col_list.append('DISC_CLASS')
+#        else:
+#            df_merge = pd.DataFrame([], columns=col_list + ['DISC_CLASS'])
 
     # Sort
     df_merge.sort_values(['#CHROM', 'POS'], inplace=True)
 
-    # Order columns
+    # Get column order
     head_cols = ['#CHROM', 'POS', 'END', 'ID']
 
     if 'SVTYPE' in df_merge.columns:
@@ -1104,6 +1105,15 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
 
     tail_cols = [col for col in col_list if col not in head_cols]
 
+    # Add missing columns (unique fields from a caller with no records, keeps it consistent with the whole callset)
+    for col in col_list:
+        if col not in df_merge.columns:
+            if col in head_cols:
+                raise RuntimeError(f'Missing head column while merging sample support (post-merge step to prepare final table): {col}')
+
+            df_merge[col] = np.nan
+
+    # Order columns
     df_merge = df_merge.loc[:, head_cols + tail_cols]
 
     df_merge.reset_index(drop=True, inplace=True)
@@ -1140,7 +1150,7 @@ def get_support_table(df, df_next, threads, offset_max, ro_szro_min, match_ref, 
             for row_index, row in df_chrom.iterrows():
                 tree.addi(
                     row['POS'] - interval_flank,
-                    row['END'] + interval_flank,
+                    (row['END'] if row['SVTYPE'] != 'INS' else row['POS'] + row['SVLEN']) + interval_flank,
                     ({row['ID']}, set())
                 )
 
@@ -1149,7 +1159,7 @@ def get_support_table(df, df_next, threads, offset_max, ro_szro_min, match_ref, 
             for row_index, row in df_next_chrom.iterrows():
 
                 pos = row['POS']
-                end = row['END']
+                end = (row['END'] if row['SVTYPE'] != 'INS' else row['POS'] + row['SVLEN'])
 
                 source_rows = set()
                 target_rows = {row['ID']}
