@@ -62,7 +62,7 @@ rule variant_anno_caller_region_intersect:
 # Get band for each variant. Excludes SVs on unplaced and unlocalized chromosomes.
 rule variant_anno_caller_region_band:
     input:
-        bed='temp/variant/caller/{sourcename}/{sample}/{filter}/all/anno/bands/bands_{vartype}_{svtype}.bed'
+        bed='temp/variant/caller/{sourcename}/{sample}/{filter}/all/anno/bands/bands_{vartype}_{svtype}.bed.gz'
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/bands/bands_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
@@ -95,15 +95,15 @@ rule variant_anno_caller_region_band:
 rule variant_anno_caller_region_band_intersect:
     input:
         bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
-        bands='data/anno/bands/bands.bed'
+        bands='data/anno/bands/bands.bed.gz'
     output:
         bed=temp('temp/variant/caller/{sourcename}/{sample}/{filter}/all/anno/bands/bands_{vartype}_{svtype}.bed.gz')
     wildcard_constraints:
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
-        """{{ \n"""
-        """    echo -e $(cut -f 1-4 {input.bed} | head -n 1) "\\t" $(head -n 1 {input.bands}) | sed -re 's/\s+/\t/g';\n"""
-        """    cut -f 1-4 {input.bed} | bedtools intersect -a stdin -b {input.bands} -sorted -loj;\n"""
+        """{{\n"""
+        """    echo -e $(cut -f 1-4 <(zcat {input.bed}) | head -n 1) "\\t" $(head -n 1 <(zcat {input.bands})) | sed -re 's/\s+/\t/g';\n"""
+        """    cut -f 1-4 <(zcat {input.bed}) | bedtools intersect -a stdin -b {input.bands} -sorted -loj;\n"""
         """}} | gzip > {output.bed}"""
 
 #
@@ -176,13 +176,13 @@ rule variant_anno_caller_sd_max:
         bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
         sd_bed='data/anno/sd/sd-max-{match_type}.bed.gz'
     output:
-        tab='results/variant/caller/{sourcename}/anno/{sample}/all/{filter}/sd/sd-max-{match_type}_{vartype}_{svtype}.tsv.gz'
+        tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/sd/sd-max-{match_type}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""
         """    echo -e "ID\\tMATCH_MIN\\tMATCH_MAX";\n"""
-        """    cut -f1-4 {input.bed} |\n"""
+        """    cut -f1-4 <(zcat {input.bed}) |\n"""
         """    bedtools map -a stdin -b {input.sd_bed} -c 4 -o min,max |\n"""
         """    cut -f4-6\n"""
         """}} | gzip > {output.tsv}"""

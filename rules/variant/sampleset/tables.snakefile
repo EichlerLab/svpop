@@ -10,35 +10,35 @@ SVTYPE_ORDER = ['INS', 'DEL', 'INV', 'SNV']
 # TSV to Excel.
 rule variant_sampleset_table_unmerged_variants_xlsx:
     input:
-        tab='results/variant/sampleset/{sampleset}/tables/{samplelist}/{svset}/{filter}/pre_merge/{vartype}_{svtype}.tab'
+        tsv='results/variant/sampleset/{sourcename}/{sample}/{filter}/{svset}/tables/pre_merge/{vartype}_{svtype}.tsv.gz'
     output:
-        xlsx='results/variant/sampleset/{sampleset}/tables/{samplelist}/{svset}/{filter}/pre_merge/{vartype}_{svtype}.xlsx'
+        xlsx='results/variant/sampleset/{sourcename}/{sample}/{filter}/{svset}/tables/pre_merge/{vartype}_{svtype}.xlsx'
     run:
 
         pd.read_csv(
-            input.tab, sep='\t'
+            input.tsv, sep='\t'
         ).to_excel(
             output.xlsx, index=False
         )
 
 rule variant_sampleset_table_unmerged_variants:
     input:
-        tab=lambda wildcards: analib.sampleset.get_sample_set_input(
+        tsv=lambda wildcards: svpoplib.sampleset.get_sample_set_input(
             wildcards.sampleset,
             wildcards.samplelist,
-            'results/variant/{sourcetype}/{sourcename}/tables/{sample}/{svset}/{filter}/variant_summary/{vartype}_{svtype}.tab',
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/tables/variant_summary/{vartype}_{svtype}.tsv.gz',
             config,
             wildcards
         )
     output:
-          tab='results/variant/sampleset/{sampleset}/tables/{samplelist}/{svset}/{filter}/pre_merge/{vartype}_{svtype}.tab'
+          tsv='results/variant/sampleset/{sourcename}/{sample}/{filter}/{svset}/tables/pre_merge/{vartype}_{svtype}.tsv.gz'
     run:
 
-        sampleset_entry = analib.sampleset.get_config_entry(wildcards.sampleset, wildcards.samplelist, config)
+        sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sampleset, wildcards.samplelist, config)
 
         # Read
         df = pd.concat(
-            [pd.read_csv(file_name, sep='\t') for file_name in input.tab],
+            [pd.read_csv(file_name, sep='\t') for file_name in input.tsv],
             axis=0
         )
 
@@ -73,4 +73,4 @@ rule variant_sampleset_table_unmerged_variants:
         df = df.reindex(sampleset_entry['samples'])
 
         # Save
-        df.to_csv(output.tab, sep='\t')
+        df.to_csv(output.tsv, sep='\t', compression='gzip')

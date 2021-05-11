@@ -16,44 +16,44 @@ Merge annotations from a merged set of samples.
 # Merge annotations for a sample set.
 rule variant_sampleset_anno_merge:
     input:
-        bed='results/variant/sampleset/{sampleset}/bed/{samplelist}/all/{filter}/byref/{vartype}_{svtype}.bed',
-        tab=lambda wildcards: analib.sampleset.get_sample_set_input(
-            wildcards.sampleset,
-            wildcards.samplelist,
-            'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/{annodir}/{annotype}_{vartype}_{svtype}.{ext}',
+        bed='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        tab=lambda wildcards: svpoplib.sampleset.get_sample_set_input(
+            wildcards.sourcename,
+            wildcards.sample,
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz',
             config,
             wildcards
         )
     output:
-        tab='results/variant/sampleset/{sampleset}/anno/{samplelist}/all/{filter}/{annodir}/{annotype}_{vartype}_{svtype}.{ext}'
+        tab='results/variant/sampleset/{sampleset}/anno/{samplelist}/all/{filter}/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
     params:
-        mem=lambda wildcards: analib.sampleset.cluster_param_anno_mem(wildcards, config),
+        mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config),
     wildcard_constraints:
         filter='\\w+',
         svtype='ins|del|inv|dup|sub|rgn|snv',
         sample='[a-zA-Z0-9\\.]+',
-        ext='tab|bed'
+        ext='tsv|bed'
     run:
 
         # Read
         df = pd.read_csv(input.bed, sep='\t', header=0)
 
         # Get sources.
-        sampleset_input = analib.sampleset.get_sample_set_input(
+        sampleset_input = svpoplib.sampleset.get_sample_set_input(
             wildcards.sampleset,
             wildcards.samplelist,
-            'results/variant/{sourcetype}/{sourcename}/anno/{sample}/all/{filter}/{annodir}/{annotype}_{vartype}_{svtype}.{ext}',
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz',
             config,
             wildcards
         )
 
         # Get entry
-        sampleset_entry = analib.sampleset.get_config_entry(wildcards.sampleset, wildcards.samplelist, config)
+        sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sampleset, wildcards.samplelist, config)
 
         # Merge annotations
-        df_merge = analib.sampleset.merge_annotations(
+        df_merge = svpoplib.sampleset.merge_annotations(
             df, sampleset_input, sampleset_entry
         )
 
         # Write
-        df_merge.to_csv(output.tab, sep='\t', index=False)
+        df_merge.to_csv(output.tab, sep='\t', index=False, compression='gzip')

@@ -12,10 +12,10 @@ Global rules for callers.
 # Group variant calls and annotations - sv_all (ins/del/inv)
 #
 
-# variant_global_concat_anno_sv_all
+# variant_global_concat_anno_sv_insdelinv
 #
-# Concatenate annotations.
-rule variant_global_concat_anno_sv_all:
+# Concatenate annotations for SV types: ins, del, and inv.
+rule variant_global_concat_anno_sv_insdelinv:
     input:
         tsv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_ins.{ext}.gz',
         tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_del.{ext}.gz',
@@ -25,7 +25,7 @@ rule variant_global_concat_anno_sv_all:
     run:
 
         # Concat
-        df = analib.pd.concat_frames(
+        df = svpoplib.pd.concat_frames(
             [pd.read_csv(file_name, sep='\t', header=0) for file_name in input]
         )
 
@@ -38,10 +38,10 @@ rule variant_global_concat_anno_sv_all:
         # Write
         df.to_csv(output.tsv_insdelinv, sep='\t', index=False, compression='gzip')
 
-# variant_global_concat_sv_all
+# variant_global_concat_sv_insdelinv
 #
-# Concatenate all SV types (ins, del, and inv).
-rule variant_global_concat_sv_all:
+# Concatenate SV types: ins, del, and inv.
+rule variant_global_concat_sv_insdelinv:
     input:
         sv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_ins.bed.gz',
         sv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_del.bed.gz',
@@ -50,7 +50,7 @@ rule variant_global_concat_sv_all:
         all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_insdelinv.bed.gs'
     run:
 
-        analib.pd.concat_frames(
+        svpoplib.pd.concat_frames(
             [pd.read_csv(file_name, header=0, sep='\t') for file_name in input]
         ).sort_values(
             ['#CHROM', 'POS', 'END', 'ID']
@@ -71,11 +71,13 @@ rule variant_global_concat_anno_insdel:
         tsv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_ins.{ext}.gz',
         tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_del.{ext}.gz'
     output:
-        tsv_all='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_insdel.{ext,tsv|bed}.gz'
+        tsv_all='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_insdel.{ext}.gz'
+    wildcard_constraints:
+        ext='tsv|bed'
     run:
 
         # Concat
-        df = analib.pd.concat_frames(
+        df = svpoplib.pd.concat_frames(
             [pd.read_csv(file_name, sep='\t', header=0) for file_name in input]
         )
 
@@ -99,7 +101,7 @@ rule variant_global_concat_insdel:
         all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_insdel.bed.gz'
     run:
 
-        analib.pd.concat_frames(
+        svpoplib.pd.concat_frames(
             [pd.read_csv(file_name, sep='\t', header=0) for file_name in input]
         ).sort_values(
             ['#CHROM', 'POS', 'END', 'ID']
