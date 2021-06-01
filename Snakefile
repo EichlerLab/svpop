@@ -194,6 +194,7 @@ include: 'rules/variant/anno/refseq.snakefile'
 include: 'rules/variant/anno/regions.snakefile'
 include: 'rules/variant/anno/regulation.snakefile'
 include: 'rules/variant/anno/repeats.snakefile'
+include: 'rules/variant/anno/seq_content.snakefile'
 
 # include: 'rules/variant/caller/anno/aligndepth.snakefile'
 # include: 'rules/variant/caller/anno/global.snakefile'

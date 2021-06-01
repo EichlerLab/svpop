@@ -118,8 +118,8 @@ rule var_intersect_combined_insdelinv:
 # Get sets of variants with reciprocal overlaps using the same svset filter.
 rule var_intersect_by_merge:
     input:
-        a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{svset}/{filter}/bed/{vartype}_{svtype}.bed.gz',
-        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{svset}/{filter}/bed/{vartype}_{svtype}.bed.gz'
+        a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz',
+        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
     params:

@@ -5,6 +5,7 @@ Tools for managing Snakemake resources.
 import re
 import snakemake
 
+
 def nlset(named_list, key, value=None, wildcards=None):
     """
     Set a value on a named list in Snakemake. This includes objects for wildcards, input, output, parameters, and log.
@@ -24,7 +25,7 @@ def nlset(named_list, key, value=None, wildcards=None):
 
         # Remove quotes around the value (parsing key="value" or key='value')
         if len(value) > 2:
-            if (value[0] == value[-1]) and (value[0] in {'"', '\''} == '\''):
+            if (value[0] == value[-1]) and (value[0] in {'"', '\''}):
                 value = value[1:-1]
 
     if callable(value):
