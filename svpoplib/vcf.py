@@ -220,7 +220,7 @@ def ref_base(df, ref_fa):
     with pysam.FastaFile(ref_fa) as ref_file:
         for index, row in df.iterrows():
             if row['VARTYPE'] in {'SV', 'INDEL'}:
-                yield ref_file.fetch(row['#CHROM'], row['POS'] - 1, row['POS']).upper()
+                yield ref_file.fetch(row['#CHROM'], row['POS'] + (-1 if row['POS'] > 0 else 0), row['POS']).upper()
 
             elif row['VARTYPE'] == 'SNV':
                 if 'REF' in row:

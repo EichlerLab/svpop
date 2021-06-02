@@ -47,7 +47,7 @@ rule variant_global_concat_sv_insdelinv:
         sv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_del.bed.gz',
         sv_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_inv.bed.gz'
     output:
-        all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_insdelinv.bed.gs'
+        all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_insdelinv.bed.gz'
     run:
 
         svpoplib.pd.concat_frames(

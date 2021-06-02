@@ -161,8 +161,8 @@ rule var_intersect_by_merge:
 # Get sets of variants with reciprocal overlaps using a different svset filter for each sample.
 rule var_intersect_bymerge_svset_diff:
     input:
-        a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{svset_a}/{filter}/bed/{vartype}_{svtype}.bed.gz',
-        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{svset_b}/{filter}/bed/{vartype}_{svtype}.bed.gz'
+        a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset_a}/bed/{vartype}_{svtype}.bed.gz',
+        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset_b}/bed/{vartype}_{svtype}.bed.gz'
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset_a}_vs_{svset_b}/{vartype}_{svtype}/intersect.tsv.gz'
     wildcard_constraints:
