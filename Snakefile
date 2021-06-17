@@ -217,6 +217,9 @@ include: 'rules/variant/sampleset/bed.snakefile'
 # include: 'rules/variant/sampleset/anno.snakefile'
 # include: 'rules/variant/sampleset/tables.snakefile'
 
+# Tracks
+include: 'rules/tracks/variant.snakefile'
+
 # Variant sets (published or variants from other sources)
 # include: 'rules/variant/varset/varset.snakefile'
 #

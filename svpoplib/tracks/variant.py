@@ -130,7 +130,7 @@ def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_des
         if 'DEFAULT' in df_as.columns and not pd.isnull(df_as.loc[col, 'DEFAULT']):
             default_val = df_as.loc[col, 'DEFAULT']
         else:
-            default_val = ''
+            default_val = '.'
 
         try:
             df[col] = format_column(df[col], TYPE_DICT.get(df_as.loc[col, 'TYPE'], str), default_val=default_val)
