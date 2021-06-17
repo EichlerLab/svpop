@@ -87,26 +87,6 @@ def get_svset_label(svset):
     else:
         return svset.upper()
 
-def get_seq_set_name(seq_set):
-    """
-    Get name of a sequence set (after "-" is sourcename).
-
-    :param seq_set: Sequence set name.
-
-    :return: Formatted sequence set name or `seq_set` if Unknown.
-    """
-
-    if seq_set is None:
-        return None
-
-    return {
-        'hifi': 'HiFi',
-        'clr': 'CLR',
-        'illumina': 'Illumina',
-        'ont': 'ONT',
-        'solve': 'Solve',  # Bionano
-        'rvp': 'RVP' # Bionano
-    }.get(seq_set, seq_set)
 
 def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
     """
@@ -147,7 +127,6 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
         tok = sourcename.split('-', 1)
 
         caller_name = tok[0]
-        seq_set_name = get_seq_set_name(tok[1] if len(tok) > 1 else None)
 
         if sourcename.startswith('extern-'):
             sample_prefix = svpoplib.variant_extern.get_config(sourcename[len('extern-'):], config)['name']
@@ -164,21 +143,7 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
                 'gtgq': 'Callset',  # Unknown callset from std_vcf
             }.get(caller_name, caller_name)
 
-            if seq_set_name is not None:
-
-                seq_set_name = {
-                    'hifi': 'HiFi',
-                    'clr': 'CLR',
-                    'illumina': 'Illumina',
-                    'ont': 'ONT',
-                    'solve': 'Solve',  # Bionano
-                    'rvp': 'RVP' # Bionano
-                }.get(seq_set_name, seq_set_name)
-
-                sample_prefix = '{} {}'.format(caller_name, seq_set_name)
-
-            else:
-                sample_prefix = caller_name
+            sample_prefix = caller_name
 
     elif sourcetype == 'varset':
         varset_entry = svpoplib.varset.get_config_entry(sourcename, None, config)

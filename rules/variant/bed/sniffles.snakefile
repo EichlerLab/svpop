@@ -26,21 +26,21 @@ VARIANT_BED_SNIFFLES_BCFTOOLS_QUERY = '"%CHROM\t%POS\t%ID\t%REF\t%ALT\t%FILTER\t
 # Parse SV/indel variants to a BED file.
 rule variant_bed_sniffles_tsv_to_bed:
     input:
-        tsv='temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/bed/{sample}/tsv/variants.tsv.gz'
+        tsv='temp/variant/caller/sniffles/{sourcename}/bed/{sample}/tsv/variants.tsv.gz'
     output:
-        sv_ins=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/sv_ins.bed.gz'),
-        sv_del=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/sv_del.bed.gz'),
-        sv_inv=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/sv_inv.bed.gz'),
-        sv_dup=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/sv_dup.bed.gz'),
-        indel_ins=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/indel_ins.bed.gz'),
-        indel_del=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/indel_del.bed.gz'),
-        fa_sv_ins=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/sv_ins.fa.gz'),
-        fa_sv_del=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/sv_del.fa.gz'),
-        fa_sv_inv=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/sv_inv.fa.gz'),
-        fa_sv_dup=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/sv_dup.fa.gz'),
-        fa_indel_ins=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/indel_ins.fa.gz'),
-        fa_indel_del=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/indel_del.fa.gz'),
-        filtered='results/variant/caller/sniffles/{sourcename_base}-{seq_set}/{sample}/all/all/bed/filtered/filtered_sv_insdel.bed.gz'
+        sv_ins=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/sv_ins.bed.gz'),
+        sv_del=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/sv_del.bed.gz'),
+        sv_inv=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/sv_inv.bed.gz'),
+        sv_dup=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/sv_dup.bed.gz'),
+        indel_ins=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/indel_ins.bed.gz'),
+        indel_del=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/indel_del.bed.gz'),
+        fa_sv_ins=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_ins.fa.gz'),
+        fa_sv_del=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_del.fa.gz'),
+        fa_sv_inv=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_inv.fa.gz'),
+        fa_sv_dup=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_dup.fa.gz'),
+        fa_indel_ins=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/fa/indel_ins.fa.gz'),
+        fa_indel_del=temp('temp/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/pre_filter/fa/indel_del.fa.gz'),
+        filtered='results/variant/caller/sniffles/{sourcename}/{sample}/all/all/bed/filtered/filtered_sv_insdel.bed.gz'
     wildcard_constraints:
         vartype='sv|indel'
     run:
@@ -179,9 +179,9 @@ rule variant_bed_sniffles_tsv_to_bed:
 # VCF to TSV file.
 rule variant_bed_sniffles_vcf_to_tsv:
     input:
-        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename_base, SAMPLE_TABLE, wildcards=wildcards, type='sniffles')['DATA']
+        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='sniffles')['DATA']
     output:
-        tsv=temp('temp/variant/caller/sniffles/{sourcename_base}-{seq_set}/bed/{sample}/tsv/variants.tsv.gz')
+        tsv=temp('temp/variant/caller/sniffles/{sourcename}/bed/{sample}/tsv/variants.tsv.gz')
     params:
         query_string=VARIANT_BED_SNIFFLES_BCFTOOLS_QUERY  # Could adjust by caller version if needed
     shell:

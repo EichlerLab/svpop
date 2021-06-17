@@ -27,18 +27,18 @@ Global rules for variants.
 rule variant_global_filter_region:
     input:
         bed=lambda wildcards: svpoplib.rules.parse_wildcards(
-            'temp/variant/caller/{source_type}/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz',
-            wildcards.sourcename_base, SAMPLE_TABLE, wildcards.sample, wildcards
+            'temp/variant/caller/{source_type}/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz',
+            wildcards.sourcename, SAMPLE_TABLE, wildcards.sample, wildcards
         ),
         fa=lambda wildcards: svpoplib.rules.parse_wildcards(
-            'temp/variant/caller/{source_type}/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz',
-            wildcards.sourcename_base, SAMPLE_TABLE, wildcards.sample, wildcards
+            'temp/variant/caller/{source_type}/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz',
+            wildcards.sourcename, SAMPLE_TABLE, wildcards.sample, wildcards
         ),
         filter=lambda wildcards: svpoplib.variant.get_filter_bed(wildcards.filter, UCSC_REF_NAME, config, SVPOP_DIR)
     output:
-        bed='results/variant/caller/{sourcename_base}-{seq_set}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
-        fa='results/variant/caller/{sourcename_base}-{seq_set}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
-        bed_filt='results/variant/caller/{sourcename_base}-{seq_set}/{sample}/{filter}/all/bed/filter_dropped/{vartype}_{svtype}_dropped.bed.gz'
+        bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        fa='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+        bed_filt='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/filter_dropped/{vartype}_{svtype}_dropped.bed.gz'
     wildcard_constraints:
         svtype='ins|del|inv|snv|dup|rgn|sub'
     run:

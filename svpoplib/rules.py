@@ -8,6 +8,53 @@ import re
 
 import svpoplib
 
+SAMPLE_TABLE_COL_TYPES = {
+    'NAME': object,
+    'SAMPLE': object,
+    'TYPE': object,
+    'DATA': object,
+    'VERSION': object,
+    'PARAMS': object
+}
+
+def get_sample_table(sample_table_file_name):
+    """
+    Read the sample table as a DataFrame, check format, and apply default values.
+
+    :param sample_table_file_name: Sample table file name. If missing, a default empty table is returned.
+
+    :return: Sample table DataFrame.
+    """
+    if os.path.isfile(sample_table_file_name):
+        sample_table = pd.read_csv(sample_table_file_name, sep='\t', header=0, dtype=SAMPLE_TABLE_COL_TYPES)
+
+        # Error on missing columns
+        missing_columns = [col for col in ('NAME', 'TYPE', 'DATA') if col not in sample_table.columns]
+
+        if missing_columns:
+            raise RuntimeError('Missing sample table columns: {}'.format(', '.join(missing_columns)))
+
+        if 'SAMPLE' not in sample_table.columns:
+            sample_table['SAMPLE'] = 'DEFAULT'
+
+        sample_table['SAMPLE'] = sample_table['SAMPLE'].fillna('DEFAULT')
+
+        if 'VERSION' not in sample_table.columns:
+            sample_table['VERSION'] = np.nan
+
+        if 'PARAMS' not in sample_table.columns:
+            sample_table['PARAMS'] = np.nan
+
+        sample_table.set_index(['NAME', 'SAMPLE'], inplace=True, drop=False)
+    else:
+        sample_table = pd.DataFrame(
+            [], columns=['NAME', 'SAMPLE', 'TYPE', 'DATA', 'VERSION', 'PARAMS']
+        ).set_index(
+            ['NAME', 'SAMPLE'], drop=False
+        )
+
+    return sample_table
+
 
 def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=None):
     """
@@ -36,32 +83,26 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
 
         sample = wildcards.sample
 
-    # Get seq_set
-    if wildcards is not None and 'seq_set' in wildcards.keys():
-        seq_set = wildcards.seq_set
-    else:
-        seq_set = 'DEFAULT'
-
     # Find table entry
 
-    if (name, seq_set, sample) in sample_table.index:
+    if (name, sample) in sample_table.index:
         entry_sample = sample
 
-    elif (name, seq_set, 'DEFAULT') in sample_table.index:
+    elif (name, 'DEFAULT') in sample_table.index:
         entry_sample = 'DEFAULT'
 
     else:
-        raise RuntimeError('Cannot find sample table entry for name "{}" and sample "{}" (or sample "DEFAULT") with seq-set {}'.format(
-            name, sample, ('"' + seq_set + '"') if not pd.isnull(seq_set) else '<Undefined>'
+        raise RuntimeError('Cannot find sample table entry for name "{}" and sample "{}" (or sample "DEFAULT")'.format(
+            name, sample
         ))
 
-    sample_entry = sample_table.loc[(name, seq_set, entry_sample)].copy()
+    sample_entry = sample_table.loc[(name, entry_sample)].copy()
 
     # Check type
     if type is not None:
         if sample_entry['TYPE'] != type:
-            raise RuntimeError('Source type mismatch  for sample entry ({}, {}, {}): Expected type "{}", entry has type "{}"'.format(
-                name, sample, seq_set, type, sample_entry['TYPE']
+            raise RuntimeError('Source type mismatch for sample entry ({}, {}): Expected type "{}", entry has type "{}"'.format(
+                name, sample, type, sample_entry['TYPE']
             ))
 
     # Save wildcards (some rules need to know which wildcards were replaced)
@@ -77,9 +118,9 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
 
         if missing_wildcards:
             raise RuntimeError(
-                'Cannot get sample entry from sample table: Wildcards object is missing keys to fill format patterns in DATA: {}: Entry ({}, {}, {})'.format(
+                'Cannot get sample entry from sample table: Wildcards object is missing keys to fill format patterns in DATA: {}: Entry ({}, {})'.format(
                     ', '.join(missing_wildcards),
-                    name, seq_set, entry_sample
+                    name, entry_sample
                 )
             )
 
@@ -90,9 +131,9 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
 
         if missing_wildcards:
             raise RuntimeError(
-                'Cannot get sample entry from sample table: No wildcards to fill format patterns in DATA: {}: Entry ({}, {}, {})'.format(
+                'Cannot get sample entry from sample table: No wildcards to fill format patterns in DATA: {}: Entry ({}, {})'.format(
                     ', '.join(missing_wildcards),
-                    name, seq_set, entry_sample
+                    name, entry_sample
                 )
             )
 
@@ -137,7 +178,7 @@ def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=Non
     """
     Parse a file pattern with wildcards derived from rule wildcards and the sample config.
 
-    :param file_pattern: Pattern to parse. Format patterns are filled by wildcards with "seq_set", "sourcename_base",
+    :param file_pattern: Pattern to parse. Format patterns are filled by wildcards with "sourcename"
         and "source_type" derived from the sample entry.
     :param name: Sample table record name.
     :param sample_table: Sample table DataFrame.
@@ -154,8 +195,7 @@ def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=Non
     # Set wildcards
     wildcards = dict(wildcards)
 
-    wildcards['seq_set'] = sample_entry['SET']
-    wildcards['sourcename_base'] = sample_entry['NAME']
+    wildcards['sourcename'] = sample_entry['NAME']
     wildcards['source_type'] = sample_entry['TYPE']
 
     return file_pattern.format(**wildcards)

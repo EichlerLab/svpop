@@ -93,7 +93,7 @@ rule variant_sampleset_fa_merge:
             wildcards
         )
     output:
-        fa='results/variant/sampleset/{sampleset}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
+        fa='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
     wildcard_constraints:
         svtype='ins|del|inv|sub|rgn'
     run:

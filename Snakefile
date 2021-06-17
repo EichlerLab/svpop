@@ -61,48 +61,9 @@ if 'reference_fai' not in config:
 
 ### Samples Table ###
 
-SAMPLE_TABLE_COL_TYPES = {
-    'NAME': np.object,
-    'SET': np.object,
-    'SAMPLE': np.object,
-    'TYPE': np.object,
-    'DATA': np.object,
-    'VERSION': np.object,
-    'PARAMS': np.object
-}
-
 SAMPLE_TABLE_FILE_NAME = config.get('variant_table', 'config/samples.tsv')
 
-if os.path.isfile(SAMPLE_TABLE_FILE_NAME):
-    SAMPLE_TABLE = pd.read_csv(SAMPLE_TABLE_FILE_NAME, sep='\t', header=0, dtype=SAMPLE_TABLE_COL_TYPES)
-
-    # Error on missing columns
-    missing_columns = [col for col in ('NAME', 'TYPE', 'DATA') if col not in SAMPLE_TABLE.columns]
-
-    if missing_columns:
-        raise RuntimeError('Missing sample table columns: {}'.format(', '.join(missing_columns)))
-
-    if 'SET' not in SAMPLE_TABLE.columns:
-        SAMPLE_TABLE['SET'] = np.nan
-
-    if 'SAMPLE' not in SAMPLE_TABLE.columns:
-        SAMPLE_TABLE['SAMPLE'] = 'DEFAULT'
-
-    SAMPLE_TABLE['SAMPLE'] = SAMPLE_TABLE['SAMPLE'].fillna('DEFAULT')
-
-    if 'VERSION' not in SAMPLE_TABLE.columns:
-        SAMPLE_TABLE['VERSION'] = np.nan
-
-    if 'PARAMS' not in SAMPLE_TABLE.columns:
-        SAMPLE_TABLE['PARAMS'] = np.nan
-
-    SAMPLE_TABLE.set_index(['NAME', 'SET', 'SAMPLE'], inplace=True, drop=False)
-else:
-    SAMPLE_TABLE = pd.DataFrame(
-        [], columns=['NAME', 'SET', 'SAMPLE', 'TYPE', 'DATA', 'VERSION', 'PARAMS']
-    ).set_index(
-        ['NAME', 'SET', 'SAMPLE'], drop=False
-    )
+SAMPLE_TABLE = svpoplib.rules.get_sample_table(SAMPLE_TABLE_FILE_NAME)
 
 
 ### Sample info table ###

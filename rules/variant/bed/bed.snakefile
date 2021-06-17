@@ -12,24 +12,24 @@ Import external BED with variant calls for samples.
 rule variant_caller_extern_get_bed:
     input:
         bed=lambda wildcards: svpoplib.rules.sample_table_entry(
-            wildcards.sourcename_base, SAMPLE_TABLE, wildcards=wildcards, type='bed'
+            wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='bed'
         )['DATA'],
         fa=lambda wildcards: svpoplib.rules.get_bed_fa_input(
             svpoplib.rules.sample_table_entry(
-                wildcards.sourcename_base, SAMPLE_TABLE, wildcards=wildcards, type='bed'
+                wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='bed'
             ),
             wildcards,
             default=[]
         )
     output:
-        bed=temp('temp/variant/caller/bed/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz'),
-        fa=temp('temp/variant/caller/bed/{sourcename_base}-{seq_set}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz')
+        bed=temp('temp/variant/caller/bed/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz'),
+        fa=temp('temp/variant/caller/bed/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz')
     wildcard_constraints:
         svtype='ins|del|inv|dup|sub|rgn|snv',
     run:
 
         # Get entry and FASTA file name
-        sample_entry = svpoplib.rules.sample_table_entry(wildcards.sourcename_base, SAMPLE_TABLE, wildcards=wildcards, type='bed')
+        sample_entry = svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='bed')
 
         if sample_entry['TYPE'] != 'bed':
             raise RuntimeError('Cannot process non-bed type: ' + sample_entry['TYPE'])
