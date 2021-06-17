@@ -132,20 +132,10 @@ include: 'rules/variant/bed/sniffles.snakefile'
 include: 'rules/variant/bed/svim.snakefile'
 include: 'rules/variant/bed/bed.snakefile'
 
-# Other variant BED rules
-
-
 # include: 'rules/variant/caller/bionano/bed.snakefile'
 # include: 'rules/variant/caller/deepvariant/bed.snakefile'
-# include: 'rules/variant/caller/extern/bed.snakefile'
 # include: 'rules/variant/caller/melt/bed.snakefile'
-
-# include: 'rules/variant/caller/phasedsv/bed.snakefile'
 # include: 'rules/variant/caller/std_vcf/bed.snakefile'
-# include: 'rules/variant/caller/smrtsv/bed.snakefile'
-# include: 'rules/variant/caller/smrtsv/bed_dup.snakefile'
-# include: 'rules/variant/caller/sniffles/bed.snakefile'
-# include: 'rules/variant/caller/svim/bed.snakefile'
 # include: 'rules/variant/caller/svimASM/bed.snakefile'
 
 # Annotations
@@ -157,17 +147,7 @@ include: 'rules/variant/anno/regulation.snakefile'
 include: 'rules/variant/anno/repeats.snakefile'
 include: 'rules/variant/anno/seq_content.snakefile'
 
-# include: 'rules/variant/caller/anno/aligndepth.snakefile'
-# include: 'rules/variant/caller/anno/global.snakefile'
 # include: 'rules/variant/caller/anno/homopolymer.snakefile'
-
-# include: 'rules/variant/caller/anno/refseq.snakefile'
-# include: 'rules/variant/caller/anno/regulation.snakefile'
-# include: 'rules/variant/caller/anno/repeats.snakefile'
-# include: 'rules/variant/caller/anno/seq_content.snakefile'
-#
-# include: 'rules/variant/caller/global.snakefile'
-# include: 'rules/variant/caller/tables.snakefile'
 # include: 'rules/variant/caller/vcf.snakefile'
 
 # Callerset
@@ -175,30 +155,14 @@ include: 'rules/variant/callerset.snakefile'
 
 # Sample set
 include: 'rules/variant/sampleset/bed.snakefile'
-# include: 'rules/variant/sampleset/anno.snakefile'
-# include: 'rules/variant/sampleset/tables.snakefile'
+include: 'rules/variant/sampleset/anno.snakefile'
+include: 'rules/variant/sampleset/tables.snakefile'
+
+# Summary tables
+include: 'rules/variant/tables.snakefile'
 
 # Tracks
 include: 'rules/tracks/variant.snakefile'
-
-# Variant sets (published or variants from other sources)
-# include: 'rules/variant/varset/varset.snakefile'
-#
-# #include: 'rules/variant/varset/set/1kgp1.snakefile'
-# include: 'rules/variant/varset/set/1kgp3.snakefile'
-# include: 'rules/variant/varset/set/ak1.snakefile'
-# include: 'rules/variant/varset/set/audano2019.snakefile'
-# #include: 'rules/variant/varset/set/dbsnp.snakefile'
-# include: 'rules/variant/varset/set/dbvar.snakefile'
-# include: 'rules/variant/varset/set/denovodb.snakefile'
-# #include: 'rules/variant/varset/set/gonl.snakefile'
-# #include: 'rules/variant/varset/set/hallsv.snakefile'
-# include: 'rules/variant/varset/set/hgsvc1.snakefile'
-# include: 'rules/variant/varset/set/huddleston2017.snakefile'
-# include: 'rules/variant/varset/set/hx1.snakefile'
-# #include: 'rules/variant/varset/set/kidd2010.snakefile'
-# #include: 'rules/variant/varset/set/mills2011.snakefile'
-# include: 'rules/variant/varset/set/sudmant2015a.snakefile'
 
 
 ## Tracks ##

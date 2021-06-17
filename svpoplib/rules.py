@@ -17,6 +17,7 @@ SAMPLE_TABLE_COL_TYPES = {
     'PARAMS': object
 }
 
+
 def get_sample_table(sample_table_file_name):
     """
     Read the sample table as a DataFrame, check format, and apply default values.

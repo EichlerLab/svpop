@@ -28,7 +28,7 @@ def variant_bed_pbsv_tsv_inv_dup(wildcards):
     :return: Path to input TSV to convert to BED.
     """
 
-    sample_entry = svpoplib.rules.sample_table_entry('pbsv', SAMPLE_TABLE, wildcards=wildcards)
+    sample_entry = svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='pbsv')
 
     if wildcards.varsvtype not in {'sv_inv', 'sv_dup'}:
         raise RuntimeError('PBSV Parser input function received varsvtype = {varsvtype}: Expected "sv_inv" or "sv_dup"'.format(**wildcards))

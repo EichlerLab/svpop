@@ -24,8 +24,8 @@ rule variant_sampleset_table_unmerged_variants_xlsx:
 rule variant_sampleset_table_unmerged_variants:
     input:
         tsv=lambda wildcards: svpoplib.sampleset.get_sample_set_input(
-            wildcards.sampleset,
-            wildcards.samplelist,
+            wildcards.sourcename,
+            wildcards.sample,
             'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/tables/variant_summary/{vartype}_{svtype}.tsv.gz',
             config,
             wildcards
@@ -34,7 +34,7 @@ rule variant_sampleset_table_unmerged_variants:
           tsv='results/variant/sampleset/{sourcename}/{sample}/{filter}/{svset}/tables/pre_merge/{vartype}_{svtype}.tsv.gz'
     run:
 
-        sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sampleset, wildcards.samplelist, config)
+        sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sourcename, wildcards.sample, config)
 
         # Read
         df = pd.concat(

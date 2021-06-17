@@ -2,10 +2,13 @@
 Functions for managing and coordinating sample sets (sets of variants from different samples).
 """
 
+import gzip
 import pandas as pd
-
 import snakemake.io
 import svpoplib.sm
+
+from Bio import SeqIO
+
 
 # Default values (should be configurable)
 
@@ -395,7 +398,7 @@ def get_merge_strategy(sampleset_entry, vartype, svtype):
     return merge_dict
 
 
-def fa_write_func(df, wildcards, sampleset_entry, fa_input_pattern):
+def fa_write_func(df, wildcards, sampleset_entry, fa_input_pattern, config):
     """
     Function to yield a sequence record iterator for rule variant_sampleset_fa_merge.
 
@@ -403,6 +406,7 @@ def fa_write_func(df, wildcards, sampleset_entry, fa_input_pattern):
     :param wildcards: Rule wildcards.
     :param sampleset_entry: Sampleset entry.
     :param fa_input_pattern: FASTA file input pattern for input into the merge.
+    :param config: SV-Pop config.
 
     :return: SeqRecord iterator.
     """

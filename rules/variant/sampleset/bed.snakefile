@@ -113,7 +113,7 @@ rule variant_sampleset_fa_merge:
         with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
             SeqIO.write(
                 svpoplib.sampleset.fa_write_func(
-                    df, wildcards, sampleset_entry, fa_input_pattern
+                    df, wildcards, sampleset_entry, fa_input_pattern, config
                 ),
                 out_file, 'fasta'
             )

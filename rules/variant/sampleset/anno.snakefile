@@ -25,13 +25,11 @@ rule variant_sampleset_anno_merge:
             wildcards
         )
     output:
-        tab='results/variant/sampleset/{sampleset}/anno/{samplelist}/all/{filter}/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
+        tab='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
     params:
         mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config),
     wildcard_constraints:
-        filter='\\w+',
         svtype='ins|del|inv|dup|sub|rgn|snv',
-        sample='[a-zA-Z0-9\\.]+',
         ext='tsv|bed'
     run:
 
@@ -40,15 +38,15 @@ rule variant_sampleset_anno_merge:
 
         # Get sources.
         sampleset_input = svpoplib.sampleset.get_sample_set_input(
-            wildcards.sampleset,
-            wildcards.samplelist,
+            wildcards.sourcename,
+            wildcards.sample,
             'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz',
             config,
             wildcards
         )
 
         # Get entry
-        sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sampleset, wildcards.samplelist, config)
+        sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sourcename, wildcards.sample, config)
 
         # Merge annotations
         df_merge = svpoplib.sampleset.merge_annotations(
