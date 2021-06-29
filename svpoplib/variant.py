@@ -253,6 +253,7 @@ def get_variant_id_from_row(row):
             row['#CHROM'], row['POS'] + 1, row['SVTYPE'], row['REF'].upper(), row['ALT'].upper()
         )
 
+
 def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
     """
     Get call for one VCF record and one sample.
@@ -282,9 +283,6 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
         if svtype not in {'INS', 'DEL', 'INV', 'DUP', 'CNV'}:
             raise RuntimeError('Unrecognized symbolic variant type: {}: Row {}'.format(svtype, row.name))
 
-        # Set pos
-        pos = row['POS']
-
         # Get length
         if 'SVLEN' not in row or pd.isnull(row['SVLEN']) or row['SVLEN'] == 0:
 
@@ -294,11 +292,10 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
             if svtype == 'INS':
                 raise RuntimeError('Cannot calculate SVLEN for insertion: Row {}'.format(row.name))
 
-            svlen = row['END'] - row['POS']
+            svlen = np.abs(row['END'] - pos)
 
         else:
-            svlen = row['SVLEN']
-
+            svlen = np.abs(row['SVLEN'])
 
         # Set variant type
         if svlen < 50:
@@ -371,16 +368,12 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
     # Return with AC
     if 'GT' in row.index:
         ac = gt_to_ac(row['GT'], no_call=-1, no_call_strict=False)
+    else:
+        ac = np.nan
 
-        return pd.Series(
-            [pos, end, vartype, svtype, svlen, ac, seq, ref],
-            index=['POS', 'END', 'VARTYPE', 'SVTYPE', 'SVLEN', 'AC', 'SEQ', 'REF']
-        )
-
-    # Return without AC
     return pd.Series(
-        [pos, end, vartype, svtype, svlen, seq, ref],
-        index=['POS', 'END', 'VARTYPE', 'SVTYPE', 'SVLEN', 'SEQ', 'REF']
+        [pos, end, vartype, svtype, svlen, ac, seq, ref],
+        index=['POS', 'END', 'VARTYPE', 'SVTYPE', 'SVLEN', 'AC', 'SEQ', 'REF']
     )
 
 
@@ -465,3 +458,115 @@ def qual_to_filter(row, min_qv=30.0):
             return '.'
     else:
         return row['FILTER']
+
+
+def left_homology(pos_tig, seq_tig, seq_sv):
+    """
+    Duplicated from from PAV (https://github.com/EichlerLab/pav).
+
+    Determine the number of perfect-homology bp upstream of an SV/indel using the SV/indel sequence (seq_sv), a contig
+    or reference sequence (seq_tig) and the position of the first base upstream of the SV/indel (pos_tig) in 0-based
+    coordinates. Both the contig and SV/indel sequence must be in the same orientation (reverse-complement if needed).
+    Generally, the SV/indel sequence is in reference orientation and the contig sequence is the reference or an
+    aligned contig in reference orientation (reverse-complemented if needed to get to the + strand).
+
+    This function traverses from `pos_tig` to upstream bases in `seq_tig` using bases from the end of `seq_sv` until
+    a mismatch between `seq_sv` and `seq_tig` is found. Search will wrap through `seq_sv` if homology is longer than
+    the SV/indel.
+
+    WARNING: This function assumes upper-case for the sequences. Differing case will break the homology search. If any
+    sequence is None, 0 is returned.
+
+    :param pos_tig: Contig/reference position (0-based) in reference orientation (may have been reverse-complemented by an
+        alignment) where the homology search begins.
+    :param seq_tig: Contig sequence as an upper-case string and in reference orientation (may have been reverse-
+        complemented by the alignment).
+    :param seq_sv: SV/indel sequence as an upper-case string.
+
+    :return: Number of perfect-homology bases between `seq_sv` and `seq_tig` immediately upstream of `pos_tig`. If any
+        of the sequneces are None, 0 is returned.
+    """
+
+    if seq_sv is None or seq_tig is None:
+        return 0
+
+    svlen = len(seq_sv)
+
+    hom_len = 0
+
+    while hom_len <= pos_tig:  # Do not shift off the edge of a contig.
+        seq_tig_base = seq_tig[pos_tig - hom_len]
+
+        # Do not match ambiguous bases
+        if seq_tig_base not in {'A', 'C', 'G', 'T'}:
+            break
+
+        # Match the SV sequence (dowstream SV sequence with upstream reference/contig)
+        if seq_sv[-((hom_len + 1) % svlen)] != seq_tig_base:
+            # Circular index through seq in reverse from last base to the first, then back to the first
+            # if it wraps around. If the downstream end of the SV/indel matches the reference upstream of
+            # the SV/indel, shift left. For tandem repeats where the SV was placed in the middle of a
+            # repeat array, shift through multiple perfect copies (% oplen loops through seq).
+            break
+
+        hom_len += 1
+
+    # Return shifted amount
+    return hom_len
+
+
+def right_homology(pos_tig, seq_tig, seq_sv):
+    """
+    Duplicated from from PAV (https://github.com/EichlerLab/pav).
+
+    Determine the number of perfect-homology bp downstream of an SV/indel using the SV/indel sequence (seq_sv), a contig
+    or reference sequence (seq_tig) and the position of the first base downstream of the SV/indel (pos_tig) in 0-based
+    coordinates. Both the contig and SV/indel sequence must be in the same orientation (reverse-complement if needed).
+    Generally, the SV/indel sequence is in reference orientation and the contig sequence is the reference or an
+    aligned contig in reference orientation (reverse-complemented if needed to get to the + strand).
+
+    This function traverses from `pos_tig` to downstream bases in `seq_tig` using bases from the beginning of `seq_sv` until
+    a mismatch between `seq_sv` and `seq_tig` is found. Search will wrap through `seq_sv` if homology is longer than
+    the SV/indel.
+
+    WARNING: This function assumes upper-case for the sequences. Differing case will break the homology search. If any
+    sequence is None, 0 is returned.
+
+    :param pos_tig: Contig/reference position (0-based) in reference orientation (may have been reverse-complemented by an
+        alignment) where the homology search begins.
+    :param seq_tig: Contig sequence as an upper-case string and in reference orientation (may have been reverse-
+        complemented by the alignment).
+    :param seq_sv: SV/indel sequence as an upper-case string.
+
+    :return: Number of perfect-homology bases between `seq_sv` and `seq_tig` immediately downstream of `pos_tig`. If any
+        of the sequences are None, 0 is returned.
+    """
+
+    if seq_sv is None or seq_tig is None:
+        return 0
+
+    svlen = len(seq_sv)
+    tig_len = len(seq_tig)
+
+    hom_len = 0
+    pos_tig_limit = tig_len - pos_tig
+
+    while hom_len < pos_tig_limit:  # Do not shift off the edge of a contig.
+        seq_tig_base = seq_tig[pos_tig + hom_len]
+
+        # Do not match ambiguous bases
+        if seq_tig_base not in {'A', 'C', 'G', 'T'}:
+            break
+
+        # Match the SV sequence (dowstream SV sequence with upstream reference/contig)
+        if seq_sv[hom_len % svlen] != seq_tig_base:
+            # Circular index through seq in reverse from last base to the first, then back to the first
+            # if it wraps around. If the downstream end of the SV/indel matches the reference upstream of
+            # the SV/indel, shift left. For tandem repeats where the SV was placed in the middle of a
+            # repeat array, shift through multiple perfect copies (% oplen loops through seq).
+            break
+
+        hom_len += 1
+
+    # Return shifted amount
+    return hom_len

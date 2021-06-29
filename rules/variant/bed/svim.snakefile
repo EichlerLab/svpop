@@ -26,7 +26,7 @@ VARIANT_BED_SVIM_BCFTOOLS_QUERY = '"%CHROM\t%POS\t%ID\t%REF\t%ALT\t%FILTER\t%INF
 # Parse SV/indel variants to a BED file.
 rule variant_bed_svim_tsv_to_bed:
     input:
-        tsv='temp/variant/caller/svim/{sourcename}/bed/{sample}/tsv/variants.tsv.gz'
+        tsv='temp/variant/caller/svim/{sourcename}/{sample}/tsv/variants.tsv.gz'
     output:
         sv_ins=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/sv_ins.bed.gz'),
         sv_del=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/sv_del.bed.gz'),
@@ -173,7 +173,7 @@ rule variant_bed_svim_vcf_to_tsv:
     input:
         vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='svim')['DATA']
     output:
-        tsv=temp('temp/variant/caller/svim/{sourcename}/bed/{sample}/tsv/variants.tsv.gz')
+        tsv=temp('temp/variant/caller/svim/{sourcename}/{sample}/tsv/variants.tsv.gz')
     params:
         query_string=VARIANT_BED_SVIM_BCFTOOLS_QUERY  # Could adjust by caller version if needed
     shell:

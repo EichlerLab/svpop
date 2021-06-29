@@ -3,6 +3,7 @@ Functions for managing and coordinating sample sets (sets of variants from diffe
 """
 
 import gzip
+import numpy as np
 import pandas as pd
 import snakemake.io
 import svpoplib.sm
@@ -430,7 +431,10 @@ def fa_write_func(df, wildcards, sampleset_entry, fa_input_pattern, config):
     # Process samples
     for sample in sampleset_entry['samples']:
 
-        id_dict = dict(df.loc[df['SAMPLE'] == sample, ['ID_SAMPLE', 'ID']].set_index('ID_SAMPLE').squeeze())
+        if np.sum(df['SAMPLE'] == sample) == 0:
+            continue
+
+        id_dict = dict(df.loc[df['SAMPLE'] == sample, ['ID_SAMPLE', 'ID']].set_index('ID_SAMPLE')['ID'])
         id_set = set(id_dict.keys())
 
         # Open file

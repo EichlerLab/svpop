@@ -131,6 +131,7 @@ include: 'rules/variant/bed/pbsv.snakefile'
 include: 'rules/variant/bed/sniffles.snakefile'
 include: 'rules/variant/bed/svim.snakefile'
 include: 'rules/variant/bed/bed.snakefile'
+include: 'rules/variant/bed/vcf.snakefile'
 
 # include: 'rules/variant/caller/bionano/bed.snakefile'
 # include: 'rules/variant/caller/deepvariant/bed.snakefile'

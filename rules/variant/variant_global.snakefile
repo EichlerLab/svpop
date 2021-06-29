@@ -27,11 +27,11 @@ Global rules for variants.
 rule variant_global_filter_region:
     input:
         bed=lambda wildcards: svpoplib.rules.parse_wildcards(
-            'temp/variant/caller/{source_type}/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz',
+            'temp/variant/caller/{callertype}/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz',
             wildcards.sourcename, SAMPLE_TABLE, wildcards.sample, wildcards
         ),
         fa=lambda wildcards: svpoplib.rules.parse_wildcards(
-            'temp/variant/caller/{source_type}/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz',
+            'temp/variant/caller/{callertype}/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz',
             wildcards.sourcename, SAMPLE_TABLE, wildcards.sample, wildcards
         ),
         filter=lambda wildcards: svpoplib.variant.get_filter_bed(wildcards.filter, UCSC_REF_NAME, config, SVPOP_DIR)

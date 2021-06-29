@@ -99,6 +99,17 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
 
     sample_entry = sample_table.loc[(name, entry_sample)].copy()
 
+    # Set type field
+    sample_entry_type = sample_entry['TYPE']
+
+    if not pd.isnull(sample_entry_type):
+        sample_entry_type = sample_entry_type.strip()
+
+    if pd.isnull(sample_entry_type) or sample_entry_type == '':
+        raise RuntimeError('Emtpy TYPE for table entry name "{}" (sample "{}")'.format(name, sample))
+
+    sample_entry['TYPE'] = sample_entry['TYPE'].strip().lower()
+
     # Check type
     if type is not None:
         if sample_entry['TYPE'] != type:
@@ -180,7 +191,7 @@ def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=Non
     Parse a file pattern with wildcards derived from rule wildcards and the sample config.
 
     :param file_pattern: Pattern to parse. Format patterns are filled by wildcards with "sourcename"
-        and "source_type" derived from the sample entry.
+        and "callertype" derived from the sample entry.
     :param name: Sample table record name.
     :param sample_table: Sample table DataFrame.
     :param sample: Sample name. If not present, extract from "sample" entry in `wildcards`.
@@ -197,52 +208,9 @@ def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=Non
     wildcards = dict(wildcards)
 
     wildcards['sourcename'] = sample_entry['NAME']
-    wildcards['source_type'] = sample_entry['TYPE']
+    wildcards['callertype'] = sample_entry['TYPE']
 
     return file_pattern.format(**wildcards)
 
 
-# def variant_global_sample_info_entry(sample):
-#     """
-#     Get an entry from SAMPLE_INFO_TABLE.
-#
-#     :param sample: Sample name.
-#
-#     :return: A configuration entry (Pandas.Series) or None if there is no sample information.
-#     """
-#
-#     if sample not in SAMPLE_INFO_TABLE.index:
-#         return None
-#
-#     return SAMPLE_INFO_TABLE.loc[sample]
-#
-# def variant_global_sample_info_entry_element(sample, element, default=None, null_default=True):
-#     """
-#     Get an entry from SAMPLE_INFO_TABLE.
-#
-#     :param sample: Sample name (sample info table row).
-#     :param element: Element name (sample info table column).
-#     :param default: Default value if sample or element is not defined.
-#     :param null_default: If the element is present but is null (`np.nan`), then return `default` instead of `np.nan`.
-#
-#     :return: A configuration entry (Pandas.Series) or None if there is no sample information.
-#     """
-#
-#     # Get entry
-#     sample_info = variant_global_sample_info_entry(sample)
-#
-#     if sample_info is None:
-#         return default
-#
-#     # Get element value
-#     if element not in sample_info:
-#         return default
-#
-#     value = sample_info[element]
-#
-#     # Translate null to default (if null_default)
-#     if null_default and pd.isnull(value):
-#         return default
-#
-#     # Return value
-#     return value
+

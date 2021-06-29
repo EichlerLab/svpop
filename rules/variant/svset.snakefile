@@ -12,7 +12,8 @@ rule variant_svsetfilter_run:
     output:
         bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'
     wildcard_constraints:
-        svset='((?!all).*|all.+)'  # Do not allow "all"
+        svset='((?!all).*|all.+)',  # Do not allow "all"
+        svtype='ins|del|inv|dup|sub|rgn'
     run:
 
         # Read
