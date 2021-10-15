@@ -25,6 +25,8 @@ rule variant_anno_repeat_rmsk_table:
         out='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/data/rmsk-table_{vartype}_{svtype}/rmsk.out.gz'
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-table_{vartype}_{svtype,ins|del|inv|dup}.tsv.gz'
+    wildcard_constraints:
+        svtype='ins|del|inv|dup|rgn|sub'
     run:
 
         # Create empty tab file if rmsk output is empty

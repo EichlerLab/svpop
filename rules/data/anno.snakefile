@@ -70,9 +70,13 @@ rule data_oreganno_table:
     output:
         tsv=temp('temp/data/anno/oreganno/oreganno-table.tsv')
     params:
-        url=config['data']['oreganno']['path']
-    shell:
-        """wget {params.url} -O {output.tsv}"""
+        url=config.get('data', dict()).get('oreganno', dict()).get('path', None)
+    run:
+
+        if params.url is None:
+            raise RuntimeError('Missing ORegAnno table path in config["data"]["oreganno"]["path"]')
+
+        shell("""wget {params.url} -O {output.tsv}""")
 
 #
 # ENCODE 2020 (DHS: Vierstra 2020, CCRE: Consortium 2020)

@@ -125,31 +125,24 @@ include: 'rules/variant/bedconversion.snakefile'
 
 # include: 'rules/variant/intersect_nearest.snakefile'
 
-# Variant BED parsers for callers (commented - need to update for flexible input parsing)
+# Variant BED parsers for callers
+include: 'rules/variant/bed/bed.snakefile'
 include: 'rules/variant/bed/pavbed.snakefile'
 include: 'rules/variant/bed/pbsv.snakefile'
 include: 'rules/variant/bed/sniffles.snakefile'
 include: 'rules/variant/bed/svim.snakefile'
-include: 'rules/variant/bed/bed.snakefile'
+include: 'rules/variant/bed/svimasm.snakefile'
 include: 'rules/variant/bed/vcf.snakefile'
 
-# include: 'rules/variant/caller/bionano/bed.snakefile'
-# include: 'rules/variant/caller/deepvariant/bed.snakefile'
-# include: 'rules/variant/caller/melt/bed.snakefile'
-# include: 'rules/variant/caller/std_vcf/bed.snakefile'
-# include: 'rules/variant/caller/svimASM/bed.snakefile'
 
 # Annotations
-
 include: 'rules/variant/anno/altmap.snakefile'
+include: 'rules/variant/anno/homopolymer.snakefile'
 include: 'rules/variant/anno/refseq.snakefile'
 include: 'rules/variant/anno/regions.snakefile'
 include: 'rules/variant/anno/regulation.snakefile'
 include: 'rules/variant/anno/repeats.snakefile'
 include: 'rules/variant/anno/seq_content.snakefile'
-
-# include: 'rules/variant/caller/anno/homopolymer.snakefile'
-# include: 'rules/variant/caller/vcf.snakefile'
 
 # Callerset
 include: 'rules/variant/callerset.snakefile'
@@ -164,22 +157,6 @@ include: 'rules/variant/tables.snakefile'
 
 # Tracks
 include: 'rules/tracks/variant.snakefile'
-
-
-## Tracks ##
-
-# include: 'rules/tracks/variant.snakefile'
-
-
-## Depth ##
-
-# include: 'rules/depth/depth.snakefile'
-
-
-## Genotyping ##
-
-# include: 'rules/gt/genotype.snakefile'
-
 
 ### Includes ###
 

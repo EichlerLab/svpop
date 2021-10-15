@@ -1,5 +1,5 @@
 """
-Parse SVIM variants to BED.
+Parse SVIM-ASM variants to BED.
 """
 
 ###################
@@ -13,7 +13,7 @@ MIN_DUP = 1000
 MIN_INV = 1000
 
 # bcftools query string
-VARIANT_BED_SVIM_BCFTOOLS_QUERY = '"%CHROM\t%POS\t%ID\t%REF\t%ALT\t%FILTER\t%INFO/SVTYPE\t%INFO/CUTPASTE\t%INFO/END\t%INFO/SVLEN\t%INFO/SUPPORT\t%INFO/STD_SPAN\t%INFO/STD_POS[\t%GT][\t%DP][\t%AD][\t%CN]\n"'
+VARIANT_BED_SVIM_BCFTOOLS_QUERY = '"%CHROM\t%POS\t%ID\t%REF\t%ALT\t%FILTER\t%INFO/SVTYPE\t%INFO/CUTPASTE\t%INFO/END\t%INFO/SVLEN[\t%GT][\t%CN]\n"'
 
 
 
@@ -21,26 +21,26 @@ VARIANT_BED_SVIM_BCFTOOLS_QUERY = '"%CHROM\t%POS\t%ID\t%REF\t%ALT\t%FILTER\t%INF
 ### Rules ###
 #############
 
-# variant_bed_svim_tsv_to_bed
+# variant_bed_svimasm_tsv_to_bed
 #
 # Parse SV/indel variants to a BED file.
-rule variant_bed_svim_tsv_to_bed:
+rule variant_bed_svimasm_tsv_to_bed:
     input:
-        tsv='temp/variant/caller/svim/{sourcename}/{sample}/tsv/variants.tsv.gz'
+        tsv='temp/variant/caller/svimasm/{sourcename}/{sample}/tsv/variants.tsv.gz'
     output:
-        sv_ins=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/sv_ins.bed.gz'),
-        sv_del=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/sv_del.bed.gz'),
-        sv_inv=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/sv_inv.bed.gz'),
-        sv_dup=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/sv_dup.bed.gz'),
-        indel_ins=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/indel_ins.bed.gz'),
-        indel_del=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/indel_del.bed.gz'),
-        fa_sv_ins=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_ins.fa.gz'),
-        fa_sv_del=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_del.fa.gz'),
-        fa_sv_inv=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_inv.fa.gz'),
-        fa_sv_dup=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_dup.fa.gz'),
-        fa_indel_ins=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/fa/indel_ins.fa.gz'),
-        fa_indel_del=temp('temp/variant/caller/svim/{sourcename}/{sample}/all/all/bed/pre_filter/fa/indel_del.fa.gz'),
-        filtered='results/variant/caller/svim/{sourcename}/{sample}/all/all/bed/filtered/filtered_sv_insdel.bed.gz'
+        sv_ins=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/sv_ins.bed.gz'),
+        sv_del=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/sv_del.bed.gz'),
+        sv_inv=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/sv_inv.bed.gz'),
+        sv_dup=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/sv_dup.bed.gz'),
+        indel_ins=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/indel_ins.bed.gz'),
+        indel_del=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/indel_del.bed.gz'),
+        fa_sv_ins=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_ins.fa.gz'),
+        fa_sv_del=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_del.fa.gz'),
+        fa_sv_inv=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_inv.fa.gz'),
+        fa_sv_dup=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_dup.fa.gz'),
+        fa_indel_ins=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/fa/indel_ins.fa.gz'),
+        fa_indel_del=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/pre_filter/fa/indel_del.fa.gz'),
+        filtered='results/variant/caller/svimasm/{sourcename}/{sample}/all/all/bed/filtered/filtered_sv_insdel.bed.gz'
     wildcard_constraints:
         vartype='sv|indel'
     run:
@@ -166,14 +166,14 @@ rule variant_bed_svim_tsv_to_bed:
         df_sub.loc[df_sub['SVTYPE'] == 'DUP'].to_csv(output.sv_dup, sep='\t', na_rep='NA', index=False, compression='gzip')
 
 
-# variant_bed_svim_vcf_to_tsv
+# variant_bed_svimasm_vcf_to_tsv
 #
 # VCF to TSV file.
-rule variant_bed_svim_vcf_to_tsv:
+rule variant_bed_svimasm_vcf_to_tsv:
     input:
-        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='svim')['DATA']
+        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='svimasm')['DATA']
     output:
-        tsv=temp('temp/variant/caller/svim/{sourcename}/{sample}/tsv/variants.tsv.gz')
+        tsv=temp('temp/variant/caller/svimasm/{sourcename}/{sample}/tsv/variants.tsv.gz')
     params:
         query_string=VARIANT_BED_SVIM_BCFTOOLS_QUERY  # Could adjust by caller version if needed
     shell:

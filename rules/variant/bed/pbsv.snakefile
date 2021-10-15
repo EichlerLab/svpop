@@ -28,7 +28,7 @@ def variant_bed_pbsv_tsv_inv_dup(wildcards):
     :return: Path to input TSV to convert to BED.
     """
 
-    sample_entry = svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='pbsv')
+    sample_entry = svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='pbsv', format_data=False)
 
     if wildcards.varsvtype not in {'sv_inv', 'sv_dup'}:
         raise RuntimeError('PBSV Parser input function received varsvtype = {varsvtype}: Expected "sv_inv" or "sv_dup"'.format(**wildcards))
@@ -38,6 +38,7 @@ def variant_bed_pbsv_tsv_inv_dup(wildcards):
 
     else:
         return 'temp/variant/caller/pbsv/{sourcename}/bed/{sample}/tsv/variants_dup.tsv.gz'.format(**wildcards)
+
 
 #############
 ### Rules ###
@@ -52,7 +53,7 @@ rule variant_pbsv_bed_tab_to_bed_dupinv:
     output:
         bed=temp('temp/variant/caller/pbsv/{sourcename}/{sample}/all/all/bed/pre_filter/{varsvtype}.bed.gz'),
         fa=temp('temp/variant/caller/pbsv/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{varsvtype}.fa.gz'),
-        filtered='results/variant/caller/pbsv/{sourcename}/{sample}/all/all/bed/filtered/filtered_{varsvtype}.bed.gz'
+        filtered='results/variant/caller/{sourcename}/{sample}/all/all/bed/pbsv_filtered/filtered_{varsvtype}.bed.gz'
     wildcard_constraints:
         varsvtype='sv_inv|sv_dup'
     run:
@@ -148,7 +149,7 @@ rule variant_pbsv_bed_tsv_to_bed_sv:
         fa_indel_del=temp('temp/variant/caller/pbsv/{sourcename}/{sample}/all/all/bed/pre_filter/fa/indel_del.fa.gz'),
         fa_sv_ins=temp('temp/variant/caller/pbsv/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_ins.fa.gz'),
         fa_sv_del=temp('temp/variant/caller/pbsv/{sourcename}/{sample}/all/all/bed/pre_filter/fa/sv_del.fa.gz'),
-        filtered='results/variant/caller/pbsv/{sourcename}/{sample}/all/all/bed/filtered/filtered_sv_insdel.bed.gz'
+        filtered='results/variant/caller/{sourcename}/{sample}/all/all/bed/pbsv_filtered/filtered_sv_insdel.bed.gz'
     run:
 
         # Read and format/subset to this sample

@@ -2,14 +2,14 @@
 
 # Run pipeline distributed.
 # Requires one of:
-#   1) SVPOP_RUN/config/rundist.sh
-#   2) SVPOP_INSTALL/local/config/rundist.sh
+#   1) RUN_DIR/config/runlocal.sh
+#   2) INSTALL_DIR/config/runlocal.sh
 #
-# Where the first rundist.sh found is the one used. Control is passed to the script.
+# Where the first script found is the one used. Control is passed to the script.
 
 # Refuse to exeucute from install directory
 if [[ $(dirname $(readlink -f $0)) == $(readlink -f $(pwd)) ]]; then
-    echo "Attempting to execute run script from SV-Pop install directory, or run script was copied to the run directory. Symlink the run script to the run directory, cd to the run directory, and run from there." >&2
+    echo "Attempting to execute run script from install directory, or run script was copied to the run directory. Symlink the run script to the run directory, cd to the run directory, and run from there." >&2
     exit 1
 fi
 
@@ -22,15 +22,15 @@ while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symli
     [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
 done
 
-SVPOP_SITE_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+SITE_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-SVPOP_SNAKEFILE="${SVPOP_SITE_DIR}/Snakefile"
-SVPOP_SITE_CONFIG_LOCAL="${SVPOP_SITE_DIR}/local/config"
-SVPOP_SITE_CONFIG_BUILTIN="${SVPOP_SITE_DIR}/config"
+SNAKEFILE="${SITE_DIR}/Snakefile"
 
+SITE_CONFIG_DIR="${SITE_DIR}/config"
+LOCAL_CONFIG_DIR="$(readlink -f config)"
 
 # Get jobs
-SVPOP_JOB_COUNT=$1
+JOB_COUNT=$1
 
 shift
 
@@ -38,27 +38,27 @@ shift
 ### Pass control over to a control script ###
 
 # Find local site's control script
-SVPOP_LOCAL_SCRIPT="config/runlocal.sh"
-SVPOP_SITE_SCRIPT="${SVPOP_SITE_DIR}/local/config/runlocal.sh"
+LOCAL_SCRIPT="${LOCAL_CONFIG_DIR}/runlocal.sh"
+SITE_SCRIPT="${SITE_CONFIG_DIR}/runlocal.sh"
 
-if [[ -f ${SVPOP_LOCAL_SCRIPT} ]]; then
-    source ${SVPOP_LOCAL_SCRIPT}
+if [[ -f ${LOCAL_SCRIPT} ]]; then
+    source ${LOCAL_SCRIPT}
     exit 0
 fi
 
-if [[ -f ${SVPOP_SITE_SCRIPT} ]]; then
-    source ${SVPOP_SITE_SCRIPT}
+if [[ -f ${SITE_SCRIPT} ]]; then
+    source ${SITE_SCRIPT}
     exit 0
 fi
-
-# Run default
-snakemake -S ${SVPOP_SNAKEFILE} -j ${SVPOP_JOB_COUNT} --jobname "{rulename}.{jobid}" "$@"
 
 # No control script found
-echo "Missing local control script. \"rundist\" sets up the environment and passes control to a local script (\"config/rundist.sh\" in the analysis directory if found, or \"local/config/rundist.sh\" in the PAV install directory). One of these two control scripts must be setup, and it will be sourced by this script to run PAV. See comments in this \"rundist\" for an example of what the control script would do."
+echo "Missing local control script. \"runlocal\" sets up the environment and passes control to a local script"
+echo "(\"config/runlocal.sh\" in the analysis directory if found, or \"config/runlocal.sh\" in the install directory)."
+echo "One of these two control scripts must be setup, and it will be sourced by this script to run the pipeline. See"
+echo "comments in this \"runlocal\" for an example of what the control script would do."
 echo
-echo "Searched local config: ${SVPOP_LOCAL_SCRIPT}"
-echo "Searched site config: ${SVPOP_SITE_SCRIPT}"
+echo "Searched local config: ${LOCAL_SCRIPT}"
+echo "Searched site config: ${SITE_SCRIPT}"
 exit 1
 
 
@@ -71,8 +71,6 @@ exit 1
 # module load lra/202008
 # module load htslib/1.9
 #
-#snakemake -s ${SVPOP_SNAKEFILE} -j ${SVPOP_JOB_COUNT} --nt --ri -k \
+#snakemake -s ${SNAKEFILE} -j ${JOB_COUNT} --nt --ri -k \
 #    --jobname "{rulename}.{jobid}" \
-#    --drmaa " -V -cwd -j y -o ./log -l centos=7 -pe serial {cluster.cpu} -l mfree={cluster.mem} -l disk_free={cluster.disk} -l h_rt={cluster.rt} {cluster.params} -w n -S /bin/bash" \
-#    -w 60 -u ${SVPOP_SITE_CONFIG_BUILTIN}/sge.json "$@"
-
+#    -w 60 "$@"

@@ -21,7 +21,7 @@ rule variant_global_concat_anno_sv_insdelinv:
         tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_del.{ext}.gz',
         tsv_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_inv.{ext}.gz'
     output:
-        tsv_insdelinv='results/variant/{sourcetype}/{sourcename}/anno/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_insdelinv.{ext,tsv|bed}.gz'
+        tsv_insdelinv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_insdelinv.{ext,tsv|bed}.gz'
     run:
 
         # Concat
@@ -114,10 +114,10 @@ rule variant_global_concat_insdel:
 # Concatenate insertion and deletion records into one FASTA.
 rule variant_global_concat_insdel_fa:
     input:
-        fa_ins='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{svset}/{filter}/{vartype}_ins.fa.gz',
-        fa_del='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{svset}/{filter}/{vartype}_del.fa.gz'
+        fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_ins.fa.gz',
+        fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_del.fa.gz'
     output:
-        fa='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{svset}/{filter}/{vartype}_insdel.fa.gz'
+        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdel.fa.gz'
     run:
 
         def get_fa_iter():
@@ -132,13 +132,13 @@ rule variant_global_concat_insdel_fa:
 # variant_global_concat_all_fa
 #
 # Concatenate insertion, deletion, and inversion records into one FASTA.
-rule variant_global_concat_all_fa:
+rule variant_global_concat_insdelinv_fa:
     input:
-        fa_ins='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{svset}/{filter}/{vartype}_ins.fa.gz',
-        fa_del='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{svset}/{filter}/{vartype}_del.fa.gz',
-        fa_inv='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{svset}/{filter}/{vartype}_inv.fa.gz'
+        fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_ins.fa.gz',
+        fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_del.fa.gz',
+        fa_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_inv.fa.gz'
     output:
-        fa='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{svset}/{filter}/{vartype}_all.fa.gz'
+        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdelinv.fa.gz'
     run:
 
         def get_fa_iter():

@@ -186,3 +186,56 @@ rule variant_anno_caller_sd_max:
         """    bedtools map -a stdin -b {input.sd_bed} -c 4 -o min,max |\n"""
         """    cut -f4-6\n"""
         """}} | gzip > {output.tsv}"""
+
+
+#
+# RMSK (RepeatMasker)
+#
+
+rule variant_anno_rmsk:
+    input:
+        bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        tsv='temp/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-{filter_spec}-{ident}_intersect_{vartype}_{svtype}.tsv.gz'
+    output:
+        tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-{filter_spec}-{ident}_intersect_{vartype}_{svtype}.tsv.gz'
+    run:
+
+        # Read
+        df = pd.read_csv(input.tsv, sep='\t')
+
+        # Remove BED columns from RMSK
+        del(df['#CHROM.1'])
+        del(df['POS.1'])
+        del(df['END.1'])
+
+        df.columns = [col if col != 'ID.1' else 'ID_RMSK' for col in df.columns]
+
+        # Get coordinates relative to the original range
+        df_coord = pd.read_csv(input.bed, sep='\t', index_col='ID', usecols=['ID', 'POS', 'END'])
+
+        df['VAR_POS'] = df.apply(lambda row: row['POS'] - df_coord.loc[row['ID'], 'POS'], axis=1)
+        df['VAR_END'] = df['VAR_POS'] + (df['END'] - df['POS'])
+
+        # Write
+        df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')
+
+# variant_anno_rmsk
+#
+# Intersect (LOJ) with RMSK.
+rule variant_anno_rmsk_intersect:
+    input:
+        bed='temp/variant/caller/{sourcename}/{sample}/{filter}/all/bed4/{vartype}_{svtype}.bed.gz',
+        rmsk_bed='data/anno/rmsk/rmsk-{filter_spec}-{ident}.bed.gz'
+    output:
+        tsv=temp('temp/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-{filter_spec}-{ident}_intersect_{vartype}_{svtype}.tsv.gz')
+    shell:
+        """{{\n"""
+        """    {{\n"""
+        """        head -n 1 <(zcat {input.bed});\n"""
+        """        head -n 1 <(zcat {input.rmsk_bed});\n"""
+        """    }} | \n"""
+        """    awk -vORS="\\t" {{print}} | \n"""
+        """    sed -re 's/\\s+/\\t/g' | \n"""
+        """    sed -re 's/\\s*$/\\n/';\n"""
+        """    bedtools intersect -a {input.bed} -b {input.rmsk_bed} -wb;\n"""
+        """}} | gzip > {output.tsv}"""

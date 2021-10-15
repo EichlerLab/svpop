@@ -13,7 +13,7 @@ rule hpref_merge_bed:
             chrom=sorted(list(svpoplib.ref.get_df_fai(config['reference_fai']).index))
         )
     output:
-        bed='data/anno/homopolymer/{rep_len}_regions_all.bed'
+        bed='data/anno/homopolymer/{rep_len}_regions_all.bed.gz'
     wildcard_constraints:
         rep_len='homopolymer|dinucleotide'
     run:

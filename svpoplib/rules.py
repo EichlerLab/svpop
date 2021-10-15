@@ -57,7 +57,7 @@ def get_sample_table(sample_table_file_name):
     return sample_table
 
 
-def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=None):
+def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=None, format_data=True):
     """
     Get an entry from sample_table (SAMPLE_TABLE read by `Snakefile`).
 
@@ -66,9 +66,32 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
     :param sample: Sample name. If not present, extract from "sample" entry in `wildcards`.
     :param wildcards: If present, parse the table entry with this value. Otherwise, parse with sample=sample.
     :param type: Entry must be declared as this type (points to parser used to process the input data).
+    :param format_data: If True, parse wildcards into 'DATA' entry. If False, leave 'DATA' with wildcards in it.
 
     :return: A configuration entry (Pandas.Series).
     """
+
+    # Get wildcards
+    if wildcards is None:
+        wildcards = dict()
+        wildcards_is_none = True
+
+    else:
+        wildcards = dict(wildcards)
+        wildcards_is_none = False
+
+    # Expand wildcard aliases
+    if 'varsvtype' in wildcards.keys():
+        varsvtype_tok = wildcards['varsvtype'].split('_')
+
+        if len(varsvtype_tok) != 2:
+            raise RuntimeError('Found wildcard "varsvtype" with value "{}", but expected two "_" separated fields'.format(wildcards['varsvtype']))
+
+        if 'vartype' not in wildcards.keys():
+            wildcards['vartype'] = varsvtype_tok[0]
+
+        if 'svtype' not in wildcards.keys():
+            wildcards['svtype'] = varsvtype_tok[1]
 
     # Check name
     if name is None:
@@ -76,16 +99,15 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
 
     # Get sample name
     if sample is None:
-        if wildcards is None:
+        sample = wildcards.get('sample', None)
+
+    if sample is None:
+        if wildcards_is_none:
             raise RuntimeError('Cannot get global sample table entry: sample and wildcards are both None')
 
-        if 'sample' not in wildcards.keys():
-            raise RuntimeError('Cannot get sample from wildcards: "sample" is not a wildcards key')
-
-        sample = wildcards.sample
+        raise RuntimeError('Cannot get sample from wildcards: "sample" is not a wildcards key')
 
     # Find table entry
-
     if (name, sample) in sample_table.index:
         entry_sample = sample
 
@@ -123,9 +145,8 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
     sample_entry['ENTRY_SAMPLE'] = entry_sample
     sample_entry['DATA_PATTERN'] = sample_entry['DATA']
 
-    # Replace wildcards
-    if wildcards is not None:
-
+    # Replace wildcards in DATA
+    if format_data:
         missing_wildcards = sample_entry['WILDCARDS'] - set(wildcards.keys())
 
         if missing_wildcards:
@@ -137,19 +158,6 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
             )
 
         sample_entry['DATA'] = sample_entry['DATA'].format(**wildcards)
-    else:
-
-        missing_wildcards = sample_entry['WILDCARDS'] - {'sample'}
-
-        if missing_wildcards:
-            raise RuntimeError(
-                'Cannot get sample entry from sample table: No wildcards to fill format patterns in DATA: {}: Entry ({}, {})'.format(
-                    ', '.join(missing_wildcards),
-                    name, entry_sample
-                )
-            )
-
-        sample_entry['DATA'] = sample_entry['DATA'].format(sample=sample)
 
     # Set params
     sample_entry['PARAM_STRING'] = sample_entry['PARAMS']

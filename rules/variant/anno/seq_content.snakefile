@@ -25,6 +25,8 @@ rule variant_anno_seqcontent_gc:
         fa='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/gc/gc_content_{vartype}_{svtype}.tsv.gz'
+    wildcard_constraints:
+        svtype='ins|del|inv|dup|rgn|sub'
     run:
 
         # Read variants
