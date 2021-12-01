@@ -4,6 +4,33 @@ Variant set intersections.
 
 ruleorder: var_intersect_bymerge_svset_diff > var_intersect_by_merge
 
+###################
+### Definitions ###
+###################
+
+def intersect_is_read_seq(wildcards, config):
+    """
+    Determine if merge requires input sequence.
+
+    :param wildcards: Rule wildcards.
+    :param config: Configuration.
+
+    :return: `True` if sequences should be read.
+    """
+
+    config_def = svpoplib.svmerge.get_merge_def(wildcards.merge_def, config)
+
+    if config_def is None:
+        config_def = wildcards.merge_def
+
+    merge_strategy_tok = svpoplib.svmerge.get_merge_def(config_def, config).split(':', 1)
+
+    if len(merge_strategy_tok) == 1:
+        return false
+
+    return svpoplib.svmerge.get_param_set(merge_strategy_tok[1], merge_strategy_tok[0]).read_seq
+
+
 #############
 ### Rules ###
 #############
@@ -119,7 +146,12 @@ rule var_intersect_combined_insdelinv:
 rule var_intersect_by_merge:
     input:
         a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz',
-        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'
+        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz',
+        fa=lambda wildcards:
+            [
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'.format(**wildcards),
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'.format(**wildcards)
+            ] if intersect_is_read_seq(wildcards, config) else []
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
     params:
@@ -136,7 +168,8 @@ rule var_intersect_by_merge:
             bed_list=[input.a, input.b],
             sample_names=['A', 'B'],
             strategy=config_def,
-            threads=params.cpu
+            threads=params.cpu,
+            fa_list=input.fa if input.fa else None
         )
 
         # Subset columns
@@ -162,7 +195,12 @@ rule var_intersect_by_merge:
 rule var_intersect_bymerge_svset_diff:
     input:
         a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset_a}/bed/{vartype}_{svtype}.bed.gz',
-        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset_b}/bed/{vartype}_{svtype}.bed.gz'
+        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset_b}/bed/{vartype}_{svtype}.bed.gz',
+        fa=lambda wildcards:
+            [
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'.format(**wildcards),
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'.format(**wildcards)
+            ] if intersect_is_read_seq(wildcards, config) else []
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset_a}_vs_{svset_b}/{vartype}_{svtype}/intersect.tsv.gz'
     wildcard_constraints:
@@ -180,7 +218,8 @@ rule var_intersect_bymerge_svset_diff:
             bed_list=[input.a, input.b],
             sample_names=['A', 'B'],
             strategy=config_def,
-            threads=6
+            threads=6,
+            fa_list=input.fa if input.fa else None
         )
 
         # Subset columns

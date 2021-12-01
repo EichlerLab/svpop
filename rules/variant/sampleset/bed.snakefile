@@ -48,7 +48,14 @@ rule variant_sampleset_bed_merge_chrom:
             'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
             config,
             wildcards
-        )
+        ),
+        fa=lambda wildcards: svpoplib.sampleset.get_sample_set_input(
+            wildcards.sourcename,
+            wildcards.sample,
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+            config,
+            wildcards
+        ) if svmerge.is_read_seq(wildcards, config) else []
     output:
         bed=temp(
             'temp/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}/chrom_{chrom}.bed.gz'
@@ -68,6 +75,7 @@ rule variant_sampleset_bed_merge_chrom:
             input.bed,
             sampleset_entry['samples'],
             merge_strategy['strategy'],
+            fa_list=input.fa if input.fa else None,
             subset_chrom=wildcards.chrom,
             threads=params.cpu
         )

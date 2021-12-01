@@ -12,11 +12,13 @@ def nearest_by_svlen_overlap(
         df_source, df_target,
         szro_min=None,
         offset_max=None,
-        priority=('RO', 'SZRO', 'OFFSET'),
+        priority=('RO', 'SZRO', 'OFFSET', 'MATCH'),
         restrict_samples=False,
         threads=1,
         match_ref=False,
-        match_alt=False
+        match_alt=False,
+        aligner=None,
+        align_match_prop=None
 ):
     """
     For each variant in df_source, get the nearest variant in df_target. Both dataframes must contain fields
@@ -28,6 +30,19 @@ def nearest_by_svlen_overlap(
     * SZRO: Reciprocal size overlap. Calculated only on size, offset is not a factor (can be many bp apart).
     * OFFSZ: Offset / size.
 
+    Columns in returned DataFrame:
+    * ID: Record ID in `df`.
+    * TARGET_ID: Record ID in `df_next`.
+    * OFFSET: Breakpoint offset (minimum of start position distance and end position distance)
+    * RO: Reciprocal overlap if variants intersect.
+    * SZRO: Size reciprocal overlap (Max RO if variants were shifted to maximally intersect).
+    * OFFSZ: Offset / SVLEN.
+    * MATCH: Proportion of bases that matched in an alignment. The sequence from df_next is duplicated (head-to-tail,
+        allows for the same tandem duplication to have a breakpoint anywhere in the duplicated region), and the sequence
+        in df is aligned to it (Smith-Waterman). The number of matching bases is divided by the maximum length of the
+        two sequences (no head-to-tail duplication for this calculation), and that proportion of matched bases is
+        reported in this column.
+
     :param df_source: Source dataframe.
     :param df_target: Target dataframe.
     :param szro_min: Reciprocal length proportion of allowed matches.
@@ -38,8 +53,10 @@ def nearest_by_svlen_overlap(
     :param threads: Run this many overlap threads in parallel.
     :param match_ref: "REF" column must match between two variants.
     :param match_alt: "ALT" column must match between two variants.
+    :param aligner: Configured aligner for matching sequences.
+    :param align_match_prop: Minimum matched base proportion in alignment.
 
-    :return: A dataframe with "ID", "TARGET_ID", "OFFSET", "RO", "SZRO", and "OFFSZ".
+    :return: A dataframe with "ID", "TARGET_ID", "OFFSET", "RO", "SZRO", "OFFSZ", and "MATCH"
     """
 
     # Return an empty DataFrame if either source or target or empty
@@ -75,8 +92,8 @@ def nearest_by_svlen_overlap(
         if 'REF' not in df_target.columns:
             raise RuntimeError('Target table is missing REF column (required when matching reference base)')
 
-        df_source['REF'] = df_source['REF'].fillna('').apply(lambda val: val.upper())
-        df_target['REF'] = df_target['REF'].fillna('').apply(lambda val: val.upper())
+        df_source['REF'] = df_source['REF'].fillna('').apply(lambda val: val.upper().strip())
+        df_target['REF'] = df_target['REF'].fillna('').apply(lambda val: val.upper().strip())
 
     if match_alt:
         if 'ALT' not in df_source.columns:
@@ -85,9 +102,27 @@ def nearest_by_svlen_overlap(
         if 'ALT' not in df_target.columns:
             raise RuntimeError('Target table is missing ALT column (required when matching reference base)')
 
-        df_source['ALT'] = df_source['ALT'].fillna('').apply(lambda val: val.upper())
-        df_target['ALT'] = df_target['ALT'].fillna('').apply(lambda val: val.upper())
+        df_source['ALT'] = df_source['ALT'].fillna('').apply(lambda val: val.upper().strip())
+        df_target['ALT'] = df_target['ALT'].fillna('').apply(lambda val: val.upper().strip())
 
+    match_seq = aligner is not None
+
+    if match_seq:
+
+        if align_match_prop is None:
+            raise RuntimeError('Missing required parameter for alignment (when aligner != None): align_match_prop')
+
+        if 'SEQ' not in df_source.columns:
+            raise RuntimeError('Source table is missing SEQ column (required when matching variant sequences)')
+
+        if 'SEQ' not in df_target.columns:
+            raise RuntimeError('Target table is missing SEQ column (required when matching variant sequences)')
+
+        if align_match_prop <= 0.0 or align_match_prop > 1.0:
+            raise RuntimeError(f'Alignment proportion must be between 0.0 (exclusive) and 1.0 (inclusive): {align_match_prop}')
+
+        df_source['SEQ'] = df_source['SEQ'].fillna('N').apply(lambda val: val.upper().strip())
+        df_target['SEQ'] = df_target['SEQ'].fillna('N').apply(lambda val: val.upper().strip())
 
     # Check priority
     if priority is None:
@@ -105,11 +140,18 @@ def nearest_by_svlen_overlap(
     if len(priority) == 0:
         raise RuntimeError('Argument "priority" is empty')
 
+    if not match_seq:
+        priority = [val for val in priority if val != 'MATCH']
+
+        if len(priority) == 0:
+            raise RuntimeError('Argument "priority" is empty after removing "MATCH" (not matching SEQ)')
+
     priority_ascending_cols = {
         'RO': False,      # Highest RO first
         'OFFSET': True,   # Lowest offset first
         'SZRO': False,    # Highest size RO first
-        'OFFSZ': True     # Lowest offset / size proportion first
+        'OFFSZ': True,    # Lowest offset / size proportion first
+        'MATCH': False    # Highest align match first
     }
 
     if any([val not in priority_ascending_cols for val in priority]):
@@ -125,18 +167,20 @@ def nearest_by_svlen_overlap(
     else:
         restrict_samples = False
 
-    # Subset and cast to int16 (default int64 uses more memory and is not needed)
-    if restrict_samples:
-        subset_cols = ['#CHROM', 'POS', 'END', 'SVTYPE', 'SVLEN', 'ID', 'MERGE_SAMPLES']
+    # Column subset
+    subset_cols = ['#CHROM', 'POS', 'END', 'SVTYPE', 'SVLEN', 'ID']
 
-    else:
-        subset_cols = ['#CHROM', 'POS', 'END', 'SVTYPE', 'SVLEN', 'ID']
+    if restrict_samples:
+        subset_cols += ['MERGE_SAMPLES']
 
     if match_ref:
         subset_cols += ['REF']
 
     if match_alt:
         subset_cols += ['ALT']
+
+    if match_seq:
+        subset_cols += ['SEQ']
 
     df_source = df_source.loc[:, subset_cols]
     df_target = df_target.loc[:, subset_cols]
@@ -193,7 +237,9 @@ def nearest_by_svlen_overlap(
         'priority': priority,
         'priority_ascending': priority_ascending,
         'match_ref': match_ref,
-        'match_alt': match_alt
+        'match_alt': match_alt,
+        'aligner': aligner,
+        'align_match_prop': align_match_prop
     }
 
     if threads > 1 and len(chrom_list) > 1:
@@ -222,7 +268,7 @@ def nearest_by_svlen_overlap(
     # Merge dataframes
     df_match = pd.concat(df_split_results, axis=0)
 
-    df_match = df_match.loc[:, ['ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ']]
+    df_match = df_match.loc[:, ['ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH']]
 
     # Return dataframe
     return df_match
@@ -260,7 +306,8 @@ def _overlap_worker(
         szro_min, offset_max,
         restrict_samples,
         priority, priority_ascending,
-        match_ref, match_alt
+        match_ref, match_alt,
+        aligner, align_match_prop
 ):
 
     # Get dataframes
@@ -269,7 +316,18 @@ def _overlap_worker(
 
     # Skip if target has no entries for this chromosome
     if df_target_chr.shape[0] == 0 or df_source_chr.shape[0] == 0:
-        return pd.DataFrame([], columns=('ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ'))
+        return pd.DataFrame([], columns=('ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH'))
+
+    # Init alignment
+    match_seq = aligner is not None
+
+    if match_seq:
+        # Short variant alignments with a single mismatch will fail the threshold, so an exact match is required. For
+        # these short variants, set a threshold for exact-match (SVLEN < min_match_len will not attempt alignment).
+        # Note that an imprecise factor (0.00001) is added to prevent imprecise floating point values from increasing
+        # the threshold; e.g. 1 / (1 - 0.8)) = 5.000000000000001, which pushes the threshold one base higher if not
+        # corrected.
+        min_match_len = np.ceil(1 / (1 - align_match_prop + 0.00001)) + 1
 
     # Setup list of maximum matches
     overlap_list = list()
@@ -281,33 +339,39 @@ def _overlap_worker(
         end = source_row['END']
         svlen = source_row['SVLEN']
 
+        seq = source_row['SEQ'] if match_seq else None
+
         df_target_row_pool = df_target_chr.copy()
 
         # Filter by REF and ALT
-        if match_ref:
-            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['REF'] == source_row['REF']].copy()
+        if match_ref or match_alt:
+            if match_ref:
+                df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['REF'] == source_row['REF']]
 
-        if match_alt:
-            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['ALT'] == source_row['ALT']].copy()
+            if df_target_row_pool.shape[0] == 0:
+                continue
 
-        if df_target_row_pool.shape[0] == 0:
-            continue
+            if match_alt:
+                df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['ALT'] == source_row['ALT']]
 
-        # Calculate SZRO (size overlap)
+            if df_target_row_pool.shape[0] == 0:
+                continue
+
+            df_target_row_pool = df_target_row_pool.copy()
+
+        # Calculate SZRO (size overlap) and filter
         df_target_row_pool['SZRO'] = df_target_row_pool.apply(
             lambda row: np.min([svlen / row['SVLEN'], row['SVLEN'] / svlen]),
             axis=1
         )
 
-        # Filter by svlen overlap
         if szro_min is not None:
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['SZRO'] >= szro_min].copy()
 
-        # Stop if no matches
         if df_target_row_pool.shape[0] == 0:
             continue
 
-        # Calculate offset
+        # Calculate offset and filter
         df_target_row_pool['OFFSET'] = df_target_row_pool.apply(
             lambda row: np.min(
                 [
@@ -317,19 +381,39 @@ def _overlap_worker(
             ), axis=1
         )
 
-        # Filter by offset
         if offset_max is not None:
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['OFFSET'] <= offset_max].copy()
+
+        if df_target_row_pool.shape[0] == 0:
+            continue
 
         # Filter by samples
         if restrict_samples:
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MERGE_SAMPLES'].apply(
                 lambda sample_set: bool(sample_set & source_row['MERGE_SAMPLES'])
-            )]
+            )].copy()
 
-        # Stop if no matches
-        if df_target_row_pool.shape[0] == 0:
-            continue
+            if df_target_row_pool.shape[0] == 0:
+                continue
+
+        # Compute sequence match
+        if match_seq:
+            if svlen < min_match_len:
+                # Do not attempt to align small matches incapable of tolerating a single unaligned base
+                df_target_row_pool['MATCH'] = df_target_row_pool['SEQ'].apply(lambda val: 1 if seq == val else 0)
+
+            else:
+                df_target_row_pool['MATCH'] = df_target_row_pool['SEQ'].apply(
+                    lambda seq_target: svpoplib.svmerge.align_match_prop_dup(seq, seq_target, aligner)
+                )
+
+                df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MATCH'] >= align_match_prop].copy()
+
+                if df_target_row_pool.shape[0] == 0:
+                    continue
+
+        else:
+            df_target_row_pool['MATCH'] = np.nan
 
         # Redefine end points for insertions (make them by-length for reciprocal overlap calculation)
         if source_row['SVTYPE'] == 'INS':
@@ -342,9 +426,10 @@ def _overlap_worker(
                 row['OFFSET'],
                 svpoplib.variant.reciprocal_overlap(pos, end, row['POS'], row['END']),
                 row['SZRO'],
-                row['OFFSET'] / svlen
+                row['OFFSET'] / svlen,
+                row['MATCH']
             ],
-            index=['OFFSET', 'RO', 'SZRO', 'OFFSZ']
+            index=['OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH']
         ), axis=1)
 
         max_row = df_distance.reset_index().sort_values(priority, ascending=priority_ascending).iloc[0]
@@ -362,10 +447,10 @@ def _overlap_worker(
 
     # Merge and return
     if len(overlap_list) == 0:
-        return pd.DataFrame([], columns=('ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ'))
+        return pd.DataFrame([], columns=('ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH'))
 
     return pd.concat(
         overlap_list, axis=1
     ).T.loc[
-       :, ['ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ']
+       :, ['ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH']
     ]

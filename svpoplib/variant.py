@@ -2,6 +2,7 @@
 Variant processing and comparison functions.
 """
 
+import collections
 import intervaltree
 import multiprocessing
 import numpy as np
@@ -165,7 +166,7 @@ def nr_interval_merge(df_chr, overlap=0.5):
 
 
 def order_variant_columns(
-        df, head_cols=('#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN'), tail_cols=None, allow_missing=False
+        df, head_cols=('#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN'), tail_cols=None, allow_missing=False, subset=False
 ):
     """
     Rearrange columns with a set list first (in defined order of `head_cols`) and leave the remaining columns
@@ -174,7 +175,8 @@ def order_variant_columns(
     :param df: Data frame.
     :param head_cols: Columns to move to the first columns. Set variant BED order by default.
     :param tail_cols: Columns to move to the end. May be set to `None`.
-    :param flex_col: All
+    :param allow_missing: Do not throw an error if the dataframe is missing one or more columns.
+    :param subset: If True, subset to defined columns and drop all others.
 
     :return: Data frame with rearranged columns.
     """
@@ -215,7 +217,10 @@ def order_variant_columns(
     # Define middle columns
     head_tail_set = set(head_cols).union(set(tail_cols))
 
-    mid_cols = [col for col in df.columns if col not in head_tail_set]
+    if subset:
+        mid_cols = []
+    else:
+        mid_cols = [col for col in df.columns if col not in head_tail_set]
 
     # Arrange with head columns first. Leave remaining columns in order
     return df.loc[:, head_cols + mid_cols + tail_cols]
@@ -570,3 +575,63 @@ def right_homology(pos_tig, seq_tig, seq_sv):
 
     # Return shifted amount
     return hom_len
+
+
+def version_id(id_col):
+    """
+    Take a column of IDs (Pandas Series object, `id_col`) and transform all duplicate IDs by appending "." and an
+    integer so that no duplicate IDs remain.
+
+    Example: If "chr1-1000-INS-10" has no duplicates, it will remain "chr1-1000-INS-10" in the output column. If it
+    appears 3 times, then they will be named "chr1-1000-INS-10.1", "chr1-1000-INS-10.2", and "chr1-1000-INS-10.3".
+
+    If an ID is duplicated and already versioned, the first appearance of the versioned ID will remain unchanged and the
+    version will be incremented for subsequent appearances. If upon incrementing the name conflicts with another variant
+    that was already versioned (e.g. a ".2" version already exists in the callset), the version will be incremented
+    until it does not collide with any variant IDs.
+
+    :param id_col: ID column as a Pandas Series object.
+
+    :return: `id_col` unchanged if there are no duplicate IDs, or a new copy of `id_col` with IDs de-duplicated and
+        versioned.
+    """
+
+    # Get counts
+    dup_set = {val for val, count in collections.Counter(id_col).items() if count > 1}
+
+    if len(dup_set) == 0:
+        return id_col
+
+    # Create a map: old name to new name
+    id_col = id_col.copy()
+    id_set = set(id_col) - dup_set
+
+    for index in range(id_col.shape[0]):
+        name = id_col.iloc[index]
+
+        if name in dup_set:
+
+            # Get current variant version (everything after "." if present, 1 by default)
+            tok = name.rsplit('.', 1)
+            if len(tok) == 1:
+                name_version = 1
+
+            else:
+                try:
+                    name_version = int(tok[1]) + 1
+                except ValueError:
+                    raise RuntimeError(f'Error de-duplicating variant ID field: Split "{name}" on "." and expected to find an integer at the end')
+
+            # Find unique name
+            new_name = '.'.join([tok[0], str(name_version)])
+
+            while new_name in id_set:
+                name_version += 1
+                new_name = '.'.join([tok[0], str(name_version)])
+
+            # Add to map
+            id_col.iloc[index] = new_name
+            id_set.add(new_name)
+
+    # Append new variants
+    return id_col

@@ -256,6 +256,26 @@ def cluster_param_anno_mem(wildcards, config):
         ).get('anno_mem', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['anno_mem'])
 
 
+def is_read_seq(wildcards, config):
+    """
+    Determine if merge requires input sequence.
+
+    :param wildcards: Rule wildcards.
+    :param config: Configuration.
+
+    :return: `True` if sequences should be read.
+    """
+
+    callerset_entry = svpoplib.callerset.get_config_entry(wildcards.sourcename, config)
+
+    merge_strategy_tok = svpoplib.sampleset.get_merge_strategy(callerset_entry, wildcards.vartype, wildcards.svtype).split(':', 1)
+
+    if len(merge_strategy_tok) == 1:
+        return false
+
+    return svpoplib.svmerge.get_param_set(merge_strategy_tok[1], merge_strategy_tok[0]).read_seq
+
+
 # def cluster_param_cpu(wildcards, config):
 #     """
 #     Get number of cores to be allocated for variant merge jobs.

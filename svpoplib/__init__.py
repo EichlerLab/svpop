@@ -4,6 +4,7 @@ from . import anno
 from . import plot
 from . import tracks
 
+from . import aligner
 from . import callerset
 from . import gt
 from . import pd

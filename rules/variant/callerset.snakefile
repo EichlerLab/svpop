@@ -47,12 +47,19 @@ rule variant_callerset_merge:
 rule variant_callerset_merge_chrom:
     input:
         bed=lambda wildcards:
-        svpoplib.callerset.get_caller_set_input(
-            wildcards.sourcename,
-            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
-            config,
-            wildcards
-        )
+            svpoplib.callerset.get_caller_set_input(
+                wildcards.sourcename,
+                'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+                config,
+                wildcards
+            ),
+        fa=lambda wildcards:
+            svpoplib.callerset.get_caller_set_input(
+                wildcards.sourcename,
+                'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+                config,
+                wildcards
+            ) if svpoplib.callerset.is_read_seq(wildcards, config) else []
     output:
         bed=temp('temp/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}/chrom_{chrom}.bed.gz')
     params:
@@ -71,6 +78,7 @@ rule variant_callerset_merge_chrom:
             input.bed,
             callerset_entry['name_list'],
             merge_strategy['strategy'],
+            fa_list = input.fa if input.fa else None,
             subset_chrom=wildcards.chrom,
             threads=params.cpu
         )
