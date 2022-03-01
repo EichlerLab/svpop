@@ -2,6 +2,16 @@
 Handle merging, comparing, and annotating samples from multiple sources.
 """
 
+### Get svpop directory ###
+
+SVPOP_DIR = os.path.dirname(workflow.snakefile)
+
+
+### Library dependencies ###
+import sys
+sys.path.append(os.path.join(SVPOP_DIR, 'dep'))  # kanapy
+
+
 ### Imports ###
 
 import collections
@@ -30,11 +40,6 @@ import Bio.bgzf
 #import warnings
 
 #warnings.simplefilter("error")
-
-
-### Get svpop directory ###
-
-SVPOP_DIR = os.path.dirname(workflow.snakefile)
 
 
 ### Config ###

@@ -474,9 +474,9 @@ def is_read_seq(wildcards, config):
     """
 
     sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sourcename, wildcards.sample, config)
-    merge_strategy_tok = svpoplib.sampleset.get_merge_strategy(sampleset_entry, wildcards.vartype, wildcards.svtype).split(':', 1)
+    merge_strategy_tok = svpoplib.sampleset.get_merge_strategy(sampleset_entry, wildcards.vartype, wildcards.svtype)['strategy'].split(':', 1)
 
     if len(merge_strategy_tok) == 1:
-        return false
+        return False
 
     return svpoplib.svmerge.get_param_set(merge_strategy_tok[1], merge_strategy_tok[0]).read_seq

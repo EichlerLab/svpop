@@ -12,15 +12,28 @@ import sys
 import traceback
 
 import svpoplib
+import kanapy
 
-ALIGN_PARAM_DEFAULT = [0.8, 2, -1, -1, -1]
+ALIGN_PARAM_FIELD_LIST = [
+    ('SCORE-PROP', 0.8, float),   # Minimum score proportion possible score (all aligned bases)
+    ('MATCH', 2.0, float),        # Match score
+    ('MISMATCH', -1.0, float),    # Mismatch score
+    ('GAP-OPEN', -5.0, float),    # Gap open score
+    ('GAP-EXTEND', -0.5, float),  # Gap extend score
+    ('MAP-LIMIT', 500000, int),   # Fall back to Jaccard index after this size.
+    ('JACCARD-KMER', 9, int)      # K-mer size for Jaccard index (Using Jasmine default)
+]
 
-ALIGN_PARAM_FIELDS = {
-    'SCORE-PROP': 0,
-    'MATCH': 1,
-    'MISMATCH': 2,
-    'GAP-OPEN': 3,
-    'GAP-EXTEND': 4
+ALIGN_PARAM_KEY = {
+    i: ALIGN_PARAM_FIELD_LIST[i][0] for i in range(len(ALIGN_PARAM_FIELD_LIST))
+}
+
+ALIGN_PARAM_DEFAULT = {
+    ALIGN_PARAM_FIELD_LIST[i][0]: ALIGN_PARAM_FIELD_LIST[i][1] for i in range(len(ALIGN_PARAM_FIELD_LIST))
+}
+
+ALIGN_PARAM_TYPE = {
+    ALIGN_PARAM_FIELD_LIST[i][0]: ALIGN_PARAM_FIELD_LIST[i][2] for i in range(len(ALIGN_PARAM_FIELD_LIST))
 }
 
 
@@ -75,12 +88,6 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
 
     if strategy_tok[0] == 'nr':
         return merge_variants_nr(bed_list, sample_names, strategy_tok[1], fa_list=fa_list, subset_chrom=subset_chrom, threads=threads)
-
-    if strategy_tok[0] == 'fam':
-        return merge_variants_fam(bed_list, sample_names, strategy_tok[1], fa_list=fa_list, subset_chrom=subset_chrom, threads=threads)
-
-    if strategy_tok[0] == 'nrid':
-        return merge_variants_nrid(bed_list, sample_names, strategy_tok[1], fa_list=fa_list, subset_chrom=subset_chrom, threads=threads)
 
     else:
         raise RuntimeError('Unrecognized strategy: {}'.format(strategy))
@@ -239,8 +246,13 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
         df_next_sub = df_next.copy()
 
         # INTERSECT: Exact match
-        #support_table_list.append(get_support_table_nrid(df_sub, df_next_sub))
-        support_table_list.append(get_support_table_exact(df_sub, df_next_sub, param_set.match_seq, param_set.match_ref, param_set.match_alt))
+        support_table_list.append(
+            get_support_table_exact(
+                df_sub, df_next_sub,
+                param_set.match_seq,
+                param_set.match_ref, param_set.match_alt
+            )
+        )
 
         id_set = set(support_table_list[-1]['ID'])
         id_next_set = set(support_table_list[-1]['TARGET_ID'])
@@ -309,7 +321,7 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
             df_support['SAMPLE'] = sample_name
             df_support['SUPPORT_SAMPLE'] = list(df.loc[df_support['ID'], 'SAMPLE'])
 
-            # Fix IDs (ID = new ID, SUPPORT_ID = ID in sample it supports)
+            # Fix IDs. ID = new ID. SUPPORT_ID = ID in sample it supports (merged callset ID)
             df_support['SUPPORT_ID'] = list(df.loc[df_support['ID'], 'SUPPORT_ID'])
             df_support['ID'] = df_support['TARGET_ID']
 
@@ -366,42 +378,8 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
             df_new['SUPPORT_MATCH'] = -1
 
             # De-duplicate IDs
-            dup_names = sorted(set(df['ID']) & set(df_new['ID']))
-
-            if dup_names:
-
-                # Get a set of existing IDs
-                id_set = set(df['ID']) | set(df_new['ID'])
-
-                # Create a map: old name to new name
-                dup_name_map = dict()
-
-                for name in dup_names:
-
-                    # Get parts of the name (may already have a version)
-                    tok = name.rsplit('.', 1)
-
-                    if len(tok) == 1:
-                        name_version = 1
-
-                    else:
-                        try:
-                            name_version = int(tok[1]) + 1
-                        except ValueError:
-                            raise RuntimeError(f'Error de-duplicating variant ID field: Split "{name}" on "." and expected to find an integer at the end')
-
-                    # New name must be unique, increment version until it is
-                    new_name = '.'.join([tok[0], str(name_version)])
-
-                    while new_name in id_set:
-                        name_version += 1
-                        new_name = '.'.join([tok[0], str(name_version)])
-
-                    # Add to map
-                    dup_name_map[name] = new_name
-
-                # Update IDs
-                df_new['ID'] = df_new['ID'].apply(lambda val: dup_name_map.get(val, val))
+            df_new['SUPPORT_ID'] = svpoplib.variant.version_id(df_new['SUPPORT_ID'], set(df['SUPPORT_ID']))
+            df_new.set_index('SUPPORT_ID', inplace=True, drop=False)
 
             # Append new variants
             df = pd.concat([df, df_new.loc[:, df.columns]], axis=0)
@@ -478,224 +456,19 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
             ]
         ))
 
+        df_support.reset_index(inplace=True, drop=False)
+
     else:
         df_support = pd.DataFrame(
             [],
             columns=[
                 'MERGE_SRC', 'MERGE_SRC_ID', 'MERGE_AC', 'MERGE_AF',
-                'MERGE_SAMPLES', 'MERGE_VARIANTS',
+                'SUPPORT_ID', 'MERGE_SAMPLES', 'MERGE_VARIANTS',
                 'MERGE_RO', 'MERGE_OFFSET', 'MERGE_SZRO', 'MERGE_OFFSZ', 'MERGE_MATCH'
             ]
         )
 
     # Merge original BED files by by df_support
-    return merge_sample_by_support(df_support, bed_list, sample_names)
-
-
-def merge_variants_fam(bed_list, sample_names, merge_params, fa_list=None, subset_chrom=None, threads=1):
-    """
-    Merge all non-redundant variants from multiple samples and perform family-wise annotations.
-
-    :param bed_list: List of BED files to merge where each BED file is from one samples.
-    :param sample_names: List of samples names. Each element matches an element at the same location in
-        `bed_list`.
-    :param merge_params: A colon-delimited list of parameters. Must contain "ro=" for the reciprocal-overlap parameter
-        (for non-redundant merge). Must also contain "order=" with a value containing "c" (child), "m" (mother), and
-        "f" (father) describing the family members in the bed and sample lists (e.g. "ccmf" means that the samples are
-        ordered as child-child-mother-father). A typical parameter list might be "ro=50:ccmf".
-    :param fa_list: List of FASTA files matching `bed_list` and `sample_names`. FASTA files contain sequences for
-        variants where each FASTA record ID is the variant ID and the sequence is the variant sequence.
-    :param subset_chrom: Merge only records from this chromosome. If `None`, merge all records.
-    :param threads: Number of threads to use for intersecting variants.
-
-    :return: A Pandas dataframe of a BED file with the index set to the ID column.
-    """
-
-    # Merge function aliases
-    merge_func_dict = {
-        'nr': merge_variants_nr,
-        'nrid': merge_variants_nrid
-    }
-
-    # Set defaults
-    fam_order = None   # Order of samples in bed_list and sample_names. String with "c", "f", and "m" (e.g. "ccmf" for child-child-mother-father).
-    merge_func_name = 'nr'  # Algorithm to use for merging.
-
-    # Get parameters
-    if merge_params is None:
-        raise RuntimeError('Cannot merge family with parameters: None')
-
-    nr_param_list = list()  # List of parameters to be given to the nr merge function
-
-    for param_element in merge_params.split(':'):
-
-        # Tokenize
-        param_element = param_element.strip()
-
-        if not param_element:
-            continue
-
-        param_tok = re.split('\s*=\s*', param_element, 1)
-
-        if len(param_tok) > 1:
-            key, val = param_element.split('=', 1)
-        else:
-            key = param_element
-            val = None
-
-        key = key.lower()
-
-        # Order
-        if key == 'order':
-            fam_order = val.lower()
-
-        elif key == 'famalg':
-            merge_func_name = val.lower()
-
-        else:
-            nr_param_list.append(param_element)
-
-    # Check parameters
-    #if len(nr_param_list) == 0:
-    #    raise RuntimeError('merge_variants_fam(): No parameters for nr merge function')
-
-    if fam_order is None:
-        raise RuntimeError('merge_variants_fam(): Missing "order" in parameter list')
-
-    # Get merging algorithm
-    if merge_func_name not in merge_func_dict:
-        raise RuntimeError('Unrecognized merge function for family-wise merging (famalg=): ' + merge_func_name)
-
-    merge_func = merge_func_dict[merge_func_name]
-
-    # Get parameter string
-    nr_param = ':'.join(nr_param_list)
-
-    # Check family
-    fam_list = list(fam_order)
-
-    if len(fam_order) != len(sample_names):
-        raise RuntimeError(
-            'merge_variants_fam(): Number of "order" elements ({}) does not match the number of sample names ({})'.format(
-                len(fam_order), len(sample_names)
-            ))
-
-    if any([val not in {'c', 'm', 'f'} for val in fam_list]):
-        raise RuntimeError(
-            'merge_variants_fam(): Found characters that are not in {{c, m, f}} in family order: {}'.format(fam_order)
-        )
-
-    if sum([val == 'f' for val in fam_list]) != 1:
-        raise RuntimeError(
-            'merge_variants_fam(): Expected 1 father (f) in family order: Found {}'.format(sum([val == 'f' for val in fam_list]))
-        )
-
-    if sum([val == 'm' for val in fam_list]) != 1:
-        raise RuntimeError(
-            'merge_variants_fam(): Expected 1 mother (m) in family order: Found {}'.format(sum([val == 'm' for val in fam_list]))
-        )
-
-    # Get sample names
-    mo_index = [index for val, index in zip(fam_order, range(len(fam_order))) if val == 'm'][0]
-    fa_index = [index for val, index in zip(fam_order, range(len(fam_order))) if val == 'f'][0]
-    ch_index_list = [index for val, index in zip(fam_order, range(len(fam_order))) if val not in {'m', 'f'}]
-
-    mo_name = sample_names[mo_index]
-    fa_name = sample_names[fa_index]
-
-    # Do non-redundant merge
-    df = merge_func(
-        bed_list=bed_list, sample_names=sample_names, merge_params=nr_param, fa_list=fa_list, subset_chrom=subset_chrom, threads=threads
-    )
-
-    # Do family-wise annotations
-    df_samples = df['MERGE_SAMPLES'].apply(lambda val: val.split(','))
-
-    anno_dict = {
-        (False, False): 'DENOVO',
-        (False, True): 'FA',
-        (True, False): 'MO',
-        (True, True): 'MOFA'
-    }
-
-    for ch_index in ch_index_list:
-        child_name = sample_names[ch_index]
-
-        df['INHERIT_{}'.format(child_name)] = df_samples.apply(
-            lambda vals: np.nan if child_name not in vals else anno_dict[(mo_name in vals, fa_name in vals)]
-        )
-
-    # Return dataframe
-    return df
-
-
-def merge_variants_nrid(bed_list, sample_names, merge_params, fa_list=None, subset_chrom=None, threads=1):
-    """
-    merge variants by ID. This requires exact matches among the variants.
-
-    :param bed_list: List of BED files to merge.
-    :param sample_names: List of sample names.
-    :param merge_params: Merge parameters.
-    :param subset_chrom: Subset this chromosome.
-    :param threads: Number of threads (ignored).
-
-    :return: Merged dataframe.
-    """
-
-    # Parse parameters
-    if merge_params is None:
-        merge_params = ''
-
-    merge_params = merge_params.strip()
-
-    if merge_params:
-        raise RuntimeError('Unrecognized options to merged by ID: ' + merge_params)
-
-    # Get a list of supporting sample for each ID
-    n_samples = len(sample_names)
-
-    support_sample_list = collections.defaultdict(list)
-
-    for index in range(n_samples):
-        sample_name = sample_names[index]
-
-        df_sample = svpoplib.pd.read_csv_chrom(
-            bed_list[index], chrom=subset_chrom,
-            sep='\t',
-            usecols=('#CHROM', 'ID')
-        )
-
-        for variant_id in set(df_sample['ID']):
-            support_sample_list[variant_id].append(sample_name)
-
-    # Make support table
-    df_support_list = list()
-
-    for variant_id, sample_list in support_sample_list.items():
-        df_support_list.append(pd.Series(
-            [
-                sample_list[0],
-                variant_id,
-                len(sample_list),
-                len(sample_list) / n_samples,
-                ','.join(sample_list),
-                ','.join([variant_id] * len(sample_list))
-            ],
-            index=['MERGE_SRC', 'MERGE_SRC_ID', 'MERGE_AC', 'MERGE_AF', 'MERGE_SAMPLES', 'MERGE_VARIANTS']
-        ))
-
-    del support_sample_list
-
-    if df_support_list:
-        df_support = pd.concat(df_support_list, axis=1).T
-    else:
-        df_support = pd.DataFrame(
-            [],
-            columns=['MERGE_SRC', 'MERGE_SRC_ID', 'MERGE_AC', 'MERGE_AF', 'MERGE_SAMPLES', 'MERGE_VARIANTS']
-        )
-
-    del df_support_list
-
     return merge_sample_by_support(df_support, bed_list, sample_names)
 
 
@@ -830,8 +603,9 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
     Take a support table and generate the merged variant BED file.
     
     The support table must have at least columns:
-    1) MERGE_SRC: Sample variant should be extracted from
-    2) MERGE_SRC_ID: ID of of the variant to extract from the source. This becomes the record that represents all
+    1) SUPPORT_ID: ID in the final merged callset. Might have been altered to avoid name clashes (e.g. "XXX.1").
+    2) MERGE_SRC: Sample variant should be extracted from
+    3) MERGE_SRC_ID: ID of of the variant to extract from the source. This becomes the record that represents all
         variants merged with it.
     
     The support table may also have:
@@ -861,7 +635,7 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
     :return: A merged dataframe of variants.
     """
 
-    REQUIRED_COLUMNS = ['MERGE_SRC', 'MERGE_SRC_ID']
+    REQUIRED_COLUMNS = ['SUPPORT_ID', 'MERGE_SRC', 'MERGE_SRC_ID']
 
     OPT_COL = ['MERGE_AC', 'MERGE_AF', 'MERGE_SAMPLES', 'MERGE_VARIANTS', 'MERGE_RO', 'MERGE_OFFSET', 'MERGE_SZRO', 'MERGE_OFFSZ', 'MERGE_MATCH']
 
@@ -891,7 +665,8 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
     opt_columns = [opt_col for opt_col in OPT_COL if opt_col in df_support.columns]
 
     # Merged variant IDs should be unique
-    dup_id_list = [val for val, count in collections.Counter(df_support['MERGE_SRC_ID']).items() if count > 1]
+    #dup_id_list = [val for val, count in collections.Counter(df_support['MERGE_SRC_ID']).items() if count > 1]
+    dup_id_list = [val for val, count in collections.Counter(df_support['SUPPORT_ID']).items() if count > 1]
 
     if len(dup_id_list) > 0:
         dup_id_str = ', '.join(dup_id_list[:3]) + (', ...' if len(dup_id_list) > 3 else '')
@@ -908,6 +683,7 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
         # Get merged variants for this sample
         df_support_sample = df_support.loc[df_support['MERGE_SRC'] == sample_name].copy()
 
+        # Set index to original ID in this sample
         df_support_sample.set_index('MERGE_SRC_ID', inplace=True, drop=False)
         df_support_sample.index.name = 'INDEX'
 
@@ -921,12 +697,13 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
         if df_support_sample.shape[0] == 0:
             continue
 
-        df_sample.set_index('ID', inplace=True, drop=False)
+        df_sample.set_index('ID', inplace=True, drop=True)
         df_sample.index.name = 'INDEX'
 
         df_sample = df_sample.loc[df_support_sample['MERGE_SRC_ID']]
 
         # Transfer required columns
+        df_sample['ID'] = df_support_sample['SUPPORT_ID']  # ID in the final merged callset
         df_sample['MERGE_SRC'] = df_support_sample['MERGE_SRC']
         df_sample['MERGE_SRC_ID'] = df_support_sample['MERGE_SRC_ID']
 
@@ -1114,45 +891,63 @@ def get_param_set(merge_params, strategy):
             # 2: Mismatch
             # 3: Gap open
             # 4: Gap extend
+            # 5: Map limit ("NA" or "UNLIMITED" sets no limit). Fall back to Jaccard index after this limit.
+            # 6: Jaccard k-mer size
 
-            param_set.align_param = list(ALIGN_PARAM_DEFAULT)
-
-            tok_key = 0
+            param_set.align_param = ALIGN_PARAM_DEFAULT.copy()
 
             if not val:
                 val = ''
 
-            for tok in val.split(','):
+            val = val.strip()
 
-                if tok_key > len(param_set.align_param):
-                    raise RuntimeError('Alignment parameter in "match" argument count exceeds max: {}'.format(len(param_set.align_param)))
+            val_split = val.split(',')
+
+            if len(val_split) > len(param_set.align_param):
+                raise RuntimeError('Alignment parameter in "match" argument count {} exceeds max: {}'.format(len(val_split), len(param_set.align_param)))
+
+            for i in range(len(val_split)):
 
                 # Get token
-                tok = tok.strip()
+                tok = val_split[i].strip()
+                field_name = ALIGN_PARAM_KEY[i]
+                param_type = ALIGN_PARAM_TYPE[field_name]
 
                 if not tok:
-                    continue
+                    continue  # Leave default unchanged
 
-                try:
-                    tok_val = float(tok)
-                except ValueError:
-                    raise RuntimeError('Non-numeric value in "match" at argument {}: {}'.format(tok_key + 1, tok))
+                # Get token value
+                if field_name == 'MAP-LIMIT' and tok.lower in {'na', 'unlimited'}:
+                    tok_val = None
 
-                # Ensure match is non-negative and all penalties are non-positive
-                if (tok_val > 0 and tok_key > 1) or (tok_val < 0 and tok_key < 2):
-                    tok_val = - tok_val
+                else:
+                    try:
+                        tok_val = param_type(tok)
+
+                    except ValueError:
+                        raise RuntimeError(f'Alignment parameter {i} in "match" type mismatch: Expected {param_type}: {tok}')
+
+                    if field_name == 'SCORE-PROP':
+                        if tok_val <= 0.0 or tok_val > 1:
+                            raise RuntimeError(f'Alignment parameter {i} ({field_name}) in "match" must be between 0 (exclusive) and 1 (inclusive): {tok}')
+
+                    elif field_name in {'MATCH', 'JACCARD-KMER'}:
+                        if tok_val <= 0:
+                            raise RuntimeError(f'Alignment parameter {i} ({field_name}) in "match" must be positive: {tok}')
+
+                    elif field_name in {'MISMATCH', 'GAP-OPEN', 'GAP-EXTEND'}:
+                        if tok_val > 0.0:
+                            raise RuntimeError(f'Alignment parameter {i} ({field_name}) in "match" must not be positive: {tok}')
+
+                    elif field_name == 'MAP-LIMIT':
+                        if tok_val < 0:
+                            raise RuntimeError(f'Alignment parameter {i} ({field_name}) in "match" must not be negative: {tok}')
 
                 # Assign
-                param_set.align_param[tok_key] = tok_val
-
-                # Next key value
-                tok_key += 1
-
-            if param_set.align_param[ALIGN_PARAM_FIELDS['SCORE-PROP']] <= 0.0 or param_set.align_param[ALIGN_PARAM_FIELDS['SCORE-PROP']] > 1.0:
-                raise RuntimeError(f'Alignment proportion threshold in "match" must be between 0 (exclusive) and 1 (inclusive): {val}')
+                param_set.align_param[field_name] = tok_val
 
         else:
-            raise ValueError('Unknown parameter token in "match": {}'.format(key))
+            raise ValueError(f'Unknown parameter token: {key}')
 
     # Check parameters
     if param_set.szro_min is not None and param_set.offset_max is None:
@@ -1167,13 +962,13 @@ def get_param_set(merge_params, strategy):
         param_set.match_seq = True
 
         param_set.aligner = svpoplib.aligner.ScoreAligner(
-            match=param_set.align_param[ALIGN_PARAM_FIELDS['MATCH']],
-            mismatch=param_set.align_param[ALIGN_PARAM_FIELDS['MISMATCH']],
-            gap_open=param_set.align_param[ALIGN_PARAM_FIELDS['GAP-OPEN']],
-            gap_extend=param_set.align_param[ALIGN_PARAM_FIELDS['GAP-EXTEND']]
+            match=param_set.align_param['MATCH'],
+            mismatch=param_set.align_param['MISMATCH'],
+            gap_open=param_set.align_param['GAP-OPEN'],
+            gap_extend=param_set.align_param['GAP-EXTEND']
         )
 
-        param_set.align_match_prop = param_set.align_param[ALIGN_PARAM_FIELDS['SCORE-PROP']]
+        param_set.align_match_prop = param_set.align_param['SCORE-PROP']
 
     else:
         param_set.match_seq = False
@@ -1296,7 +1091,7 @@ def get_support_table(
         offset_max, ro_szro_min,
         match_ref, match_alt,
         aligner=None,
-        align_match_prop=ALIGN_PARAM_DEFAULT[ALIGN_PARAM_FIELDS['SCORE-PROP']]
+        align_match_prop=ALIGN_PARAM_DEFAULT['SCORE-PROP']
     ):
     """
     Get a table describing matched variants between `df` and `df_next` and columns of evidence for support.
@@ -1690,24 +1485,24 @@ def get_support_table_exact(df, df_next, match_seq=None, match_ref=None, match_a
         )
 
 
-def align_match_prop_dup(seq_a, seq_b, aligner):
-    """
-    Determine if two sequences match by alignment.
-
-    The alignment aligns seq_a to seq_b + seq_b (seq_b is duplicated head-to-tail). This allows sequences to match if
-    they both represent a tandem duplication but a different breakpoint within the duplicated sequence.
-
-    :param seq_a: Sequence (first).
-    :param seq_b: Sequence (second).
-    :param aligner: Pre-configured alignment object.
-
-    :return: Proportion of matched bases in the alignment.
-    """
-
-    max_len = np.max([len(seq_a), len(seq_b)])
-    min_len = np.min([len(seq_a), len(seq_b)])
-
-    return min([
-            np.min([aligner.score_align(seq_a, seq_b + seq_b), min_len * 2]) / (max_len * 2),
-            1.0
-    ])
+# def align_match_prop_dup(seq_a, seq_b, aligner):
+#     """
+#     Determine if two sequences match by alignment.
+#
+#     The alignment aligns seq_a to seq_b + seq_b (seq_b is duplicated head-to-tail). This allows sequences to match if
+#     they both represent a tandem duplication but a different breakpoint within the duplicated sequence.
+#
+#     :param seq_a: Sequence (first).
+#     :param seq_b: Sequence (second).
+#     :param aligner: Pre-configured alignment object.
+#
+#     :return: Proportion of matched bases in the alignment.
+#     """
+#
+#     max_len = np.max([len(seq_a), len(seq_b)])
+#     min_len = np.min([len(seq_a), len(seq_b)])
+#
+#     return min([
+#             np.min([aligner.score_align(seq_a, seq_b + seq_b), min_len * 2]) / (max_len * 2),
+#             1.0
+#     ])

@@ -55,7 +55,7 @@ rule variant_sampleset_bed_merge_chrom:
             'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
             config,
             wildcards
-        ) if svmerge.is_read_seq(wildcards, config) else []
+        ) if svpoplib.sampleset.is_read_seq(wildcards, config) else []
     output:
         bed=temp(
             'temp/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}/chrom_{chrom}.bed.gz'

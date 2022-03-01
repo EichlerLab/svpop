@@ -2,6 +2,7 @@ __all__ = []
 
 from . import venn
 from . import ideo
+from . import upset
 
 
 # import pkgutil

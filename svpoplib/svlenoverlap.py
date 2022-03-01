@@ -195,7 +195,7 @@ def nearest_by_svlen_overlap(
     }
 
     if restrict_samples:
-        col_types['MERGE_SAMPLES'] = np.object
+        col_types['MERGE_SAMPLES'] = object
 
     if df_source.shape[0] > 0:
         df_source = df_source.astype({key: val for key, val in col_types.items() if key in df_source.columns})
@@ -314,6 +314,16 @@ def _overlap_worker(
     df_source_chr = df_source.loc[df_source['#CHROM'] == chrom].copy()
     df_target_chr = df_target.loc[df_target['#CHROM'] == chrom].copy()
 
+    if 'SVTYPE' in df_source_chr.columns:
+        df_source_chr['SVTYPE'] = df_source_chr['SVTYPE'].apply(lambda val: val.upper())
+    else:
+        df_source_chr['SVTYPE'] = 'RGN'
+
+    if 'SVTYPE' in df_target_chr.columns:
+        df_target_chr['SVTYPE'] = df_target_chr['SVTYPE'].apply(lambda val: val.upper())
+    else:
+        df_target_chr['SVTYPE'] = 'RGN'
+
     # Skip if target has no entries for this chromosome
     if df_target_chr.shape[0] == 0 or df_source_chr.shape[0] == 0:
         return pd.DataFrame([], columns=('ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH'))
@@ -329,6 +339,10 @@ def _overlap_worker(
         # corrected.
         min_match_len = np.ceil(1 / (1 - align_match_prop + 0.00001)) + 1
 
+        df_source_chr['SEQ'] = df_source_chr['SEQ'].apply(lambda val: val.upper().strip())
+        df_target_chr['SEQ'] = df_target_chr['SEQ'].apply(lambda val: val.upper().strip())
+
+
     # Setup list of maximum matches
     overlap_list = list()
 
@@ -338,10 +352,19 @@ def _overlap_worker(
         pos = source_row['POS']
         end = source_row['END']
         svlen = source_row['SVLEN']
+        svtype = source_row['SVTYPE']
+
+        is_ins = svtype == 'INS'
 
         seq = source_row['SEQ'] if match_seq else None
 
         df_target_row_pool = df_target_chr.copy()
+
+        # Match SVTYPE
+        df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['SVTYPE'] == svtype]
+
+        if df_target_row_pool.shape[0] == 0:
+            continue
 
         # Filter by REF and ALT
         if match_ref or match_alt:
@@ -387,6 +410,22 @@ def _overlap_worker(
         if df_target_row_pool.shape[0] == 0:
             continue
 
+        # Reciprocal overlap
+
+        if svtype != 'INS':
+            df_target_row_pool['RO'] = df_target_row_pool.apply(lambda row:
+                svpoplib.variant.reciprocal_overlap(pos, end, row['POS'], row['END']),
+                axis=1
+            )
+        else:
+            df_target_row_pool['RO'] = df_target_row_pool.apply(lambda row:
+                svpoplib.variant.reciprocal_overlap(pos, pos + svlen, row['POS'], row['POS'] + row['SVLEN']),
+                axis=1
+            )
+
+        if offset_max is None:
+            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['RO'] >= szro_min].copy()
+
         # Filter by samples
         if restrict_samples:
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MERGE_SAMPLES'].apply(
@@ -398,19 +437,22 @@ def _overlap_worker(
 
         # Compute sequence match
         if match_seq:
+
+            # Do match
             if svlen < min_match_len:
                 # Do not attempt to align small matches incapable of tolerating a single unaligned base
                 df_target_row_pool['MATCH'] = df_target_row_pool['SEQ'].apply(lambda val: 1 if seq == val else 0)
 
             else:
                 df_target_row_pool['MATCH'] = df_target_row_pool['SEQ'].apply(
-                    lambda seq_target: svpoplib.svmerge.align_match_prop_dup(seq, seq_target, aligner)
+                    lambda seq_target: aligner.match_prop(seq, seq_target)
                 )
 
-                df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MATCH'] >= align_match_prop].copy()
+            # Filter
+            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MATCH'] >= align_match_prop].copy()
 
-                if df_target_row_pool.shape[0] == 0:
-                    continue
+            if df_target_row_pool.shape[0] == 0:
+                continue
 
         else:
             df_target_row_pool['MATCH'] = np.nan

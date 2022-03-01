@@ -577,7 +577,7 @@ def right_homology(pos_tig, seq_tig, seq_sv):
     return hom_len
 
 
-def version_id(id_col):
+def version_id(id_col, existing_id_set=None):
     """
     Take a column of IDs (Pandas Series object, `id_col`) and transform all duplicate IDs by appending "." and an
     integer so that no duplicate IDs remain.
@@ -591,13 +591,22 @@ def version_id(id_col):
     until it does not collide with any variant IDs.
 
     :param id_col: ID column as a Pandas Series object.
+    :param existing_id_set: A set of existing variant IDs that must also be avoided. If any IDs in id_col match these
+        IDs, they are altered as if the variant intersects another ID in id_col.
 
     :return: `id_col` unchanged if there are no duplicate IDs, or a new copy of `id_col` with IDs de-duplicated and
         versioned.
     """
 
     # Get counts
-    dup_set = {val for val, count in collections.Counter(id_col).items() if count > 1}
+    id_count = collections.Counter()
+
+    if existing_id_set is not None:
+        id_count.update(existing_id_set)
+
+    id_count.update(id_col)
+
+    dup_set = {val for val, count in id_count.items() if count > 1}
 
     if len(dup_set) == 0:
         return id_col
@@ -605,6 +614,9 @@ def version_id(id_col):
     # Create a map: old name to new name
     id_col = id_col.copy()
     id_set = set(id_col) - dup_set
+
+    if existing_id_set is not None:
+        id_set |= existing_id_set
 
     for index in range(id_col.shape[0]):
         name = id_col.iloc[index]

@@ -2,6 +2,11 @@
 Fast Smith-waterman implementation.
 """
 
+import collections
+import numpy as np
+
+import kanapy
+
 # Op codes
 OP_NONE = 0
 OP_MATCH = 1
@@ -27,6 +32,30 @@ class ScoreTraceNode:
         return f'TraceNode({OP_CODE[self.op_code]}, score={self.score}, id={id(self):x}'
 
 
+def jaccard_distance(seq_a, seq_b, k_util):
+    """
+    Get the Jaccard distance between k-merized sequences. This Jaccard distance is computed on the total number of
+    k-mers including multiplicity (the same kmer may appear more than once). For example, if a k-mer is in A twice
+    and B once, one instance of the k-mer matches and one does not match.
+
+    :param seq_a: Sequence A (string).
+    :param seq_b: Sequence B (string).
+
+    :return: Jaccard distance account for multiplicity.
+    """
+
+    count1 = collections.Counter(kanapy.util.kmer.stream(seq_a, k_util))
+    count2 = collections.Counter(kanapy.util.kmer.stream(seq_b, k_util))
+
+    key_set = set(count1.keys()) | set(count2.keys())
+
+    return np.sum(
+        [np.min([count1[key], count2[key]]) for key in key_set]  # Matching k-mers
+    ) / np.sum(
+        [np.max([count1[key], count2[key]]) for key in key_set]  # All k-mers
+    )
+
+
 class ScoreAligner:
     """
     An engine for aligning two sequences to obtain an alignment score only, no alignment is generated. This is intended
@@ -36,13 +65,17 @@ class ScoreAligner:
     :param mismatch: Base mismatch score (< 0.0).
     :param gap_open: Gap open cost (<= 0.0).
     :param gap_extend: Gap extend cost (<= 0.0).
+    :param map_limit: Maximum sequence size before falling back to Jaccard index in match_prop().
+    :param jaccard_kmer: Jaccard k-mer size for comparisons falling back to Jaccard index in match_prop().
     """
 
-    def __init__(self, match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-1.0):
+    def __init__(self, match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-1.0, map_limit=None, jaccard_kmer=9):
         self.__match = match
         self.__mismatch = mismatch
         self.__gap_o = gap_open
         self.__gap_e = gap_extend
+        self.__map_limit = map_limit
+        self.__jaccard_kmer = jaccard_kmer
 
         # Check arguments
         if self.__match <= 0.0:
@@ -56,6 +89,15 @@ class ScoreAligner:
 
         if self.__gap_e > 0.0:
             raise RuntimeError(f'Gap-extend score must be <= 0.0: {self.__match}')
+
+        if self.__map_limit is not None and self.__map_limit < 0:
+            raise RuntimeError(f'Map must be >= 0.0: {self.__map_limit}')
+
+        if self.__jaccard_kmer <= 0:
+            raise RuntimeError(f'Jaccard k-mer size must be > 0: {self.jaccard_kmer}')
+
+        # Set k-mer util
+        self.__k_util = kanapy.util.kmer.KmerUtil(self.__jaccard_kmer)
 
         return
 
@@ -73,8 +115,8 @@ class ScoreAligner:
         gap_1bp = self.__gap_o + self.__gap_e
 
         # Scrub sequences
-        seq_a = seq_a.strip()
-        seq_b = seq_b.strip()
+        seq_a = seq_a.upper().strip()
+        seq_b = seq_b.upper().strip()
 
         # Get length
         len_a = len(seq_a) + 1
@@ -96,7 +138,7 @@ class ScoreAligner:
             for i in range(1, len_a):
 
                 # Aligned bases
-                if seq_a[i - 1] == seq_b[j - 1]:
+                if seq_a[i - 1] == seq_b[j - 1] and seq_a[i - 1] in {'A', 'C', 'G', 'T'}:
                     score_max = trace_matrix_last[i - 1].score + self.__match
                     op_code = OP_MATCH
 
@@ -138,3 +180,34 @@ class ScoreAligner:
                     trace_matrix[i].score = 0
 
         return global_max_score
+
+    def match_prop(self, seq_a, seq_b):
+        """
+        Get the alignment score proportion over the max possible score between two sequences. To ollow tandem
+        duplications to map correctly, seq_b is duplicated head-to-tail (seq_b + seq_b) and seq_a is aligned to it.
+
+        The max possible score is achieved if seq_a and seq_b are the same size and seq_a aligns to seq_b + seq_b with
+        all seq_a bases matching (function returns 1.0).
+
+        The numerator is the alignment score and the denominator is the size of the larger sequence times the match
+        score:
+
+        min(score_align(seq_a, seq_b + seq_b), min_len(seq_a, seq_b) * match) / (max_len(seq_a, seq_b) * match)
+
+        :param seq_a: Subject sequence.
+        :param seq_b: Query sequence.
+
+        :return: Alignment proportion with seq_b duplicated head to tail.
+        """
+
+        max_len = np.max([len(seq_a), len(seq_b)])
+        min_len = np.min([len(seq_a), len(seq_b)])
+
+        if self.__map_limit is not None and max_len <= self.__map_limit:
+            return min([
+                    np.min([score_align(seq_a, seq_b + seq_b), min_len * self.__match]) / (max_len * self.__match),
+                    1.0
+            ])
+
+        else:
+            return jaccard_distance(seq_a, seq_b, self.__k_util)

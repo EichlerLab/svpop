@@ -26,7 +26,7 @@ def intersect_is_read_seq(wildcards, config):
     merge_strategy_tok = svpoplib.svmerge.get_merge_def(config_def, config).split(':', 1)
 
     if len(merge_strategy_tok) == 1:
-        return false
+        return False
 
     return svpoplib.svmerge.get_param_set(merge_strategy_tok[1], merge_strategy_tok[0]).read_seq
 
