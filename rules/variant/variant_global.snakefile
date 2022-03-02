@@ -75,19 +75,19 @@ rule variant_global_filter_region:
 # variant_global_vcf_gz
 #
 # Compress VCF files
-rule variant_global_vcf_gz:
-    input:
-        vcf='temp/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf'
-    output:
-        vcf='results/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz',
-        tbi='results/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz.tbi'
-    wildcard_constraints:
-        ref='grc|hc',
-        fmt='sv|alt'
-    shell:
-        """bgzip -c {input.vcf} > {output.vcf}; """
-        """sleep 5; """
-        """tabix {output.vcf}"""
+# rule variant_global_vcf_gz:
+#     input:
+#         vcf='temp/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf'
+#     output:
+#         vcf='results/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz',
+#         tbi='results/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz.tbi'
+#     wildcard_constraints:
+#         ref='grc|hc',
+#         fmt='sv|alt'
+#     shell:
+#         """bgzip -c {input.vcf} > {output.vcf}; """
+#         """sleep 5; """
+#         """tabix {output.vcf}"""
 
 # variant_global_uncompress_fa
 #

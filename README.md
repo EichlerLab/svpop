@@ -26,6 +26,11 @@ Supported variant types are:
 | sub | sub | Substitution (ref bases replaced) |
 | rgn | rgn | Any region |
 
+There are several combined svtypes:
+
+1. `insdel`: ins and del
+1. `insdelinv`: ins, del, and inv
+
 There are two types of merges, callerset and sampleset. A callerset merge takes multiple callers for a single sample
 and merges them into a consensus callset. A sampleset merges a single source (single caller or single callerset) across
 multiple samples (e.g. nonredundant callset across samples). The merging process is flexible and is capable of using
@@ -155,6 +160,7 @@ Both methods are outlined below.
 Always run SV-Pop from a clean working directory containing only `config`, `rundist`, and `runlocal`. Do not execute
 from the install directory.
 
+
 ### Run scripts
 
 To execute via run scripts, go to the run directory and link `rundist` and `runlocal` from the install directory.
@@ -181,14 +187,14 @@ After the symbolic link is created and your `config/rundist.sh` and/or `config/r
 
     ./rundist 20 results/variant/...
 
-or
-
     ./runlocal 20 results/variant/...
 
 Where "results/variant/..." is the path to the desired output file.
 
 The first number (20 in the example) is the number of concurrent jobs. Everything else is passed to Snakemake as a
 target, and there may be multiple targets.
+
+See `TARGETS.md` for a list of target output files.
 
 ### Snakemake direct
 
