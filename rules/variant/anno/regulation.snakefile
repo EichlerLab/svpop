@@ -65,9 +65,9 @@ rule variant_anno_reg_encode_histone:
 # Candidate cis-regulatory elements (CCRE2020) - ENCODE 2020
 #
 
-# variant_anno_reg_dnase_cluster
+# variant_anno_reg_ccre2020
 #
-# Intersect variants with DNAse clusters.
+# Intersect variants with cCRE loci.
 rule variant_anno_reg_ccre2020:
     input:
         bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',

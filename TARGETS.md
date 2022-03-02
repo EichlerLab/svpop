@@ -125,32 +125,38 @@ annotations merge those into a flat region.
 
 | annotype | annoname | Description |
 | --- | --- | --- |
-| trf | trf | Simple repeats (STR/VNTR) |
-| sd | sd | Any SD region |
-| sd | sd-max-{match_type} | Maximum SD identity |
-| rmsk | rmsk-{filter_spec}-{ident} | RepeatMasker |
-| oreganno | oreganno | Curated regulatory sites |
-| dhs2020 | dhs_{score} | Vierstra 2020 DHS sites |
-| dhs_cluster | dhs_cluster_{score} | Original ENCODE DHS clusters |
-| ccre | ccre2020 | Candidate cis regulatory elements |
-| encode | encode-{mark}-{threshold} | ENCODE mark |
-| cpgisland | cpgisland_unmasked | CpG island including RepeatMasked regions |
-| bands | bands | Chromosome bands |
-| agp | agp | Reference scaffolds |
-| gap | gap | Reference gaps |
 | cen | cen | Centromeres |
+| gap | gap | Reference gaps |
+| agp | agp | Reference source contig |
+| agp | agp_switch_{flank} | Within `flank` bp of a reference contig switch |
+| bands | bands | Chromosome bands |
+| refseq | refseq | Whole refseq region (refseq-count is recommended) |
+| trf | trf | Simple repeats (STR/VNTR) |
+| sd | sd-max-{match_type} | Get max SD identity for each SD intersect |
+| sd | sd | SD intersect (True/False) |
+| dhs_cluster | dhs_cluster_{score} | ENCODE DHS clusters with min score (or "all") |
+| dhs2020 | dhs_{score} | Vierstra 2020 DHS sites with min score (or "all") |
+| ccre | ccre2020 | Candidate cis regulatory elements |
+| oreganno | oreganno | Curated regulatory sites |
+
+Notes:
+1. agp_switch_{flank}: "flank" in "agp_switch_{flank}" is not the same as the "flank" that comes after regions in the
+   path ("..._{annoname}_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz").
+1. refseq: refseq-count (see above) is a better annotation. The refseq here is just the whole region, but would not
+   annotate which genes were intersected or how.
+1. sd: Does not identify the SD identity. sd-max is a better annotation (see below).
 
 SD: Segmental duplication<br/>
 DHS: DNAase hypersensitivity
 
-#### dhs2020
+### Chromosome bands
 
-URL: 
-https://resources.altius.org/~jvierstra/projects/footprinting.2020/consensus.index/consensus_footprints_and_motifs_hg38.bed.gz
+    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/bands/bands_{vartype}_{svtype}.tsv.gz
 
-    Vierstra, J., Lazar, J., Sandstrom, R. et al. Global reference mapping of human transcription factor footprints. Nature 583, 729–736 (2020).
 
-#### sd-max
+### Max SD
+
+    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/sd/sd-max-{match_type}_{vartype}_{svtype}.tsv.gz
 
 match_type:
 
@@ -159,48 +165,79 @@ match_type:
 
 frac and fracindel are very close, we tend to use frac.
 
-#### dhs2020
-
-1. score: Minimum score (mean DHS signal) or "all".
-
 
 ### RepeatMasker
 
+Intersect with reference RepeatMasker annotations.
+
     results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-{filter_spec}-{ident}_intersect_{vartype}_{svtype}.tsv.gz
 
+### ORegAnno
+
+Intersect with curated regulatory elements, ORegAnno.
+
+    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/oreganno/oreganno_{vartype}_{svtype}.tsv.gz
+
+Tags variants with ORegAnno ID. A separate table of annotations for each ID, such as the candidate regulatory element
+and the gene it likely affects, is available from ORegAnno.
 
 ### ENCODE marks
 
-    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/encode/encode-{mark}-{threshold}-{overlap}_{vartype}_{svtype}.tsv.gz
-    
-    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/ccre/ccre2020-{score}_{vartype}_{svtype}.tsv.gz
-    
-    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/dhs/dhs2020-{score}_{vartype}_{svtype}.tsv.gz
-    
-    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/dhs/dhs-{score}_{vartype}_{svtype}.tsv.gz
-    
-    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/cpgisland/cpgisland-unmasked_{vartype}_{svtype}.tsv.gz
 
+    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/encode/encode-{mark}-{threshold}-{overlap}_{vartype}_{svtype}.tsv.gz
 
 1. mark: H3K27Ac H3K4Me3 H3K4Me1
-1. threshold: Min score
+1. threshold: Min annotation score
 1. overlap: Percentage of variant that must intersect with a region (e.g. 50 is 50% of the variant is in a region).
 
-Note: cpgisland-unmasked include RepeatMasked sites.
+
+### cCRE
+
+Candidate cis-regulatory elements (ENCODE 2020).
+
+    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/ccre/ccre2020-{score}_{vartype}_{svtype}.tsv.gz
+
+1. score: Minimum annotation score.
+
+
+### DNAse 2020
+
+ENCODE DHS marks updated in 2020.
+
+    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/dhs/dhs2020-{score}_{vartype}_{svtype}.tsv.gz
+
+1. score: Minimum annotation score.
 
 
 ### RepeatMasker and TRF on SV sequences
 
-    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-table_{vartype}_{svtype,ins|del|inv|dup}.tsv.gz
+Derived from reference annotations on UCSC.
+
+RepeatMasker:
+
+    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-table_{vartype}_{svtype}.tsv.gz
     
+TRF (Tandem Repeats Finder)
+
     results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/trf-table_{vartype}_{svtype}.tsv.gz
 
 
 ### Sequence content
 
+Annotations run on variant sequences. Requires sequence-resolved variants.
+
+GC content:
+
     results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/gc/gc_content_{vartype}_{svtype}.tsv.gz
-    
-    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/seq/seq_{vartype}_{svtype}.tsv.gz
+
+Breakpoint homology with the reference. Many variants are driven by homology (recombination, replication based repair)
+or generate homology (target site duplications, TSDs, for mobile elements). This annotation looks for perfect homology
+between the SV sequence and the reference. It relies on exact breakpoint placement and stops at the first mismatch.
+PAV generates this homology annotation, but SV-Pop provides this for variant called by other sources.
     
     results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/seq/break_hom_ref_{vartype}_{svtype}.tsv.gz
 
+Table of variant IDs and a SEQ column with the variant sequence. Used to pull sequences into a table if needed. Requires
+sequence-resolved variant input.
+
+    results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/seq/seq_{vartype}_{svtype}.tsv.gz
