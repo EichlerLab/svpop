@@ -8,7 +8,7 @@ CALLER_VCF_STD_FIELDS = {
         'format': ['GT', 'GQ', 'DP', 'AD']
     },
     'longshot': {
-        'info': ['DP'],
+        'info': [],
         'format': ['GT', 'GQ', 'DP']
     }
 }
@@ -47,7 +47,8 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
             ))
 
         # Add to INFO and FORMAT
-
+        info_list = CALLER_VCF_STD_FIELDS['info']
+        format_list = CALLER_VCF_STD_FIELDS['format']
 
     # Process options
     param_string = sample_entry['PARAM_STRING']

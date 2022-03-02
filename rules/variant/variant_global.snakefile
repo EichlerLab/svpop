@@ -77,10 +77,10 @@ rule variant_global_filter_region:
 # Compress VCF files
 rule variant_global_vcf_gz:
     input:
-        vcf='temp/{sourcetype}/{sourcename}/{sample}/{filter}/{varset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf'
+        vcf='temp/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf'
     output:
-        vcf='results/{sourcetype}/{sourcename}/{sample}/{filter}/{varset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz',
-        tbi='results/{sourcetype}/{sourcename}/{sample}/{filter}/{varset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz.tbi'
+        vcf='results/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz',
+        tbi='results/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{ref}_{fmt}/{vartype}_{svtype}.vcf.gz.tbi'
     wildcard_constraints:
         ref='grc|hc',
         fmt='sv|alt'
@@ -103,14 +103,3 @@ rule variant_global_uncompress_fa:
             shell("""zcat {input.fa} > {output.fa}""")
         else:
             shell("""> {output.fa}""")
-
-# # variant_global_variant_fai
-# #
-# # Create FAI for variant FASTA files.
-# rule variant_global_variant_fai:
-#     input:
-#         fa='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{varset}/{filter}/{vartype}_{svtype}.fa.gz'
-#     output:
-#         fai='results/variant/{sourcetype}/{sourcename}/fasta/{sample}/{varset}/{filter}/{vartype}_{svtype}.fa.gz.fai'
-#     shell:
-#          """samtools faidx {input.fa}"""

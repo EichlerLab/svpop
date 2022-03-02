@@ -106,9 +106,6 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
 
         sample = sampleset_entry['name']
 
-    if sourcetype == 'varset' and sample == 'all':
-        sample = 'All'
-
     # Return if no sample prefix
     if not prefix_sourcename:
         return sample
@@ -128,27 +125,18 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
 
         caller_name = tok[0]
 
-        if sourcename.startswith('extern-'):
-            sample_prefix = svpoplib.variant_extern.get_config(sourcename[len('extern-'):], config)['name']
+        caller_name = {
+            'smrtsv': 'SMRT-SV',
+            'pbsv': 'PBSV',
+            'deepvariant': 'DeepVariant',
+            'bionano': 'Bionano',
+            'gatk': 'GATK',
+            'sniffles': 'Sniffles',
+            'longshot': 'Longshot',
+            'vcf': 'Callset',
+        }.get(caller_name, caller_name)
 
-        else:
-            caller_name = {
-                'smrtsv': 'SMRT-SV',
-                'pbsv': 'PBSV',
-                'deepvariant': 'DeepVariant',
-                'bionano': 'Bionano',
-                'gatk': 'GATK',  # from std_vcf
-                'sniffles': 'Sniffles',
-                'longshot': 'Longshot', # from std_vcf
-                'gtgq': 'Callset',  # Unknown callset from std_vcf
-            }.get(caller_name, caller_name)
-
-            sample_prefix = caller_name
-
-    elif sourcetype == 'varset':
-        varset_entry = svpoplib.varset.get_config_entry(sourcename, None, config)
-
-        sample_prefix = varset_entry['name']
+        sample_prefix = caller_name
 
     # Set sample name and return
     return '{} - {}'.format(sample_prefix, sample)

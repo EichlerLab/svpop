@@ -14,7 +14,6 @@ rule variant_anno_homopoly_intersect:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/homopolymer/{rep_len}_intersect_all_any_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
-        sourcetype='caller|varset',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""

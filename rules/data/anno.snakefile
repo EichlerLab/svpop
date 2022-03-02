@@ -864,7 +864,7 @@ rule data_gap_txt_to_bed:
 #
 # Centromeres
 #
-rule data_varset_anno_cen:
+rule data_anno_cen:
     input:
         txt='temp/data/anno/ucsc/database/centromeres.txt.gz'
     output:
