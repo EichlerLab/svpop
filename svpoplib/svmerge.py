@@ -18,8 +18,8 @@ ALIGN_PARAM_FIELD_LIST = [
     ('SCORE-PROP', 0.8, float),   # Minimum proportion of the maximum possible score (all bases aligned)
     ('MATCH', 2.0, float),        # Match score
     ('MISMATCH', -1.0, float),    # Mismatch score
-    ('GAP-OPEN', -5.0, float),    # Gap open score
-    ('GAP-EXTEND', -0.5, float),  # Gap extend score
+    ('GAP-OPEN', -1.0, float),    # Gap open score
+    ('GAP-EXTEND', -0.25, float),  # Gap extend score
     ('MAP-LIMIT', 20000, int),    # Fall back to Jaccard index after this size.
     ('JACCARD-KMER', 9, int)      # K-mer size for Jaccard index (Using Jasmine default)
 ]
