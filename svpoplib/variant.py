@@ -226,17 +226,24 @@ def order_variant_columns(
     return df.loc[:, head_cols + mid_cols + tail_cols]
 
 
-def get_variant_id(df):
+def get_variant_id(df, apply_version=True):
     """
     Get variant IDs using '#CHROM', 'POS', 'SVTYPE', and 'SVLEN' columns.
 
     :param df: Dataframe.
+    :param apply_version: Version ID (add "." and a number for duplicated IDs). SV-Pop does not allow duplicate IDs, so
+        this should be explicitly turned on unless duplicates are checked and handled explicitly. If there are no
+        duplicate IDs before versioning, this option has no effect on the output ("." in only added if necessary).
 
     :return: A Series of variant IDs for `df`.
     """
 
-    # Set ID
-    return df.apply(get_variant_id_from_row, axis=1)
+    id_col = df.apply(get_variant_id_from_row, axis=1)
+
+    if apply_version:
+        id_col = version_id(id_col)
+
+    return id_col
 
 
 def get_variant_id_from_row(row):

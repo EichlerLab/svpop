@@ -131,6 +131,7 @@ include: 'rules/variant/bedconversion.snakefile'
 # include: 'rules/variant/intersect_nearest.snakefile'
 
 # Variant BED parsers for callers
+include: 'rules/variant/bed/altdup.snakefile'
 include: 'rules/variant/bed/bed.snakefile'
 include: 'rules/variant/bed/pavbed.snakefile'
 include: 'rules/variant/bed/pbsv.snakefile'
