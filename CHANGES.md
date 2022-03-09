@@ -19,3 +19,12 @@
 
 * Merge strategy "fam" was removed. This was an NR strategy that added columns for
   inheritance. This annotation should be done outside SV-Pop.
+
+
+# 2.3.3
+
+Merging
+* Dropped "expand" support for merging
+* Dropped "MERGE_AC" and "MERGE_AF" columns. These are not true AC and AF calculations without confident
+  genotypes, which depends heavily on the input callset. A future version might consider GT if present.
+* Added "MERGE_N". Counts the number of samples supporting a variant.

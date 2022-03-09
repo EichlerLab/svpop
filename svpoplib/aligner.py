@@ -203,11 +203,14 @@ class ScoreAligner:
         max_len = np.max([len(seq_a), len(seq_b)])
         min_len = np.min([len(seq_a), len(seq_b)])
 
-        if self.__map_limit is not None and max_len <= self.__map_limit:
+        if self.__map_limit is None or max_len <= self.__map_limit:
             return min([
                     np.min([score_align(seq_a, seq_b + seq_b), min_len * self.__match]) / (max_len * self.__match),
                     1.0
             ])
 
-        else:
+        elif min_len > self.__jaccard_kmer:
             return jaccard_distance(seq_a, seq_b, self.__k_util)
+
+        else:
+            return 1 if seq_a.upper() == seq_b.upper() else 0

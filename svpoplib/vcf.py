@@ -231,6 +231,7 @@ def ref_base(df, ref_fa):
             else:
                 raise RuntimeError('Unknown variant type: "{}" at index {}'.format(row['VARTYPE'], index))
 
+
 def get_variant_seq(
     df, svpop_run_dir, fa_pattern, var_sv_type, fmt={}
 ):

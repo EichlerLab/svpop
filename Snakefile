@@ -140,6 +140,8 @@ include: 'rules/variant/bed/svim.snakefile'
 include: 'rules/variant/bed/svimasm.snakefile'
 include: 'rules/variant/bed/vcf.snakefile'
 
+# VCF output
+include: 'rules/variant/vcf.snakefile'
 
 # Annotations
 include: 'rules/variant/anno/altmap.snakefile'

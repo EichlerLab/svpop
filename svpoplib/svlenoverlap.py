@@ -426,6 +426,9 @@ def _overlap_worker(
         if offset_max is None:
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['RO'] >= szro_min].copy()
 
+            if df_target_row_pool.shape[0] == 0:
+                continue
+
         # Filter by samples
         if restrict_samples:
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MERGE_SAMPLES'].apply(
@@ -463,6 +466,9 @@ def _overlap_worker(
             end = pos + svlen
 
         # Get distance calculations
+        if df_target_row_pool.shape[0] == 0:
+            continue
+
         df_distance = df_target_row_pool.apply(lambda row: pd.Series(
             [
                 row['OFFSET'],

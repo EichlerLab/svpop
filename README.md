@@ -70,7 +70,6 @@ Requires Python 3 with these packages:<br/>
 
 External tools SV-Pop may call:<br />
 1. samtools: Input variant processing, variant sequence FASTA indexes, and alt-mapping insertions.
-1. bgzip: Needed if variants are transformed back to VCF (optional).
 1. tabix: Needed if variants are transformed back to VCF (optional).
 1. bcftools: VCFs are parsed with bcftools into tables for SV-Pop.
 1. minimap2: Used for re-mapping insertion sequence (optional).

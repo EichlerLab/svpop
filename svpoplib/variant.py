@@ -654,3 +654,45 @@ def version_id(id_col, existing_id_set=None):
 
     # Append new variants
     return id_col
+
+
+def check_unique_ids(df, message=''):
+    """
+    Check for unique IDs in a dataframe or an ID row. If IDs are not unique, throw a runtime error.
+
+    :param df: Dataframe with an 'ID' column (pandas.DataFrame) or an ID column (pandas.Series).
+    :param message: Prefix the exception message with this value if defined. (e.g. "{message}: Found X duplicate...").
+
+    :return: No return value, throws an exception on failure, no effect if IDs are unique.
+    """
+
+    # Get ID row
+    if issubclass(df.__class__, pd.DataFrame):
+        if 'ID' not in df.columns:
+            raise RuntimeError('Cannot check for unique IDs is DataFrame: No ID column')
+
+        id_row = df['ID']
+
+    elif issubclass(df.__class__, pd.Series):
+        id_row = df
+
+    else:
+        raise RuntimeError(f'Unrecognized data type for check_unique_ids(): Expected Pandas DataFrame or Series: {df.__class__}')
+
+    # Check for unique IDs
+    if len(set(id_row)) < id_row.shape[0]:
+        dup_id_set = [val for val, count in collections.Counter(id_row).items() if count > 1]
+
+        if message is None:
+            message = ''
+        else:
+            message = message.strip()
+
+        raise RuntimeError(
+            '{}Found {} duplicate variant IDs: {}{}'.format(
+                message + ': ' if message else '',
+                len(dup_id_set),
+                ', '.join(dup_id_set[:3]),
+                '...' if len(dup_id_set) > 3 else ''
+            )
+        )

@@ -5,9 +5,9 @@ def variant_bed_altdup_input_filename(wildcards, type):
 
     # Get BED (altmap input) or FA (original FASTA file)
     TYPE_PATTERN = {
-        'altmap': 'results/variant/{sourcetype}/{sourcename}/{{sample}}/{{filter}}/all/anno/altmap/altmap-{aligner}_sv_ins.bed.gz',
-        'bed': 'results/variant/{sourcetype}/{sourcename}/{{sample}}/{{filter}}/all/bed/sv_ins.bed.gz',
-        'fa': 'results/variant/{sourcetype}/{sourcename}/{{sample}}/{{filter}}/all/bed/fa/sv_ins.fa.gz'
+        'altmap': 'results/variant/{sourcetype}/{sourcename}/{{sample}}/{filter}/all/anno/altmap/altmap-{aligner}_sv_ins.bed.gz',
+        'bed': 'results/variant/{sourcetype}/{sourcename}/{{sample}}/{filter}/all/bed/sv_ins.bed.gz',
+        'fa': 'results/variant/{sourcetype}/{sourcename}/{{sample}}/{filter}/all/bed/fa/sv_ins.fa.gz'
     }
 
     # Check type
@@ -25,10 +25,15 @@ def variant_bed_altdup_input_filename(wildcards, type):
 
     data_tok = [val.strip() for val in sample_entry['DATA'].strip().split(',')]
 
-    if len(data_tok) != 3 or np.any([val == '' for val in data_tok]):
-        raise RuntimeError('Alt-dup sample entry {} has an unrecognized "DATA" field: Expected "sourcetype,sourcename,aligner": Found "{}"'.format(sample_entry['NAME'], sample_entry['DATA']))
+    if len(data_tok) not in (3, 4) or np.any([val == '' for val in data_tok[:3]]):
+        raise RuntimeError('Alt-dup sample entry {} has an unrecognized "DATA" field: Expected "sourcetype,sourcename,aligner (optional filter after aligner)": Found "{}"'.format(sample_entry['NAME'], sample_entry['DATA']))
 
-    data_tok_dict = {key: val for key, val in zip(('sourcetype', 'sourcename', 'aligner'), data_tok)}
+    if len(data_tok) == 3:
+        data_tok += ['all']
+    elif data_tok[3] == '':
+        data_tok[3] = 'all'
+
+    data_tok_dict = {key: val for key, val in zip(('sourcetype', 'sourcename', 'aligner', 'filter'), data_tok)}
 
     # Return file
     return TYPE_PATTERN[type].format(**data_tok_dict)
