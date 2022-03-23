@@ -283,8 +283,15 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
     """
 
     pos = row[pos_row]
-    ref = row[ref_row].upper()
-    alt = row[alt_row].upper()
+    ref = row[ref_row].upper().strip()
+    alt = row[alt_row].upper().strip()
+
+    # This function does not handle multiple alleles or missing ALTs (one variant per record)
+    if ',' in alt:
+        raise RuntimeError(f'Multiple alleles in ALT, separate before calling vcf_fields_to_seq(): "{alt}"')
+
+    if alt == '.':
+        raise RuntimeError('Missing ALT in record')
 
     # Handle symbolic SV variants
     if alt[0] == '<' and alt[-1] == '>':
@@ -310,10 +317,7 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
             svlen = np.abs(row['SVLEN'])
 
         # Set variant type
-        if svlen < 50:
-            raise RuntimeError('Symbolic ALT for non SV: Row {}'.format(row.name))
-
-        vartype = 'SV'
+        vartype = 'INDEL' if svlen < 50 else 'SV'
 
         # Set end
         if svtype == 'INS':
@@ -324,7 +328,23 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
         # Sequence
         seq = row['SEQ'] if 'SEQ' in row else np.nan
 
-    else:
+    elif alt == '.':
+        vartype = 'NONE'
+        svtype = 'NONE'
+        seq = np.nan
+        ref = np.nan
+        end = pos + 1
+        svlen = 0
+
+    elif '[' in alt or ']' in alt or '.' in alt:
+        vartype = 'BND'
+        svtype = 'BND'
+        seq = np.nan
+        ref = np.nan
+        end = pos + 1
+        svlen = 0
+
+    elif re.match('^[a-zA-Z]$', alt) and re.match('^[a-zA-Z]$', ref):
 
         min_len = min(len(ref), len(alt))
 
@@ -376,6 +396,9 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
             svlen = len(seq)
             pos = pos + trim_left - 1
             end = pos + svlen
+
+    else:
+        raise RuntimeError(f'Unknown variant type: REF="{ref}", ALT="{alt}')
 
     # Return with AC
     if 'GT' in row.index:

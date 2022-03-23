@@ -1,3 +1,6 @@
 [submodule "dep/kanapy"]
 	path = dep/kanapy
 	url = https://github.com/paudano/kanapy.git
+[submodule "dep/ply"]
+	path = dep/ply
+	url = https://github.com/dabeaz/ply.git

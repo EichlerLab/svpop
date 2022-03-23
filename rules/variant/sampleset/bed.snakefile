@@ -68,7 +68,7 @@ rule variant_sampleset_bed_merge_chrom:
 
         # Get sample and input list
         sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sourcename, wildcards.sample, config)
-        merge_strategy = svpoplib.sampleset.get_merge_strategy(sampleset_entry, wildcards.vartype, wildcards.svtype)
+        merge_strategy = svpoplib.sampleset.get_merge_strategy(sampleset_entry, wildcards.vartype, wildcards.svtype, config)
 
         # Merge
         df = svpoplib.svmerge.merge_variants(

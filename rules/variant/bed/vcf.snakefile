@@ -124,7 +124,7 @@ rule variant_vcf_bed_fa:
         bed=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz'),
         fa=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz')
     wildcard_constraints:
-        svtype='ins|del|snv|dup|sub|rgn',
+        svtype='ins|del|inv|snv|dup|sub|rgn',
         callertype=VARIANT_BED_VCF_TYPE_PATTERN
     run:
 
@@ -186,14 +186,13 @@ rule variant_bed_vcf_tsv_to_bed:
         df_iter = pd.read_csv(input.tsv, sep='\t', header=0, low_memory=False, iterator=True, chunksize=params.df_chunk_size)
 
         # Process input in chunks
-
         col_names = None      # Input column names (after first regex transform)
         out_col_order = None  # Output column order
 
+        id_set = set()  # Set of IDs already seen (used for ensuring IDs are unique)
+
         write_header = True  # Write header for this chunk (only true for first chunk)
         filt_header = True   # Write header for this chunk's dropped SV records (only true for first chunk)
-
-        cumulative_id_set = set()  # Set of variants seen in previous chunks for duplicate removal
 
         with gzip.open(output.bed, 'wt') as out_file:
             with gzip.open(output.tsv_filt, 'wt') as filt_file:
@@ -244,9 +243,11 @@ rule variant_bed_vcf_tsv_to_bed:
                     # Set FILTER on QUAL if FILTER is missing
                     df['FILTER'] = df.apply(svpoplib.variant.qual_to_filter, axis=1)
 
+                    df_pass_filter = (df['FILTER'] == 'PASS') | (df['FILTER'] == '.')
+
                     # Filter on FILTER column
 
-                    df_filt = df.loc[df['FILTER'] != 'PASS']
+                    df_filt = df.loc[~ df_pass_filter]
 
                     if df_filt.shape[0] > 0:
                         df_filt.to_csv(filt_file, sep='\t', index=False, header=filt_header)
@@ -254,7 +255,7 @@ rule variant_bed_vcf_tsv_to_bed:
 
                         filt_header = False
 
-                    df = df.loc[df['FILTER'] == 'PASS']
+                    df = df.loc[df_pass_filter]
 
                     if df.shape[0] == 0:
                         continue
@@ -274,7 +275,7 @@ rule variant_bed_vcf_tsv_to_bed:
 
                     df = pd.concat([df, df_var_fields], axis=1)
 
-                    if 'GT' in df.columns:
+                    if 'GT' in df.columns and np.min(df['AC'] > 0):
                         df = df.loc[df['AC'] > 0]
 
                     if df.shape[0] == 0:
@@ -292,12 +293,9 @@ rule variant_bed_vcf_tsv_to_bed:
 
                     df = df.loc[:, out_col_order]
 
-                    # Drop duplicates
-                    df.drop_duplicates('ID', inplace=True)
-
-                    df = df.loc[df['ID'].apply(lambda val: val not in cumulative_id_set)]
-
-                    cumulative_id_set |= set(df['ID'])
+                    # Rename duplicates
+                    df['ID'] = svpoplib.variant.version_id(df['ID'], id_set)
+                    id_set |= set(df['ID'])
 
                     # Write
                     df.to_csv(out_file, sep='\t', index=False, header=write_header)

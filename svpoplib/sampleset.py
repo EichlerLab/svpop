@@ -240,7 +240,8 @@ def cluster_param_cpu(wildcards, config):
         get_merge_strategy(
             get_config_entry(wildcards.sourcename, wildcards.sample, config),
             wildcards.vartype,
-            wildcards.svtype
+            wildcards.svtype,
+            config
         ).get('cpu', DEFAULT_RESOURCES['sampleset']['cpu'])
     )
 
@@ -254,7 +255,8 @@ def cluster_param_mem(wildcards, config):
         get_merge_strategy(
             get_config_entry(wildcards.sourcename, wildcards.sample, config),
             wildcards.vartype,
-            wildcards.svtype
+            wildcards.svtype,
+            config
         ).get('mem', DEFAULT_RESOURCES['sampleset']['mem'])
 
 
@@ -267,7 +269,8 @@ def cluster_param_rt(wildcards, config):
         get_merge_strategy(
             get_config_entry(wildcards.sourcename, wildcards.sample, config),
             wildcards.vartype,
-            wildcards.svtype
+            wildcards.svtype,
+            config
         ).get('rt', DEFAULT_RESOURCES['sampleset']['rt'])
 
 
@@ -280,11 +283,12 @@ def cluster_param_anno_mem(wildcards, config):
         get_merge_strategy(
             get_config_entry(wildcards.sourcename, wildcards.sample, config),
             wildcards.vartype,
-            wildcards.svtype
+            wildcards.svtype,
+            config
         ).get('anno_mem', DEFAULT_RESOURCES['sampleset']['anno_mem'])
 
 
-def get_merge_strategy(sampleset_entry, vartype, svtype):
+def get_merge_strategy(sampleset_entry, vartype, svtype, config):
     """
     Get the merge strategy string for this set entry.
 
@@ -293,6 +297,7 @@ def get_merge_strategy(sampleset_entry, vartype, svtype):
     :param sampleset_entry: Sampleset or callerset entry.
     :param vartype: Variant type.
     :param svtype: SV type.
+    :param config: Pipeline config.
 
     :return: Merge strategy string.
     """
@@ -386,6 +391,10 @@ def get_merge_strategy(sampleset_entry, vartype, svtype):
         merge_rt = DEFAULT_RESOURCES[set_type]['rt']
         anno_mem = DEFAULT_RESOURCES[set_type]['anno_mem']
 
+    # Allow pre-defined strategies
+    merge_strategy = svpoplib.svmerge.get_merge_def(merge_strategy, config)
+
+    # Build merge dict
     merge_dict = {
         'strategy': merge_strategy,
         'cpu': merge_cpu,
@@ -474,9 +483,9 @@ def is_read_seq(wildcards, config):
     """
 
     sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sourcename, wildcards.sample, config)
-    merge_strategy_tok = svpoplib.sampleset.get_merge_strategy(sampleset_entry, wildcards.vartype, wildcards.svtype)['strategy'].split(':', 1)
 
-    if len(merge_strategy_tok) == 1:
-        return False
+    merge_config = svpoplib.svmergeconfig.params.get_merge_config(
+        svpoplib.sampleset.get_merge_strategy(sampleset_entry, wildcards.vartype, wildcards.svtype, config)['strategy']
+    )
 
-    return svpoplib.svmerge.get_param_set(merge_strategy_tok[1], merge_strategy_tok[0]).read_seq
+    return merge_config.read_seq

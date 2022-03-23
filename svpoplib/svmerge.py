@@ -20,19 +20,29 @@ def get_merge_def(def_name, config, default_none=False):
     Get a merge definition string from a configured alias, `def_name`. Returns
     `config['merge_def'][def_name]` if it exists and `config` is not `None`, and returns `None` otherwise.
 
-    :param def_name: Definition name to search.
+    :param def_name: Definition name to search. Name must be alpha-numeric and may contain dashes or underscores.
     :param config: Configuration dictionary (or `None`).
     :param default_none: Return `None` if there is no definition alias (default is to return `def_name`).
 
     :return: Configuration definition or `def_name` if not found.
     """
 
+    # Do not check merge_def if config has no merge_def section or if def_name contains illegal characters
     if config is None or 'merge_def' not in config:
         if default_none:
             return None
 
         return def_name
 
+    # Sanity checks
+    if def_name in config['merge_def']:
+        if def_name in {'nr', 'nrsnp', 'nrsnv'}:
+            raise RuntimeError(f'Cannot redefine built-in merge strategy: {def_name}')
+
+        if not re.match('^[a-zA-Z0-9\-_]+$', def_name):
+            raise RuntimeError(f'Pre-defined merge strategy key contains illegal characters (only allows alhpa, numeric, underscore, and dash): {def_name}')
+
+    # Get pre-defined merge config
     return config['merge_def'].get(def_name, None if default_none else def_name)
 
 
@@ -51,8 +61,7 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
     :return: A Pandas dataframe of a BED file with the index set to the ID column.
     """
 
-    strategy_tok = strategy.split(':', 1)
-
+    # Check input
     if len(bed_list) != len(sample_names):
         raise RuntimeError('Sample name list length ({}) does not match the input file list length ({})'.format(
             len(sample_names), len(bed_list))
@@ -61,17 +70,20 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
     if len(bed_list) == 0:
         raise RuntimeError('Cannot merge 0 samples')
 
-    if len(strategy_tok) == 1:
-        strategy_tok.append(None)
+    # Parse parameters
+    merge_config = svpoplib.svmergeconfig.params.get_merge_config(strategy)
 
-    if strategy_tok[0] == 'nr':
-        return merge_variants_nr(bed_list, sample_names, strategy_tok[1], fa_list=fa_list, subset_chrom=subset_chrom, threads=threads)
-
+    # Run
+    if merge_config.strategy in {'nr', 'nrsnv', 'nrsnp'}:
+        return merge_variants_nr(
+            bed_list, sample_names, merge_config,
+            fa_list=fa_list, subset_chrom=subset_chrom, threads=threads
+        )
     else:
-        raise RuntimeError('Unrecognized strategy: {}'.format(strategy))
+        raise RuntimeError('Unrecognized merge strategy "{}": {}'.format(merge_config.strategy, strategy))
 
 
-def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset_chrom=None, threads=1):
+def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset_chrom=None, threads=1):
     """
     Merge all non-redundant variants from multiple samples.
 
@@ -96,7 +108,7 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
     :param bed_list: List of BED files to merge where each BED file is from one samples.
     :param sample_names: List of samples names. Each element matches an element at the same location in
         `bed_list`.
-    :param merge_params: Overlap percentage or None to merge by the default (50% overlap).
+    :param merge_config: Parameter object controlling this merge.
     :param fa_list: List of FASTA files matching `bed_list` and `sample_names`. FASTA files contain sequences for
         variants where each FASTA record ID is the variant ID and the sequence is the variant sequence.
     :param subset_chrom: Merge only records from this chromosome. If `None`, merge all records.
@@ -104,8 +116,6 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
 
     :return: A Pandas dataframe of a BED file with the index set to the ID column.
     """
-
-    merge_strategy = 'nr'
 
     # Check BED
     if len(bed_list) == 0:
@@ -131,15 +141,13 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
     if len(set(sample_names)) != n_samples:
         raise RuntimeError('Sample names may not be duplicated')
 
-    # Parse parameters
-    param_set = svpoplib.svmergeparams.SVMergeParams(merge_params, merge_strategy)
-
-    print(param_set.format_string())
+    # Report parameters
+    print(merge_config.__repr__(pretty=True))
 
     # Check fa_list if sequences are required
     seq_in_col = False
 
-    if param_set.read_seq:
+    if merge_config.read_seq:
         if fa_list is None:
             seq_in_col = True
             fa_list = [None] * n_samples
@@ -155,13 +163,11 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
     # Set required columns for variant DataFrames
     col_list = ['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN']
 
-    if param_set.match_ref:
+    if merge_config.refalt:
         col_list += ['REF']
-
-    if param_set.match_alt:
         col_list += ['ALT']
 
-    if param_set.read_seq:
+    if merge_config.read_seq:
         col_list += ['SEQ']
 
 
@@ -232,68 +238,65 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
         df_sub = df.copy()
         df_next_sub = df_next.copy()
 
-        # INTERSECT: Exact match
-        support_table_list.append(
-            get_support_table_exact(
-                df_sub, df_next_sub,
-                param_set.match_seq,
-                param_set.match_ref, param_set.match_alt
-            )
-        )
+        # Process match types
+        for merge_spec in merge_config.spec_list:
+            print(f'* {merge_spec}')
 
-        id_set = set(support_table_list[-1]['ID'])
-        id_next_set = set(support_table_list[-1]['TARGET_ID'])
+            spec_type = merge_spec.spec_type.lower()
 
-        df_sub = df_sub.loc[df_sub['ID'].apply(lambda val: val not in id_set)]
-        df_next_sub = df_next_sub.loc[df_next_sub['ID'].apply(lambda val: val not in id_next_set)]
+            # Get support table
+            df_support = None
 
-        # INTERSECT: RO (ro or szro defined)
-        if param_set.ro_min is not None and df_sub.shape[0] > 0 and df_next_sub.shape[0] > 0:
+            if spec_type == 'exact':
 
-            df_support_ro = get_support_table(
-                df_sub, df_next_sub,
-                threads,
-                None,
-                param_set.ro_min, param_set.match_ref, param_set.match_alt,
-                param_set.aligner, param_set.align_match_prop
-            )
+                # INTERSECT: Exact match
+                df_support = get_support_table_exact(
+                    df_sub, df_next_sub,
+                    merge_spec.align_match_prop, merge_spec.aligner,
+                    merge_spec.refalt, merge_spec.refalt
+                )
 
-            id_set = set(df_support_ro['ID'])
-            id_next_set = set(df_support_ro['TARGET_ID'])
+            elif merge_spec.spec_type == 'ro':
 
-            df_sub = df_sub.loc[df_sub['ID'].apply(lambda val: val not in id_set)]
-            df_next_sub = df_next_sub.loc[df_next_sub['ID'].apply(lambda val: val not in id_next_set)]
+                # INTERSECT: RO (Reciprocal overlap)
+                df_support = get_support_table(
+                    df_sub, df_next_sub,
+                    threads,
+                    None,
+                    merge_spec.ro, merge_spec.refalt, merge_spec.refalt,
+                    merge_spec.align_match_prop, merge_spec.aligner
+                )
 
-            support_table_list.append(df_support_ro)
+            elif merge_spec.spec_type == 'szro':
 
-            del(df_support_ro)
+                # INTERSECT: SZRO + OFFSET
+                df_support = get_support_table(
+                    df_sub, df_next_sub,
+                    threads,
+                    merge_spec.distance,
+                    merge_spec.ro, merge_spec.refalt, merge_spec.refalt,
+                    merge_spec.align_match_prop, merge_spec.aligner
+                )
 
-        # INTERSECT: SZRO + OFFSET
-        if param_set.szro_min is not None and df_sub.shape[0] > 0 and df_next_sub.shape[0] > 0:
+                pass
 
-            df_support_szro = get_support_table(
-                df_sub, df_next_sub,
-                threads,
-                param_set.offset_max,
-                param_set.ro_min, param_set.match_ref, param_set.match_alt,
-                param_set.aligner, param_set.align_match_prop
-            )
+            else:
+                raise RuntimeError(f'Unknown merge specification type: {spec_type}')
 
-            df_support_szro = df_support_szro.loc[(df_support_szro['OFFSET'] <= param_set.offset_max) & (df_support_szro['SZRO'] >= param_set.szro_min)]
+            # Append support variants and subset (do not match already matched variants)
+            if df_support is not None:
+                support_table_list.append(df_support)
 
-            id_set = set(df_support_szro['ID'])
-            id_next_set = set(df_support_szro['TARGET_ID'])
+                id_set = set(df_support['ID'])
+                id_next_set = set(df_support['TARGET_ID'])
 
-            df_sub = df_sub.loc[df_sub['ID'].apply(lambda val: val not in id_set)]
-            df_next_sub = df_next_sub.loc[df_next_sub['ID'].apply(lambda val: val not in id_next_set)]
-
-            support_table_list.append(df_support_szro)
-
-            del(df_support_szro)
+                df_sub = df_sub.loc[df_sub['ID'].apply(lambda val: val not in id_set)]
+                df_next_sub = df_next_sub.loc[df_next_sub['ID'].apply(lambda val: val not in id_next_set)]
 
         # Clean
         del(df_sub)
         del(df_next_sub)
+        del(df_support)
 
         # Construct support table
         #
@@ -303,7 +306,7 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
         # * #CHROM, POS, END, ID, SVTYPE, SVLEN: Columns of the final merged table
         # * SAMPLE:
 
-        if len(support_table_list) > 1 and all([df_support_check.shape[0] > 0 for df_support_check in support_table_list]):
+        if len(support_table_list) > 1 and any([df_support_check.shape[0] > 0 for df_support_check in support_table_list]):
             df_support = pd.concat(support_table_list)
         else:
             df_support = pd.DataFrame([], columns=['ID', 'SUPPORT_ID'])  # Only the ID column is read if the DataFrame is empty
@@ -385,7 +388,8 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
         df['SUPPORT_OFFSZ'] = 0.0
         df['IS_PRIMARY'] = True
 
-        if param_set.match_seq:
+        # Choose a MATCH default for self variants (1.0 if any variants were matched by sequence, np.nan otherwise)
+        if merge_config.any_match():
             df['SUPPORT_MATCH'] = 1.0
         else:
             df['SUPPORT_MATCH'] = np.nan
@@ -458,7 +462,7 @@ def merge_variants_nr(bed_list, sample_names, merge_params, fa_list=None, subset
             ]
         ))
 
-        if not param_set.match_seq:
+        if not merge_config.any_match():
             df_support['SUPPORT_MATCH'] = np.nan
 
         df_support.reset_index(inplace=True, drop=False)
@@ -564,44 +568,6 @@ def get_samples_for_mergeset(mergeset, config):
 
     # Return list
     return sample_list
-
-
-def get_disc_class_by_row(row):
-    """
-    Get discovery class.
-
-    :param row: A series with fields "MERGE_AF" and "MERGE_AC".
-
-    :return: A class (as string).
-    """
-
-    if row['MERGE_AF'] == 1:
-        return 'SHARED'
-
-    if row['MERGE_AF'] >= 0.5:
-        return 'MAJOR'
-
-    if row['MERGE_AC'] > 1:
-        return 'POLY'
-
-    return 'SINGLE'
-
-
-def get_disc_class(df):
-    """
-    Get discovery class.
-
-    :param df: A dataframe with columns "MERGE_AF" and "MERGE_AC" or a series with those fields.
-
-    :return: A class (as string) for each row (if dataframe) or a class (as string) if series.
-    """
-
-    # If df is series, get value for one row
-    if df.__class__ is pd.core.series.Series:
-        return get_disc_class_by_row(df)
-
-    # Apply to all rows
-    return df.apply(get_disc_class_by_row, axis=1)
 
 
 def merge_sample_by_support(df_support, bed_list, sample_names):
@@ -713,6 +679,8 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
 
         # Transfer required columns
         df_sample['ID'] = df_support_sample['ID']  # ID in the final merged callset
+        df_sample['MERGE_SAMPLES'] = df_support_sample['MERGE_SAMPLES']
+        df_sample['MERGE_VARIANTS'] = df_support_sample['MERGE_VARIANTS']
         df_sample['MERGE_SRC'] = df_support_sample['MERGE_SRC']
         df_sample['MERGE_SRC_ID'] = df_support_sample['MERGE_SRC_ID']
 
@@ -769,220 +737,6 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
 
     # Return merged variants
     return df_merge
-
-
-# def get_param_set(merge_params, strategy):
-#     """
-#     Parse parameters and store as fields on an object. Throws exceptions if there are any problems with the parameters.
-#
-#     :param merge_params: Parameter string.
-#     :param strategy: Merge strategy (for errors)
-#
-#     :return: An object with fields set.
-#     """
-#
-#     # Initialize parameters
-#     class param_set:
-#         pass
-#
-#     # General parameters
-#     param_set.ro_min = None        # Reciprocal overlap threshold
-#     param_set.szro_min = None      # Size reciprocal-overlap threshold
-#     param_set.offset_max = None    # Max variant offset
-#     param_set.match_ref = False    # Match REF (exact match) if True
-#     param_set.match_alt = False    # Match ALT (exact match) if True
-#
-#     # Sequence match parameters
-#     param_set.match_seq = False        # If True, match sequences by aligning and applying a match threshold
-#     param_set.aligner = None           # Configured alignger with match/mismatch/gap parameters set
-#     param_set.align_match_prop = None  # Match proprotion threshold (matching bases / sequence length)
-#     param_set.align_param = None       # Alignment parameters used to configure aligner
-#
-#     # Read sequence
-#     param_set.read_seq = False  # If set, a parameter requires sequence-resolution as a SEQ column (flag to load SEQ from FASTA)
-#
-#     # Check parameters
-#     if merge_params is None:
-#         raise RuntimeError(f'Cannot merge (strategy={strategy}) with parameters: None')
-#
-#     # Split and parse
-#     for param_element in merge_params.split(':'):
-#
-#         # Tokenize
-#         param_element = param_element.strip()
-#
-#         if not param_element:
-#             continue
-#
-#         param_tok = re.split('\s*=\s*', param_element, 1)
-#
-#         key = param_tok[0].lower()
-#
-#         if len(param_tok) > 1:
-#             val = param_tok[1]
-#         else:
-#             val = None
-#
-#         # Process key
-#         if key == 'ro':
-#
-#             if val is None:
-#                 raise ValueError(f'Missing value for parameter "ro" (e.g. "ro=50"): {merge_params}')
-#
-#             if val != 'any':
-#                 param_set.ro_min = int(val.strip()) / 100
-#
-#                 if param_set.ro_min < 0 or param_set.ro_min > 1:
-#                     raise ValueError(
-#                         f'Overlap length (ro) must be between 0 and 100 (inclusive): {param_element}'
-#                     )
-#
-#             else:
-#                 raise RuntimeError('RO "any" is not yet implemented')
-#
-#         elif key == 'szro':
-#             if val is None:
-#                 raise ValueError(f'Missing value for parameter "szro" (e.g. "szro=50"): {merge_params}')
-#
-#             if val != 'any':
-#                 param_set.szro_min = int(val.strip()) / 100
-#
-#                 if param_set.szro_min < 0 or param_set.szro_min > 1:
-#                     raise ValueError(
-#                         f'Overlap length (szro) must be between 0 and 100 (inclusive): {param_element}'
-#                     )
-#
-#             else:
-#                 param_set.szro_min = None
-#
-#         elif key == 'offset':
-#             if val is None:
-#                 raise ValueError(f'Missing value for parameter "offset" (maxiumum offset, e.g. "offset=2000"): {merge_params}')
-#
-#             if val != 'any':
-#                 param_set.offset_max = int(val.strip())
-#
-#                 if param_set.offset_max < 0:
-#                     raise RuntimeError(f'Maximum offset (offset parameter) may not be negative: {merge_params}')
-#
-#             else:
-#                 param_set.offset_max = None
-#
-#         elif key == 'refalt':
-#             if val is not None:
-#                 raise RuntimeError(f'Match-REF/ALT (refalt) should not have an argument: {merge_params}')
-#
-#             param_set.match_ref = True
-#             param_set.match_alt = True
-#
-#         elif key == 'ref':
-#             if val is not None:
-#                 raise RuntimeError(f'Match-REF (ref) should not have an argument: {merge_params}')
-#
-#             param_set.match_ref = True
-#
-#         elif key == 'alt':
-#             if val is not None:
-#                 raise RuntimeError(f'Match-ALT (alt) should not have an argument: {merge_params}')
-#
-#             param_set.match_alt = True
-#
-#         elif key == 'match':
-#             # Align arguments:
-#             # 0: Min score proportion
-#             # 1: Match
-#             # 2: Mismatch
-#             # 3: Gap open
-#             # 4: Gap extend
-#             # 5: Map limit ("NA" or "UNLIMITED" sets no limit). Fall back to Jaccard index after this limit.
-#             # 6: Jaccard k-mer size
-#
-#             param_set.align_param = ALIGN_PARAM_DEFAULT.copy()
-#
-#             if not val:
-#                 val = ''
-#
-#             val = val.strip()
-#
-#             val_split = val.split(',')
-#
-#             if len(val_split) > len(param_set.align_param):
-#                 raise RuntimeError('Alignment parameter in "match" argument count {} exceeds max: {}'.format(len(val_split), len(param_set.align_param)))
-#
-#             for i in range(len(val_split)):
-#
-#                 # Get token
-#                 tok = val_split[i].strip()
-#                 field_name = ALIGN_PARAM_KEY[i]
-#                 param_type = ALIGN_PARAM_TYPE[field_name]
-#
-#                 if not tok:
-#                     continue  # Leave default unchanged
-#
-#                 # Get token value
-#                 if field_name == 'MAP-LIMIT' and tok.lower in {'na', 'unlimited'}:
-#                     tok_val = None
-#
-#                 else:
-#                     try:
-#                         tok_val = param_type(tok)
-#
-#                     except ValueError:
-#                         raise RuntimeError(f'Alignment parameter {i} in "match" type mismatch: Expected {param_type}: {tok}')
-#
-#                     if field_name == 'SCORE-PROP':
-#                         if tok_val <= 0.0 or tok_val > 1:
-#                             raise RuntimeError(f'Alignment parameter {i} ({field_name}) in "match" must be between 0 (exclusive) and 1 (inclusive): {tok}')
-#
-#                     elif field_name in {'MATCH', 'JACCARD-KMER'}:
-#                         if tok_val <= 0:
-#                             raise RuntimeError(f'Alignment parameter {i} ({field_name}) in "match" must be positive: {tok}')
-#
-#                     elif field_name in {'MISMATCH', 'GAP-OPEN', 'GAP-EXTEND'}:
-#                         if tok_val > 0.0:
-#                             raise RuntimeError(f'Alignment parameter {i} ({field_name}) in "match" must not be positive: {tok}')
-#
-#                     elif field_name == 'MAP-LIMIT':
-#                         if tok_val < 0:
-#                             raise RuntimeError(f'Alignment parameter {i} ({field_name}) in "match" must not be negative: {tok}')
-#
-#                 # Assign
-#                 param_set.align_param[field_name] = tok_val
-#
-#         else:
-#             raise ValueError(f'Unknown parameter token: {key}')
-#
-#     # Check parameters
-#     if param_set.szro_min is not None and param_set.offset_max is None:
-#         raise RuntimeError('Parameters "szro" was specified without "offset"')
-#
-#     # Get merge size threshold
-#     if param_set.ro_min is None and param_set.szro_min is not None:
-#         param_set.ro_min = param_set.szro_min
-#
-#     # Set match_seq and aligner
-#     if param_set.align_param is not None:
-#         param_set.match_seq = True
-#
-#         param_set.aligner = svpoplib.aligner.ScoreAligner(
-#             match=param_set.align_param['MATCH'],
-#             mismatch=param_set.align_param['MISMATCH'],
-#             gap_open=param_set.align_param['GAP-OPEN'],
-#             gap_extend=param_set.align_param['GAP-EXTEND']
-#         )
-#
-#         param_set.align_match_prop = param_set.align_param['SCORE-PROP']
-#
-#     else:
-#         param_set.match_seq = False
-#         param_set.aligner = None
-#         param_set.align_match_prop = None
-#
-#     # Set read_seq
-#     param_set.read_seq = param_set.match_seq  # Future: read_seq may be set for other reasons, keep as a separate flag
-#
-#     # Return parameters
-#     return param_set
 
 
 def read_variant_table(
@@ -1083,8 +837,8 @@ def get_support_table(
         threads,
         offset_max, ro_szro_min,
         match_ref, match_alt,
-        aligner=None,
-        align_match_prop=svpoplib.svmergeparams.ALIGN_PARAM_DEFAULT['SCORE']
+        align_match_prop=None, aligner=None
+
     ):
     """
     Get a table describing matched variants between `df` and `df_next` and columns of evidence for support.
@@ -1096,8 +850,8 @@ def get_support_table(
     :param ro_szro_min: Minimum reciprocal-overlap.
     :param match_ref: REF column must match if True.
     :param match_alt: ALT column must match if True.
-    :param aligner: Configured aligner for matching sequences.
     :param align_match_prop: Minimum matched base proportion in alignment.
+    :param aligner: Configured aligner for matching sequences.
 
     See `svpoplib.svlenoverlap.nearest_by_svlen_overlap` for a description of the returned columns.
 
@@ -1302,16 +1056,20 @@ def get_support_table(
             match_alt=match_alt
         )
 
-    return df_support
+    return df_support if df_support.shape[0] > 0 else None
 
 
-def get_support_table_exact(df, df_next, match_seq=None, match_ref=None, match_alt=None):
+def get_support_table_exact(df, df_next, align_match_prop=None, aligner=None, match_ref=None, match_alt=None):
     """
     Get an intersect table of exact breakpoint matches.
 
     :param df: Dataframe.
     :param df_next: Next dataframe.
-    :param match_seq: Exact match on sequence.
+    :param align_match_prop: Proportion of the max alignment score for matching sequences or None if sequences
+        (SEQ column in df and df_next) should not be matched.
+    :param aligner: Alignment tool for comparing sequences (svpoplib.aligner.ScoreAligner).
+    :param match_ref: Match REF if True (SNVs).
+    :param match_alt: Match ALT if True (SNVs).
 
     :return: Return a support table with exact matches.
     """
@@ -1346,8 +1104,7 @@ def get_support_table_exact(df, df_next, match_seq=None, match_ref=None, match_a
         sort_cols += ['ALT']
 
     # Set match_seq
-    if match_seq is None:
-        match_seq = 'SEQ' in df.columns or 'SEQ' in df_next.columns
+    match_seq = align_match_prop is not None
 
     if match_seq:
         if 'SEQ' not in df.columns:
@@ -1356,7 +1113,12 @@ def get_support_table_exact(df, df_next, match_seq=None, match_ref=None, match_a
         if 'SEQ' not in df_next.columns:
             raise RuntimeError('Cannot match sequences for exact match intersect: No SEQ column in dataframe (df_next)')
 
+        if aligner is None:
+            aligner = svpoplib.aligner.ScoreAligner()
+
         sort_cols += ['SEQ']
+
+    max_match = np.nan  # Initialize - set during matches if match_seq, left as np.nan for the support table otherwise
 
     # Check for missing columns
     missing_1 = [col for col in sort_cols if col not in df.columns]
@@ -1368,8 +1130,8 @@ def get_support_table_exact(df, df_next, match_seq=None, match_ref=None, match_a
         ))
 
     # Sort
-    df = df.sort_values(sort_cols)
-    df_next = df_next.sort_values(sort_cols)
+    df = df.sort_values(sort_cols).copy()
+    df_next = df_next.sort_values(sort_cols).copy()
 
     # Find exact matches
     index_1 = 0
@@ -1380,65 +1142,58 @@ def get_support_table_exact(df, df_next, match_seq=None, match_ref=None, match_a
 
     df_match_list = list()
 
-    while (index_1 < max_index_1 and index_2 < max_index_2):
+    while index_1 < max_index_1 and index_2 < max_index_2:
 
-        # CHROM
-        if df_next.iloc[index_2]['#CHROM'] < df.iloc[index_1]['#CHROM']:
+        # Check by size and position
+        cmp_val = is_exact_match_no_seq(df.iloc[index_1], df_next.iloc[index_2], match_ref, match_alt)
+
+        if cmp_val < 0:
             index_2 += 1
             continue
-        elif df_next.iloc[index_2]['#CHROM'] > df.iloc[index_1]['#CHROM']:
+
+        if cmp_val > 0:
             index_1 += 1
             continue
-
-        # POS
-        if df_next.iloc[index_2]['POS'] < df.iloc[index_1]['POS']:
-            index_2 += 1
-            continue
-        elif df_next.iloc[index_2]['POS'] > df.iloc[index_1]['POS']:
-            index_1 += 1
-            continue
-
-        # SVLEN (END)
-        if df_next.iloc[index_2]['SVLEN'] < df.iloc[index_1]['SVLEN']:
-            index_2 += 1
-            continue
-        elif df_next.iloc[index_2]['SVLEN'] > df.iloc[index_1]['SVLEN']:
-            index_1 += 1
-            continue
-
-        # REF
-        if match_ref:
-            if df_next.iloc[index_2]['REF'] < df.iloc[index_1]['REF']:
-                index_2 += 1
-                continue
-            elif df_next.iloc[index_2]['REF'] > df.iloc[index_1]['REF']:
-                index_1 += 1
-                continue
-
-        # ALT
-        if match_alt:
-            if df_next.iloc[index_2]['ALT'] < df.iloc[index_1]['ALT']:
-                index_2 += 1
-                continue
-            elif df_next.iloc[index_2]['ALT'] > df.iloc[index_1]['ALT']:
-                index_1 += 1
-                continue
 
         # SEQ
         if match_seq:
-            if df_next.iloc[index_2]['SEQ'] < df.iloc[index_1]['SEQ']:
-                index_2 += 1
-                continue
-            elif df_next.iloc[index_2]['SEQ'] > df.iloc[index_1]['SEQ']:
+
+            # Find all matching rows - search for best align match
+            last_index = index_2 + 1
+
+            max_match = aligner.match_prop(df.iloc[index_1]['SEQ'], df_next.iloc[index_2]['SEQ'])
+            max_match_index = index_2
+
+            while last_index < max_index_2 and is_exact_match_no_seq(df.iloc[index_1], df_next.iloc[last_index], match_ref, match_alt) == 0:
+
+                match_val = aligner.match_prop(df.iloc[index_1]['SEQ'], df_next.iloc[last_index]['SEQ'])
+
+                if match_val > max_match:
+                    max_match = match_val
+                    max_match_index = last_index
+
+                last_index += 1
+
+            # No SEQ match for this row in df
+            if max_match < align_match_prop:
                 index_1 += 1
                 continue
+
+            if max_match_index > index_2:
+                # Found multiple matches. Swap index_2 and max_match_index
+                swap_dict = {
+                    index_2: max_match_index,
+                    max_match_index: index_2
+                }
+
+                df_next = df_next.iloc[[swap_dict.get(i, i) for i in range(max_index_2)]].copy()
 
         # Found match
         df_match_list.append(pd.Series(
             [
                 df.iloc[index_1]['ID'],
                 df_next.iloc[index_2]['ID'],
-                0, 1, 1, 0, 1.0 if match_seq else np.nan
+                0, 1, 1, 0, max_match
             ],
             index=['ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH']
         ))
@@ -1450,7 +1205,61 @@ def get_support_table_exact(df, df_next, match_seq=None, match_ref=None, match_a
     if df_match_list:
         return pd.concat(df_match_list, axis=1).T
     else:
-        return pd.DataFrame(
-            [],
-            columns=['ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH']
-        )
+        return None
+
+
+def is_exact_match_no_seq(row_a, row_b, match_ref, match_alt):
+    """
+    Determine if two rows are exact matches. This function does not compare sequences, just size and position.
+
+    :param row_a: Row to compare.
+    :param row_b: Row to compare.
+    :param match_ref: Match REF column. Assumes rows have been checked to verify REF exists.
+    :param match_alt: Match ALT column. Assumes rows have been checked to verify ALT exists.
+
+    :return: True if rows are exact matches by size and position (does not evaluate sequence).
+    """
+
+    # CHROM
+    if row_b['#CHROM'] < row_a['#CHROM']:
+        return -1
+        # index_2 += 1
+        # continue
+
+    elif row_b['#CHROM'] > row_a['#CHROM']:
+        return 1
+        # index_1 += 1
+        # continue
+
+    # POS
+    if row_b['POS'] < row_a['POS']:
+        return -1
+
+    elif row_b['POS'] > row_a['POS']:
+        return 1
+
+    # SVLEN (END)
+    if row_b['SVLEN'] < row_a['SVLEN']:
+        return -1
+
+    elif row_b['SVLEN'] > row_a['SVLEN']:
+        return 1
+
+    # REF
+    if match_ref:
+        if row_b['REF'] < row_a['REF']:
+            return -1
+
+        elif row_b['REF'] > row_a['REF']:
+            return 1
+
+    # ALT
+    if match_alt:
+        if row_b['ALT'] < row_a['ALT']:
+            return -1
+
+        elif row_b['ALT'] > row_a['ALT']:
+            return 1
+
+    # Match
+    return 0

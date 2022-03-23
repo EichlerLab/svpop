@@ -69,15 +69,43 @@ class ScoreAligner:
     :param jaccard_kmer: Jaccard k-mer size for comparisons falling back to Jaccard index in match_prop().
     """
 
-    def __init__(self, match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-1.0, map_limit=None, jaccard_kmer=9):
-        self.__match = match
-        self.__mismatch = mismatch
-        self.__gap_o = gap_open
-        self.__gap_e = gap_extend
-        self.__map_limit = map_limit
-        self.__jaccard_kmer = jaccard_kmer
+    def __init__(self, match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-1.0, map_limit=20000, jaccard_kmer=9):
 
-        # Check arguments
+        # Check and assign values
+        try:
+            self.__match = float(match)
+        except ValueError:
+            raise RuntimeError(f'ScoreAligner(): Parameter match must be numeric: {match}')
+
+        try:
+            self.__mismatch = float(mismatch)
+        except ValueError:
+            raise RuntimeError(f'ScoreAligner(): Parameter mismatch must be numeric: {mismatch}')
+
+        try:
+            self.__gap_o = float(gap_open)
+        except ValueError:
+            raise RuntimeError(f'ScoreAligner(): Parameter gap_open must be numeric: {gap_open}')
+
+        try:
+            self.__gap_e = float(gap_extend)
+        except ValueError:
+            raise RuntimeError(f'ScoreAligner(): Parameter gap_extend must be numeric: {gap_extend}')
+
+        if map_limit is not None:
+            try:
+                self.__map_limit = int(map_limit)
+            except ValueError:
+                raise RuntimeError(f'ScoreAligner(): Parameter map_limit must be an integer or None (no limit): {map_limit}')
+        else:
+            self.__map_limit = None
+
+        try:
+            self.__jaccard_kmer = int(jaccard_kmer)
+        except ValueError:
+            raise RuntimeError(f'ScoreAligner(): Parameter jaccard_kmer must be an integer: {jaccard_kmer}')
+
+        # Check argument ranges
         if self.__match <= 0.0:
             raise RuntimeError(f'Match score must be > 0.0: {self.__match}')
 
@@ -91,7 +119,7 @@ class ScoreAligner:
             raise RuntimeError(f'Gap-extend score must be <= 0.0: {self.__match}')
 
         if self.__map_limit is not None and self.__map_limit < 0:
-            raise RuntimeError(f'Map must be >= 0.0: {self.__map_limit}')
+            raise RuntimeError(f'Map must be >= 0.0 or None (no limit): {self.__map_limit}')
 
         if self.__jaccard_kmer <= 0:
             raise RuntimeError(f'Jaccard k-mer size must be > 0: {self.jaccard_kmer}')
@@ -205,7 +233,7 @@ class ScoreAligner:
 
         if self.__map_limit is None or max_len <= self.__map_limit:
             return min([
-                    np.min([score_align(seq_a, seq_b + seq_b), min_len * self.__match]) / (max_len * self.__match),
+                    np.min([self.score_align(seq_a, seq_b + seq_b), min_len * self.__match]) / (max_len * self.__match),
                     1.0
             ])
 

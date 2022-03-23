@@ -9,7 +9,8 @@ SVPOP_DIR = os.path.dirname(workflow.snakefile)
 
 ### Library dependencies ###
 import sys
-sys.path.append(os.path.join(SVPOP_DIR, 'dep'))  # kanapy
+sys.path.append(os.path.join(SVPOP_DIR, 'dep'))  # kanapy: K-mer toolkit
+sys.path.append(os.path.join(SVPOP_DIR, 'dep', 'ply'))  # ply: Python lex/yacc
 
 
 ### Imports ###

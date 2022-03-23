@@ -17,8 +17,8 @@ def nearest_by_svlen_overlap(
         threads=1,
         match_ref=False,
         match_alt=False,
+        align_match_prop=None,
         aligner=None,
-        align_match_prop=None
 ):
     """
     For each variant in df_source, get the nearest variant in df_target. Both dataframes must contain fields
@@ -53,8 +53,8 @@ def nearest_by_svlen_overlap(
     :param threads: Run this many overlap threads in parallel.
     :param match_ref: "REF" column must match between two variants.
     :param match_alt: "ALT" column must match between two variants.
-    :param aligner: Configured aligner for matching sequences.
-    :param align_match_prop: Minimum matched base proportion in alignment.
+    :param align_match_prop: Minimum matched base proportion in alignment or None to not match.
+    :param aligner: Configured aligner for matching sequences. Required if align_match_prop is not None.
 
     :return: A dataframe with "ID", "TARGET_ID", "OFFSET", "RO", "SZRO", "OFFSZ", and "MATCH"
     """
@@ -105,12 +105,12 @@ def nearest_by_svlen_overlap(
         df_source['ALT'] = df_source['ALT'].fillna('').apply(lambda val: val.upper().strip())
         df_target['ALT'] = df_target['ALT'].fillna('').apply(lambda val: val.upper().strip())
 
-    match_seq = aligner is not None
+    match_seq = align_match_prop is not None
 
     if match_seq:
 
-        if align_match_prop is None:
-            raise RuntimeError('Missing required parameter for alignment (when aligner != None): align_match_prop')
+        if aligner is None:
+            raise RuntimeError('Missing required parameter for alignment (when align_match_prop != None): aligner')
 
         if 'SEQ' not in df_source.columns:
             raise RuntimeError('Source table is missing SEQ column (required when matching variant sequences)')

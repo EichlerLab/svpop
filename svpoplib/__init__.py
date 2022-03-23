@@ -1,5 +1,9 @@
 __all__ = []
 
+# Sub modules
+from . import svmergeconfig
+
+# Modules
 from . import anno
 from . import plot
 from . import tracks
@@ -16,7 +20,6 @@ from . import sampleset
 from . import seq
 from . import sm
 from . import svlenoverlap
-from . import svmergeparams
 from . import svmerge
 from . import svset
 from . import util

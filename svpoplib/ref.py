@@ -125,7 +125,7 @@ def get_df_fai(fai_file_name, usecols=('CHROM', 'LEN'), index_col='CHROM', squee
         usecols=usecols,
         index_col=index_col,
         squeeze=squeeze,
-        dtype={'CHROM': str, 'LEN': np.int, 'POS': np.int, 'LINE_BP': np.int, 'LINE_BYTES': np.int}
+        dtype={'CHROM': str, 'LEN': int, 'POS': int, 'LINE_BP': int, 'LINE_BYTES': int}
     )
 
 
@@ -140,6 +140,7 @@ def get_ref_region(df, ref_fa):
 
     with pysam.FastaFile(ref_fa) as fa_file:
         return df.apply(lambda row: fa_file.fetch(row['#CHROM'], row['POS'], row['END']), axis=1)
+
 
 def get_ref_info(ref_fa):
     """
