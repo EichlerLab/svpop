@@ -303,18 +303,24 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
             raise RuntimeError('Unrecognized symbolic variant type: {}: Row {}'.format(svtype, row.name))
 
         # Get length
-        if 'SVLEN' not in row or pd.isnull(row['SVLEN']) or row['SVLEN'] == 0:
+        svlen = None
 
+        if 'SVLEN' in row:
+            try:
+                svlen = abs(int(row['SVLEN']))
+            except:
+                svlen = None
+        else:
+            svlen = None
+
+        if svlen is None:
             if 'END' not in row:
                 raise RuntimeError('Missing or 0-length SVLEN and no END for symbolic SV: Row {}'.format(row.name))
 
-            if svtype == 'INS':
-                raise RuntimeError('Cannot calculate SVLEN for insertion: Row {}'.format(row.name))
-
-            svlen = np.abs(row['END'] - pos)
-
-        else:
-            svlen = np.abs(row['SVLEN'])
+            try:
+                svlen = abs(int(row['END'])) - pos
+            except:
+                raise RuntimeError('Variant has no SVLEN and END is not an integer: {}: Row {}'.format(row['END'], row.name))
 
         # Set variant type
         vartype = 'INDEL' if svlen < 50 else 'SV'

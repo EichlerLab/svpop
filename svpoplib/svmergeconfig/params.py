@@ -172,7 +172,7 @@ class MergeConfig(object):
             if self.default_matcher is not None:
                 raise RuntimeError(f'Default matcher is not supported for strategy {self.strategy}: REF and ALT are checked by SNV strategies')
 
-            for i in len(self.spec_list):
+            for i in range(len(self.spec_list)):
                 spec = self.spec_list[i]
 
                 # Error if a matcher was defined
@@ -180,7 +180,7 @@ class MergeConfig(object):
                     raise RuntimeError(f'Matcher is not supported for merge specification {spec.spec_type}: REF and ALT are checked by SNV strategies')
 
                 # Assign refalt
-                matcher.refalt = True
+                spec.refalt = True
 
         # Add default matcher
         if self.default_matcher is not None:

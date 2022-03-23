@@ -47,13 +47,13 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
             ))
 
         # Add to INFO and FORMAT
-        info_list = CALLER_VCF_STD_FIELDS['info']
-        format_list = CALLER_VCF_STD_FIELDS['format']
+        info_list = CALLER_VCF_STD_FIELDS[wildcards.callertype]['info']
+        format_list = CALLER_VCF_STD_FIELDS[wildcards.callertype]['format']
 
     # Process options
     param_string = sample_entry['PARAM_STRING']
 
-    if param_string != np.nan:
+    if not np.isnan(param_string):
         param_string = param_string.strip()
     else:
         param_string = ''
@@ -138,14 +138,25 @@ rule variant_vcf_bed_fa:
 
         # Write FASTA
         if 'SEQ' in df.columns and df.shape[0] > 0:
+            df_seq = df[['ID', 'SEQ']].copy()
+
+            df_seq = df_seq.loc[~ pd.isnull(df_seq['SEQ'])]
+
+            if df_seq.shape[0] == 0:
+                df_seq = None
+        else:
+            df_seq = None
+
+        if df_seq is not None:
 
             # Write FASTA
             with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
-                SeqIO.write(svpoplib.seq.bed_to_seqrecord_iter(df), out_file, 'fasta')
+                SeqIO.write(svpoplib.seq.bed_to_seqrecord_iter(df_seq), out_file, 'fasta')
 
             shell("""samtools faidx {output.fa}""")
 
             # Remove SEQ column
+            del(df_seq)
             del(df['SEQ'])
 
         else:
