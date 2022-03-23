@@ -110,6 +110,18 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
     if not prefix_sourcename:
         return sample
 
+    # Correct for altdup
+    source_suffix = None
+
+    if sourcetype == 'caller' and sourcename in SAMPLE_TABLE.index and SAMPLE_TABLE.loc[sourcename, 'TYPE'].squeeze() == 'altdup':
+        tok = SAMPLE_TABLE.loc[sourcename, 'DATA'].squeeze().split(',')
+        tok = [v.strip() for v in tok]
+
+        if len(tok) >= 2:
+            sourcetype = tok[0]
+            sourcename = tok[1]
+            source_suffix = 'ALT-DUP'
+
     # Set prefix
     sample_prefix = None
 
@@ -120,28 +132,33 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
         sample_prefix = 'Callerset'
 
     elif sourcetype == 'caller':
-
-        tok = sourcename.split('-', 1)
-
-        caller_name = tok[0]
+        if sourcename in SAMPLE_TABLE.index:
+            sample_type = SAMPLE_TABLE.loc[sourcename, 'TYPE'].squeeze()
+        else:
+            sample_type = sourcename
 
         caller_name = {
-            'smrtsv': 'SMRT-SV',
             'pbsv': 'PBSV',
             'deepvariant': 'DeepVariant',
             'bionano': 'Bionano',
             'gatk': 'GATK',
             'sniffles': 'Sniffles',
             'longshot': 'Longshot',
-            'vcf': 'Callset',
-        }.get(caller_name, caller_name)
+            'vcf': 'VCF Callset',
+            'pav': 'PAV',
+            'pavbed': 'PAV',
+            'svim': 'SVIM',
+            'svim-asm': 'SVIM-ASM',
+            'sniffles': 'Sniffles'
+        }.get(sample_type, sample_type)
 
         sample_prefix = caller_name
 
+        if source_suffix is not None:
+            sample_prefix = f'{sample_prefix} ({source_suffix})'
+
     # Set sample name and return
     return '{} - {}'.format(sample_prefix, sample)
-
-
 
 # Variant type to string
 SVTYPE_TO_STRING = collections.defaultdict(lambda: 'Unknown')

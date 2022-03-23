@@ -344,7 +344,7 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
         end = pos + 1
         svlen = 0
 
-    elif re.match('^[a-zA-Z]$', alt) and re.match('^[a-zA-Z]$', ref):
+    elif re.match('^[a-zA-Z]+$', alt) and re.match('^[a-zA-Z]+$', ref):
 
         min_len = min(len(ref), len(alt))
 

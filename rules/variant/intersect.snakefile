@@ -23,12 +23,7 @@ def intersect_is_read_seq(wildcards, config):
     if config_def is None:
         config_def = wildcards.merge_def
 
-    merge_strategy_tok = svpoplib.svmerge.get_merge_def(config_def, config).split(':', 1)
-
-    if len(merge_strategy_tok) == 1:
-        return False
-
-    return svpoplib.svmergeconfig.params.get_param_set(merge_strategy_tok[1], merge_strategy_tok[0]).read_seq
+    return svpoplib.svmergeconfig.params.get_merge_config(config_def).read_seq
 
 
 #############
@@ -44,23 +39,61 @@ def intersect_is_read_seq(wildcards, config):
 # Make Venn PDFs.
 rule var_intersect_venn:
     input:
+        a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz',
+        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz',
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
     output:
-        pdf='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/venn/variant_venn.pdf',
-        png='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/venn/variant_venn.png'
+        img='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/venn/variant_venn.{ext}'
     run:
 
-        # Read intersect table
+        # Matplotlib imports
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
 
+        # Read intersect table
         df = pd.read_csv(input.tsv, sep='\t')
+
+        df['SOURCE_SET'] = df['SOURCE_SET'].apply(lambda val: set(val.split(',')))
+
+        # Read original variant table
+        len_a = pd.read_csv(input.a, sep='\t', usecols=('ID', 'SVLEN'), index_col='ID', squeeze=True)
+        len_b = pd.read_csv(input.b, sep='\t', usecols=('ID', 'SVLEN'), index_col='ID', squeeze=True)
+
+        df['ID'] = df.apply(lambda row:
+            'A:{}'.format(row['ID_A']) if 'A' in row['SOURCE_SET'] else
+                'B:{}'.format(row['ID_B']),
+            axis=1
+        )
+
+        # Get a series of lengths per variant (average if intersecting two different size variants)
+        if wildcards.svtype != 'snv':
+            def val_len(row):
+                if {'A', 'B'} == row['SOURCE_SET']:
+                    return int(
+                        (len_a[row['ID_A']] + len_b[row['ID_B']]) / 2
+                    )
+
+                if {'A'} == row['SOURCE_SET']:
+                    return len_a[row['ID_A']]
+
+                if {'B'} == row['SOURCE_SET']:
+                    return len_b[row['ID_B']]
+
+                raise RuntimeError('Cannot get variant lengths: SOURCE_SET is not A, B, or A and B: "{}"'.format(','.join(row['SOURCE_SET'])))
+
+            df['LEN'] = df.apply(val_len, axis=1)
+
+            len_series = df[['ID', 'LEN']].set_index('ID').squeeze()
+        else:
+            len_series = None
 
         # Get sets of variants.
         # For set A, choose names from A
         # For set B, choose names from A for variants that intersected, and choose names from B for variants that did
         # not intersect.
 
-        set_a = set(df.loc[~ pd.isnull(df['ID_A']), 'ID_A'])
-        set_b = set(df.loc[~ pd.isnull(df['ID_B'])].apply(lambda row: row['ID_A'] if not pd.isnull(row['ID_A']) else row['ID_B'], axis=1))
+        set_a = set(df.loc[df['SOURCE_SET'].apply(lambda source_set: 'A' in source_set), 'ID'])
+        set_b = set(df.loc[df['SOURCE_SET'].apply(lambda source_set: 'B' in source_set), 'ID'])
 
         # Get repeat class label
         svset_label = get_svset_label(wildcards.svset)
@@ -72,16 +105,17 @@ rule var_intersect_venn:
         name_a = get_sample_name(wildcards.sourcetype_a, wildcards.sourcename_a, wildcards.sample_a, wildcards.sourcename_a != wildcards.sourcename_b)
         name_b = get_sample_name(wildcards.sourcetype_b, wildcards.sourcename_b, wildcards.sample_b, wildcards.sourcename_a != wildcards.sourcename_b)
 
-        # Set flag to get length distributions (mean & median)
-        len_stat = wildcards.svtype != 'snv'
-
         # Make Venn
-        svpoplib.plot.venn.make_venn(
-            set_a, set_b, [output.pdf, output.png],
+        fig = svpoplib.plot.venn.get_venn_fig(
+            set_a, set_b,
             name_a, name_b,
             '{} - {}'.format(svtype_label, svset_label),
-            len_stat = wildcards.svtype != 'snv'
+            len_series
         )
+
+        # Write
+        fig.savefig(output.img, bbox_inches='tight')
+        plt.close(fig)
 
 
 #
@@ -176,8 +210,8 @@ rule var_intersect_by_merge:
         df = df.loc[:, ['ID', 'MERGE_SAMPLES', 'MERGE_SRC', 'MERGE_VARIANTS']]
 
         # Create an ID column for sample (empty string if the variant was not in that sample)
-        df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] =  df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] + ','
-        df.loc[df['MERGE_SRC'] == 'B', 'MERGE_VARIANTS'] =  ',' + df.loc[df['MERGE_SRC'] == 'B', 'MERGE_VARIANTS']
+        df.loc[df['MERGE_SAMPLES'] == 'A', 'MERGE_VARIANTS'] = df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] + ','
+        df.loc[df['MERGE_SAMPLES'] == 'B', 'MERGE_VARIANTS'] = ',' + df.loc[df['MERGE_SRC'] == 'B', 'MERGE_VARIANTS']
 
         df['ID_A'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[0])
         df['ID_B'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[1])
