@@ -306,7 +306,7 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
         # * #CHROM, POS, END, ID, SVTYPE, SVLEN: Columns of the final merged table
         # * SAMPLE:
 
-        if len(support_table_list) > 1 and any([df_support_check.shape[0] > 0 for df_support_check in support_table_list]):
+        if len(support_table_list) > 0 and any([df_support_check.shape[0] > 0 for df_support_check in support_table_list]):
             df_support = pd.concat(support_table_list)
         else:
             df_support = pd.DataFrame([], columns=['ID', 'SUPPORT_ID'])  # Only the ID column is read if the DataFrame is empty
@@ -811,7 +811,7 @@ def read_variant_table(
     # Order and subset columns
     try:
         df = svpoplib.variant.order_variant_columns(df, col_list, subset=True)
-    except RuntimeException as ex:
+    except RuntimeError as ex:
         raise RuntimeError(f'Error checking columns in {bed_file_name}: {ex}')
 
     # Check SVLEN

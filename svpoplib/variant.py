@@ -166,14 +166,15 @@ def nr_interval_merge(df_chr, overlap=0.5):
 
 
 def order_variant_columns(
-        df, head_cols=('#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN'), tail_cols=None, allow_missing=False, subset=False
+        df, head_cols=None, tail_cols=None, allow_missing=False, subset=False
 ):
     """
     Rearrange columns with a set list first (in defined order of `head_cols`) and leave the remaining columns
     in the order they were found.
 
     :param df: Data frame.
-    :param head_cols: Columns to move to the first columns. Set variant BED order by default.
+    :param head_cols: Columns to move to the first columns. If None, defaults to ['#CHROM', 'POS', 'END', 'ID',
+        'SVTYPE', 'SVLEN'] and includes 'REF' and 'ALT' if they are in the df.
     :param tail_cols: Columns to move to the end. May be set to `None`.
     :param allow_missing: Do not throw an error if the dataframe is missing one or more columns.
     :param subset: If True, subset to defined columns and drop all others.
@@ -185,7 +186,13 @@ def order_variant_columns(
     if head_cols is not None:
         head_cols = list(head_cols)
     else:
-        head_cols = list()
+        head_cols = ['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN']
+
+        if 'REF' in df.columns:
+            head_cols += ['REF']
+
+        if 'ALT' in df.columns:
+            head_cols += ['ALT']
 
     if not allow_missing:
         for col in head_cols:

@@ -300,7 +300,7 @@ rule variant_bed_vcf_tsv_to_bed:
                     df['ID'] = svpoplib.variant.get_variant_id(df)
 
                     if out_col_order is None:
-                        out_col_order = list(svpoplib.variant.order_variant_columns(df, tail_cols=('REF', 'ALT', 'QUAL', 'FILTER', 'VCF_POS', 'VCF_REF', 'VCF_ALT', 'VCF_IDX', 'SEQ')).columns)
+                        out_col_order = list(svpoplib.variant.order_variant_columns(df, tail_cols=('QUAL', 'FILTER', 'VCF_POS', 'VCF_REF', 'VCF_ALT', 'VCF_IDX', 'SEQ')).columns)
 
                     df = df.loc[:, out_col_order]
 
