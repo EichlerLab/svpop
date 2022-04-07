@@ -71,7 +71,7 @@ rule variant_callerset_merge_chrom:
         # Get entry
         callerset_entry = svpoplib.callerset.get_config_entry(wildcards.sourcename, config)
 
-        merge_strategy = svpoplib.sampleset.get_merge_strategy(callerset_entry, wildcards.vartype, wildcards.svtype)
+        merge_strategy = svpoplib.sampleset.get_merge_strategy(callerset_entry, wildcards.vartype, wildcards.svtype, config)
 
         # Merge
         df = svpoplib.svmerge.merge_variants(

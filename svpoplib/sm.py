@@ -45,7 +45,7 @@ def nlset(named_list, key, value=None, wildcards=None):
     # Set value
     snake_version_tok = [int(val) for val in snakemake.__version__.split('.')]
 
-    if snake_version_tok[0] >= 5 and snake_version_tok[1] > 4:
+    if snake_version_tok[0] > 5 or (snake_version_tok[0] == 5 and snake_version_tok[1] >= 4):
         # Add key if missing
         if key not in named_list.keys():
             named_list.append(value)

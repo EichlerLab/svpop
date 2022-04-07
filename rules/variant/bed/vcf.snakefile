@@ -53,7 +53,7 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
     # Process options
     param_string = sample_entry['PARAM_STRING']
 
-    if not np.isnan(param_string):
+    if not (param_string is None or pd.isnull(param_string)):
         param_string = param_string.strip()
     else:
         param_string = ''
@@ -100,7 +100,7 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
                 # ))
 
     # Construct query string for bcftools
-    query_string = '"%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%FILTER'
+    query_string = r'"%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%FILTER'
 
     for element in info_list:
         query_string += f'\\t%INFO/{element}'

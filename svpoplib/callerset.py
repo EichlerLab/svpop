@@ -21,7 +21,7 @@ def get_config_entry(callerset, config):
     if 'callerset' not in config:
         raise RuntimeError('Config has no callerset section')
 
-    callerset_entry = config['callerset'].get(callerset, None)
+    callerset_entry = config['callerset'].get(callerset, None).copy()
 
     if callerset_entry is None:
         raise RuntimeError('Missing definition in config for callerset: {}'.format(callerset))
@@ -29,24 +29,37 @@ def get_config_entry(callerset, config):
     callerset_entry = callerset_entry.copy()
 
     # Check for path_list and name_list
-    missing_list = [key for key in {'callsets', 'name_list', 'merge'} if key not in callerset_entry]
+    missing_list = [key for key in {'callsets', 'merge'} if key not in callerset_entry]
 
     if missing_list:
         raise RuntimeError(
             'Missing attributes in caller set definition: {}: missing = {}'.format(callerset,  ', '.join(missing_list))
         )
 
-    # Check length
-    if len(callerset_entry['callsets']) != len(callerset_entry['name_list']):
+    # Check for name_list (deprecated)
+    if 'name_list' in callerset_entry:
         raise RuntimeError(
-            'Caller set definition has different lengths for "callsets" ({}) and "name_list" ({}): {}'.format(
-                callerset,
-                len(callerset_entry['callsets']),
-                len(callerset_entry['name_list'])
-            )
+            f'Deprecated callerset attribute "name_list" detected in callerset "{callerset}": '
+            'Attach the name for each input element as a third element on each tuple in the "callsets" list'
         )
 
+    # Check callsets
+    if not issubclass(callerset_entry['callsets'].__class__, list):
+        raise RuntimeError(f'Entry "callsets" is not a list in callerset "{callerset}"')
+
+    for index in range(len(callerset_entry['callsets'])):
+        if not issubclass(callerset_entry['callsets'][index].__class__, list):
+            raise RuntimeError(f'Entry {index + 1} in "callsets" is not a list in callerset "{callerset}"')
+
+        if len(callerset_entry['callsets'][index]) != 3:
+            raise RuntimeError(f'Entry {index + 1} in "callsets" is not a list of 3 elements (found {len(callerset_entry["callsets"][index])}) in callerset "{callerset}"')
+
+    # Set name_list
+    callerset_entry['name_list'] = tuple([element[2] for element in callerset_entry['callsets']])
     callerset_entry['n'] = len(callerset_entry['callsets'])
+
+    if len(set(callerset_entry['name_list'])) != len(callerset_entry['name_list']):
+        raise RuntimeError(f'Found duplicate names (third element of lists in the "callsets" entry) in callerset "{callerset}')
 
     # Set name and description
     if 'name' not in callerset_entry:
@@ -93,7 +106,7 @@ def get_caller_set_input(callerset, file_pattern, config, wildcards=None, as_tup
     # Make list of input files
     file_list = list()
 
-    for sourcetype, sourcename in callerset_entry['callsets']:
+    for sourcetype, sourcename, callername in callerset_entry['callsets']:
         svpoplib.sm.nlset(wildcards, 'sourcetype', sourcetype)
         svpoplib.sm.nlset(wildcards, 'sourcename', sourcename)
 
@@ -212,7 +225,8 @@ def cluster_param_cpu(wildcards, config):
         svpoplib.sampleset.get_merge_strategy(
             get_config_entry(wildcards.sourcename, config),
             wildcards.vartype,
-            wildcards.svtype
+            wildcards.svtype,
+            config
         ).get('cpu', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['cpu'])
     )
 
@@ -226,7 +240,8 @@ def cluster_param_mem(wildcards, config):
         svpoplib.sampleset.get_merge_strategy(
             get_config_entry(wildcards.sourcename, config),
             wildcards.vartype,
-            wildcards.svtype
+            wildcards.svtype,
+            config
         ).get('mem', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['mem'])
 
 
@@ -239,7 +254,8 @@ def cluster_param_rt(wildcards, config):
         svpoplib.sampleset.get_merge_strategy(
             get_config_entry(wildcards.sourcename, config),
             wildcards.vartype,
-            wildcards.svtype
+            wildcards.svtype,
+            config
         ).get('rt', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['rt'])
 
 
@@ -252,7 +268,8 @@ def cluster_param_anno_mem(wildcards, config):
         svpoplib.sampleset.get_merge_strategy(
             get_config_entry(wildcards.sourcename, config),
             wildcards.vartype,
-            wildcards.svtype
+            wildcards.svtype,
+            config
         ).get('anno_mem', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['anno_mem'])
 
 
@@ -268,12 +285,11 @@ def is_read_seq(wildcards, config):
 
     callerset_entry = svpoplib.callerset.get_config_entry(wildcards.sourcename, config)
 
-    merge_strategy_tok = svpoplib.sampleset.get_merge_strategy(callerset_entry, wildcards.vartype, wildcards.svtype).split(':', 1)
+    merge_config = svpoplib.svmergeconfig.params.get_merge_config(
+        svpoplib.sampleset.get_merge_strategy(callerset_entry, wildcards.vartype, wildcards.svtype, config)['strategy']
+    )
 
-    if len(merge_strategy_tok) == 1:
-        return false
-
-    return svpoplib.svmerge.get_param_set(merge_strategy_tok[1], merge_strategy_tok[0]).read_seq
+    return merge_config.read_seq
 
 
 # def cluster_param_cpu(wildcards, config):
