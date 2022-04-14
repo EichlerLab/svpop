@@ -53,7 +53,7 @@ def jaccard_distance(seq_a, seq_b, k_util):
         [np.min([count1[key], count2[key]]) for key in key_set]  # Matching k-mers
     ) / np.sum(
         [np.max([count1[key], count2[key]]) for key in key_set]  # All k-mers
-    )
+    ) if len(count1) > 0 and len(count2) > 0 else 0
 
 
 class ScoreAligner:
@@ -69,7 +69,7 @@ class ScoreAligner:
     :param jaccard_kmer: Jaccard k-mer size for comparisons falling back to Jaccard index in match_prop().
     """
 
-    def __init__(self, match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-1.0, map_limit=20000, jaccard_kmer=9):
+    def __init__(self, match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-0.25, map_limit=20000, jaccard_kmer=9):
 
         # Check and assign values
         try:
@@ -185,7 +185,7 @@ class ScoreAligner:
 
                 # Gap query (deletion)
                 score_gap_qry = trace_matrix[i - 1].score + (
-                    self.__gap_e if trace_matrix_last[i].op_code == OP_GAP_QRY else gap_1bp
+                    self.__gap_e if trace_matrix[i - 1].op_code == OP_GAP_QRY else gap_1bp
                 )
 
                 if score_gap_qry > score_max:

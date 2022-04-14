@@ -104,6 +104,8 @@ class MergeConfig(object):
         if parser_ast is None:
             raise RuntimeError('MergeConfig: Cannot create a merge config object: parser_ast is None')
 
+        self.parser_ast = parser_ast
+
         missing_keys = [val for val in ('strategy', 'spec_list') if val not in parser_ast.keys()]
 
         if missing_keys:
@@ -145,6 +147,8 @@ class MergeConfig(object):
                     spec = MergeSpecRo(spec_ast['val_list'])
                 elif spec_ast['type'] == 'szro':
                     spec = MergeSpecSzro(spec_ast['val_list'])
+                elif spec_ast['type'] == 'distance':
+                    spec = MergeSpecDistance(spec_ast['val_list'])
                 elif spec_ast['type'] == 'match':
                     self.default_matcher = MergeSpecMatch(spec_ast['val_list'])
                 else:
@@ -155,7 +159,7 @@ class MergeConfig(object):
                     spec = MergeSpecExact(spec_ast['val_list'])
                 elif spec_ast['type'] == 'distance':
                     raise RuntimeError('MergeSpecDistance is not yet implemented')
-                    #spec = MergeSpecDistance(spec_ast['val_list'])
+                    spec = MergeSpecDistance(spec_ast['val_list'])
                 else:
                     raise RuntimeError(f'MergeConfig {self.strategy}: Merge specification type at {index + 1} is unknown: {spec_ast["type"]}')
 
@@ -262,6 +266,7 @@ class ParamSpec(object):
         self.min_inclusive = min_inclusive
         self.max_val = max_val
         self.max_inclusive = max_inclusive
+        self.unlimited_val = unlimited_val
 
         if self.val_type is None:
             raise RuntimeError('ParamSpec.__init__(): val_type may not be None')
@@ -291,17 +296,22 @@ class ParamSpec(object):
                 raise RuntimeError(f'Illegal type for "{param_tuple[2]} = {param_tuple[1]}": {param_tuple[0]}: expected {allowed_types}')
 
         # Check name and value
-        if param_tuple[1] is None:
-            raise RuntimeError(f'Illegal value for "{param_tuple[2]} = {param_tuple[1]}": None')
+        if param_tuple[0] != 'unlimited':
+            if param_tuple[1] is None:
+                raise RuntimeError(f'Illegal value for "{param_tuple[2]} = {param_tuple[1]}": None')
 
-        # Check bounds
-        if self.min_val is not None:
-            if param_tuple[1] < self.min_val or (param_tuple[1] == self.min_val and not self.min_inclusive):
-                raise RuntimeError(f'Illegal range for "{param_tuple[2]} = {param_tuple[1]}": Minimum allowed value is {self.min_val} ({"inclusive" if self.min_inclusive else "exclusive"})')
+            # Check bounds
+            if self.min_val is not None:
+                if param_tuple[1] < self.min_val or (param_tuple[1] == self.min_val and not self.min_inclusive):
+                    raise RuntimeError(f'Illegal range for "{param_tuple[2]} = {param_tuple[1]}": Minimum allowed value is {self.min_val} ({"inclusive" if self.min_inclusive else "exclusive"})')
 
-        if self.max_val is not None:
-            if param_tuple[1] > self.max_val or (param_tuple[1] == self.max_val and not self.max_inclusive):
-                raise RuntimeError(f'Illegal range for "{param_tuple[2]} = {param_tuple[1]}": Maximum allowed value is {self.max_val} ({"inclusive" if self.max_inclusive else "exclusive"})')
+            if self.max_val is not None:
+                if param_tuple[1] > self.max_val or (param_tuple[1] == self.max_val and not self.max_inclusive):
+                    raise RuntimeError(f'Illegal range for "{param_tuple[2]} = {param_tuple[1]}": Maximum allowed value is {self.max_val} ({"inclusive" if self.max_inclusive else "exclusive"})')
+
+            return param_tuple[1]
+        else:
+            return self.unlimited_val
 
 
 #
@@ -411,15 +421,12 @@ class MergeSpec(object):
 
             param_spec = param_spec_list[param_index]
 
-            # Check
+            # Check and set
             try:
-                param_spec.check(param_tuple)
+                self.__dict__[param_spec.name] = param_spec.check(param_tuple)
 
             except RuntimeError as e:
                 raise RuntimeError(f'Specification type {spec_type}: {e}')
-
-            # Set
-            self.__dict__[param_spec.name] = param_tuple[1]
 
     def set_matcher(self, param_set_matcher=None, matcher_global=False):
         """
@@ -517,18 +524,42 @@ class MergeSpecSzro(MergeSpec):
             'szro',
             arg_list,
             [
-                ParamSpec('num', 0.5, 'ro', 0.0, True, 1.0, True),
-                ParamSpec('int_u', 200, 'distance', 0, True,),
-                ParamSpec('num_u', None, 'size_distance', 0.0, False)
+                ParamSpec('num', 0.5, 'szro', 0.0, False, 1.0, True),
+                ParamSpec('int_u', 200, 'dist', 0, True),
+                ParamSpec('num_u', None, 'szdist', 0.0, True)
             ],
             True
         )
 
-        if self.distance is None and self.size_distance is None:
-            raise RuntimeError(f'Specification type {spec_type}: At least one of "distance" or "size_distance" arguments must not be unlimited')
+        if self.dist is None and self.szdist is None:
+            raise RuntimeError(f'Specification type {spec_type}: At least one of "dist" or "szdist" arguments must not be unlimited')
 
         return
 
+
+class MergeSpecDistance(MergeSpec):
+    """
+    Param set: Distance merge.
+
+    Merge by distance. May be restricted by size RO and offset size. Like szro, but szro parameter may be unset.
+    """
+
+    def __init__(self, arg_list):
+        super().__init__(
+            'distance',
+            arg_list,
+            [
+                ParamSpec('num', None, 'szro', 0.0, False, 1.0, True),
+                ParamSpec('int', 500, 'dist', 0, True),
+                ParamSpec('num_u', None, 'szdist', 0.0, True)
+            ],
+            True
+        )
+
+        if self.dist is None and self.szdist is None:
+            raise RuntimeError(f'Specification type {spec_type}: At least one of "dist" or "szdist" arguments must not be unlimited')
+
+        return
 
 class MergeSpecRo(MergeSpec):
     """
@@ -543,7 +574,8 @@ class MergeSpecRo(MergeSpec):
             'ro',
             arg_list,
             [
-                ParamSpec('num', 0.5, 'ro', 0.0, True, 1.0, True)
+                ParamSpec('num', 0.5, 'ro', 0.0, False, 1.0, True),
+                ParamSpec('int_u', None, 'dist', 0, True)
             ],
             True
         )

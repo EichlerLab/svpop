@@ -245,8 +245,6 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
             spec_type = merge_spec.spec_type.lower()
 
             # Get support table
-            df_support = None
-
             if spec_type == 'exact':
 
                 # INTERSECT: Exact match
@@ -260,25 +258,51 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
 
                 # INTERSECT: RO (Reciprocal overlap)
                 df_support = get_support_table(
-                    df_sub, df_next_sub,
-                    threads,
-                    None,
-                    merge_spec.ro, merge_spec.refalt, merge_spec.refalt,
-                    merge_spec.align_match_prop, merge_spec.aligner
+                    df=df_sub,
+                    df_next=df_next_sub,
+                    threads=threads,
+                    ro_min=merge_spec.ro,
+                    offset_max=merge_spec.dist,
+                    match_ref=merge_spec.refalt,
+                    match_alt=merge_spec.refalt,
+                    align_match_prop=merge_spec.align_match_prop,
+                    aligner=merge_spec.aligner
                 )
 
             elif merge_spec.spec_type == 'szro':
 
-                # INTERSECT: SZRO + OFFSET
+                # INTERSECT: SZRO (Size reciprocal overlap)
                 df_support = get_support_table(
-                    df_sub, df_next_sub,
-                    threads,
-                    merge_spec.distance,
-                    merge_spec.ro, merge_spec.refalt, merge_spec.refalt,
-                    merge_spec.align_match_prop, merge_spec.aligner
+                    df=df_sub,
+                    df_next=df_next_sub,
+                    threads=threads,
+                    szro_min=merge_spec.szro,
+                    offset_max=merge_spec.dist,
+                    offsz_max=merge_spec.szdist,
+                    match_ref=merge_spec.refalt,
+                    match_alt=merge_spec.refalt,
+                    align_match_prop=merge_spec.align_match_prop,
+                    aligner=merge_spec.aligner
                 )
 
                 pass
+
+            elif merge_spec.spec_type == 'distance':
+
+                # INTERSECT: Distance
+                df_support = get_support_table(
+                    df=df_sub,
+                    df_next=df_next_sub,
+                    threads=threads,
+                    szro_min=merge_spec.szro,
+                    offset_max=merge_spec.dist,
+                    offsz_max=merge_spec.szdist,
+                    match_ref=merge_spec.refalt,
+                    match_alt=merge_spec.refalt,
+                    align_match_prop=merge_spec.align_match_prop,
+                    aligner=merge_spec.aligner
+                )
+
 
             else:
                 raise RuntimeError(f'Unknown merge specification type: {spec_type}')
@@ -834,10 +858,15 @@ def read_variant_table(
 
 def get_support_table(
         df, df_next,
-        threads,
-        offset_max, ro_szro_min,
-        match_ref, match_alt,
-        align_match_prop=None, aligner=None
+        threads=1,
+        ro_min=None,
+        szro_min=None,
+        offset_max=None,
+        offsz_max=None,
+        match_ref=False,
+        match_alt=False,
+        align_match_prop=None,
+        aligner=None
 
     ):
     """
@@ -846,8 +875,10 @@ def get_support_table(
     :param df: Set of variants in the accepted set.
     :param df_next: Set of variants to intersect with `df`.
     :param threads: Number of threads to run.
+    :param ro_min: Minimum size reciprocal overlap (computed on size only independent of position).
+    :param szro_min: Minimum reciprocal-overlap.
     :param offset_max: Max breakpoint offset (offset is the minimum of start position and end position offsets).
-    :param ro_szro_min: Minimum reciprocal-overlap.
+    :param offsz_max: Maximum offset/svlen proportion. Computed with the minimum length of the two variants.
     :param match_ref: REF column must match if True.
     :param match_alt: ALT column must match if True.
     :param align_match_prop: Minimum matched base proportion in alignment.
@@ -859,7 +890,16 @@ def get_support_table(
         (OFFSET, RO, SZRO, OFFSZ, MATCH).
     """
 
-    interval_flank = (offset_max if offset_max is not None else 0) + 1
+    # Determine if the merge can be split into clusters. If True (most merges), then variants are grouped into
+    # clusters of events that could possibly merge given location restrictions based on ro_min, offset_max, and
+    # offsz_max. szro_min alone is not affected by placement and cannot be used for clustering. Un-clustered merges are
+    # degenerate, but could be useful for prioritizing based on attributes (i.e. find all possible matches and choose
+    # the best one based on size or other parameters even if they are not used to restrict merges).
+
+    cluster_merge = ro_min is not None or offset_max is not None or offsz_max is not None
+
+    # Base interval flank
+    base_interval_flank = offset_max + 1 if offset_max is not None else 1
 
     if df_next.shape[0] > 0:
 
@@ -872,56 +912,71 @@ def get_support_table(
             df_chrom = df.loc[df['#CHROM'] == chrom]
             df_next_chrom = df_next.loc[df_next['#CHROM'] == chrom]
 
-            # Split merge, isolate to overlapping intervals before merging.
-            # This strategy limits combinatorial explosion merging large sets.
+            if cluster_merge:
+                # Split merge, isolate to overlapping intervals before merging.
+                # This strategy limits combinatorial explosion merging large sets.
 
-            # Create an interval tree of records to intersect.
-            #
-            # For each interval, the data element will be a tuple of two sets:
-            #   [0]: Set of source variant IDs in the interval.
-            #   [1]: Set of target variant IDs in the interval.
-            tree = intervaltree.IntervalTree()
+                # Create an interval tree of records to intersect.
+                #
+                # For each interval, the data element will be a tuple of two sets:
+                #   [0]: Set of source variant IDs in the interval.
+                #   [1]: Set of target variant IDs in the interval.
+                tree = intervaltree.IntervalTree()
 
-            # Add max intervals for each source variant
-            for row_index, row in df_chrom.iterrows():
-                tree.addi(
-                    row['POS'] - interval_flank,
-                    (row['END'] if row['SVTYPE'] != 'INS' else row['POS'] + row['SVLEN']) + interval_flank,
-                    ({row['ID']}, set())
-                )
+                # Add max intervals for each source variant
+                for row_index, row in df_chrom.iterrows():
+                    if offsz_max is not None:
+                        interval_flank = max(base_interval_flank, row['SVLEN'] * offsz_max)
+                    else:
+                        interval_flank = base_interval_flank
 
-            # For each target variant in turn, merge all source intervals it intersects. Source and target ID sets
-            # in the interval data are merged with the intervals.
-            for row_index, row in df_next_chrom.iterrows():
+                    tree.addi(
+                        row['POS'] - interval_flank,
+                        (row['END'] if row['SVTYPE'] != 'INS' else row['POS'] + 1) + interval_flank,
+                        ({row['ID']}, set())
+                    )
 
-                pos = row['POS']
-                end = (row['END'] if row['SVTYPE'] != 'INS' else row['POS'] + row['SVLEN'])
+                # For each target variant in turn, merge all source intervals it intersects. Source and target ID sets
+                # in the interval data are merged with the intervals.
+                for row_index, row in df_next_chrom.iterrows():
 
-                source_rows = set()
-                target_rows = {row['ID']}
+                    pos = row['POS']
+                    end = (
+                        row['END'] if (
+                            row['SVTYPE'] != 'INS' or ro_min is None
+                        ) else row['POS'] + row['SVLEN']
+                    )
 
-                pos_set = set()
-                end_set = set()
+                    source_rows = set()
+                    target_rows = {row['ID']}
 
-                # Collapse intersecting intervals
-                for interval in tree[pos:end]:
-                    pos_set.add(interval.begin)
-                    end_set.add(interval.end)
+                    pos_set = set()
+                    end_set = set()
 
-                    source_rows |= interval.data[0]
-                    target_rows |= interval.data[1]
+                    # Collapse intersecting intervals
+                    for interval in tree[pos:end]:
+                        pos_set.add(interval.begin)
+                        end_set.add(interval.end)
 
-                    tree.discard(interval)
+                        source_rows |= interval.data[0]
+                        target_rows |= interval.data[1]
 
-                # Add new interval if any
-                if source_rows:
-                    tree.addi(min(pos_set), max(end_set), (source_rows, target_rows))
+                        tree.discard(interval)
 
-            # Create a list of tuples where each element is the data from the interval. Include only intervals
-            # with at least one target row.
-            record_pair_list = [interval.data for interval in tree if len(interval.data[1]) > 0]
+                    # Add new interval if any
+                    if source_rows:
+                        tree.addi(min(pos_set), max(end_set), (source_rows, target_rows))
 
-            del tree
+                # Create a list of tuples where each element is the data from the interval. Include only intervals
+                # with at least one target row.
+                record_pair_list = [interval.data for interval in tree if len(interval.data[1]) > 0]
+
+                del tree
+
+            else:
+                record_pair_list = [
+                    (set(df_chrom['ID']), set(df_next_chrom['ID']))
+                ]
 
             # Report
             print('\t* Split ref {} into {} parts'.format(chrom, len(record_pair_list)))
@@ -936,9 +991,11 @@ def get_support_table(
                 pool = multiprocessing.Pool(threads)
 
                 kwd_args = {
-                    'szro_min': ro_szro_min,
+                    'ro_min': ro_min,
+                    'szro_min': szro_min,
                     'offset_max': offset_max,
-                    'priority': ['RO', 'OFFSET', 'SZRO'],
+                    'offsz_max': offsz_max,
+                    'priority': ['RO', 'SZRO', 'OFFSET', 'OFFSZ', 'MATCH'],
                     'threads': 1,
                     'match_ref': match_ref,
                     'match_alt': match_alt,
@@ -1047,10 +1104,13 @@ def get_support_table(
 
     else:
         df_support = svpoplib.svlenoverlap.nearest_by_svlen_overlap(
-            df, df_next,
-            ro_szro_min,
-            offset_max,
-            priority=['RO', 'OFFSET', 'SZRO', 'MATCH'],
+            df_source=df,
+            df_target=df_next,
+            ro_min=ro_min,
+            szro_min=szro_min,
+            offset_max=offset_max,
+            offsz_max=offsz_max,
+            priority=['RO', 'SZRO', 'OFFSET', 'OFFSZ', 'MATCH'],
             threads=threads,
             match_ref=match_ref,
             match_alt=match_alt

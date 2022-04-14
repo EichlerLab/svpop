@@ -10,9 +10,11 @@ import svpoplib
 
 def nearest_by_svlen_overlap(
         df_source, df_target,
+        ro_min=None,
         szro_min=None,
         offset_max=None,
-        priority=('RO', 'SZRO', 'OFFSET', 'MATCH'),
+        offsz_max=None,
+        priority=['RO', 'SZRO', 'OFFSET', 'OFFSZ', 'MATCH'],
         restrict_samples=False,
         threads=1,
         match_ref=False,
@@ -45,8 +47,10 @@ def nearest_by_svlen_overlap(
 
     :param df_source: Source dataframe.
     :param df_target: Target dataframe.
+    :param ro_min: Minimum reciprocal overlap for allowed matches.
     :param szro_min: Reciprocal length proportion of allowed matches.
     :param offset_max: Maximum offset allowed (minimum of start or end postion distance).
+    :param offsz_max: Maximum size-offset (offset / svlen) allowed.
     :param priority: A list of match priorities (one or more of OFFSET, RO, SZRO, or OFFSZ, see above).
     :param restrict_samples: If `True` and both dataframes contain a `MERGE_SAMPLES` column, then restrict matches to
         only those that share samples.
@@ -69,6 +73,9 @@ def nearest_by_svlen_overlap(
 
     if any(col not in df_target.columns for col in ('#CHROM', 'POS', 'END', 'SVTYPE', 'SVLEN', 'ID')):
         raise RuntimeError('Target Dataframe missing at least one column in ("#CHROM", "POS", "END", "SVTYPE", "SVLEN"): {}')
+
+    # Priority must be a list
+    priority = list(priority)
 
     # Copy (do not alter original DataFrame)
     df_source = df_source.copy()
@@ -209,12 +216,47 @@ def nearest_by_svlen_overlap(
     df_target.set_index('ID', inplace=True)
     df_target.index.name = 'TARGET_ID'
 
-    # Set min_len_prop
-    if szro_min is not None:
-        szro_min = np.float16(szro_min)
+    # Check ro_min
+    if ro_min is not None:
+        try:
+            ro_min = np.float16(ro_min)
+        except ValueError:
+            raise RuntimeError(f'Reciprocal-overlap parameter (ro_min) is not a floating point number: {ro_min}')
 
-        if szro_min <= np.float16(0.0) or szro_min >= np.float16(1.0):
-            raise RuntimeError('Length proportion must be between 0 and 1 (inclusive): {}'.format(szro_min))
+        if ro_min <= np.float16(0.0) or ro_min > np.float16(1.0):
+            raise RuntimeError(f'Reciprocal-overlap parameter (ro_min) must be between 0 (exclusive) and 1 (inclusive): {ro_min}')
+
+    # Check szro_min
+    if szro_min is not None:
+        try:
+            szro_min = np.float16(szro_min)
+        except ValueError:
+            raise RuntimeError(f'Size-reciprocal-overlap parameter (szro_min) is not a floating point number: {szro_min}')
+
+        if szro_min <= np.float16(0.0) or szro_min > np.float16(1.0):
+            raise RuntimeError(f'Size-reciprocal-overlap parameter (szro_min) must be between 0 (exclusive) and 1 (inclusive): {szro_min}')
+
+    # Check offset_max
+    if offset_max is not None:
+        try:
+            offset_max = np.int32(offset_max)
+        except ValueError:
+            raise RuntimeError(f'Offset-max parameter (offset_max) is not an integer: {offset_max}')
+        except OverflowError:
+            raise RuntimeError(f'Offset-max parameter (offset_max) exceeds the max size (32 bits): {offset_max}')
+
+        if offset_max < 0:
+            raise RuntimeError(f'Offset-max parameter (offset_max) must not be negative: {offset_max}')
+
+    # Check offsz_max
+    if offsz_max is not None:
+        try:
+            offsz_max = np.float16(offsz_max)
+        except ValueError:
+            raise RuntimeError(f'Size-offset-max parameter (offsz_max) is not a floating point number: {offsz_max}')
+
+        if offsz_max < np.float16(0.0):
+            raise RuntimeError(f'Size-offset-max parameter (offsz_max) must not be negative: {offsz_max}')
 
     # Make set of sample names
     if restrict_samples:
@@ -231,8 +273,10 @@ def nearest_by_svlen_overlap(
     kwd_args = {
         'df_source': df_source,
         'df_target': df_target,
+        'ro_min': ro_min,
         'szro_min': szro_min,
         'offset_max': offset_max,
+        'offsz_max': offsz_max,
         'restrict_samples': restrict_samples,
         'priority': priority,
         'priority_ascending': priority_ascending,
@@ -303,7 +347,8 @@ def _apply_parallel_cb_error(chrom):
 def _overlap_worker(
         chrom,
         df_source, df_target,
-        szro_min, offset_max,
+        ro_min, szro_min,
+        offset_max, offsz_max,
         restrict_samples,
         priority, priority_ascending,
         match_ref, match_alt,
@@ -354,8 +399,6 @@ def _overlap_worker(
         svlen = source_row['SVLEN']
         svtype = source_row['SVTYPE']
 
-        is_ins = svtype == 'INS'
-
         seq = source_row['SEQ'] if match_seq else None
 
         df_target_row_pool = df_target_chr.copy()
@@ -365,6 +408,15 @@ def _overlap_worker(
 
         if df_target_row_pool.shape[0] == 0:
             continue
+
+        # Filter by samples
+        if restrict_samples:
+            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MERGE_SAMPLES'].apply(
+                lambda sample_set: bool(sample_set & source_row['MERGE_SAMPLES'])
+            )].copy()
+
+            if df_target_row_pool.shape[0] == 0:
+                continue
 
         # Filter by REF and ALT
         if match_ref or match_alt:
@@ -382,7 +434,7 @@ def _overlap_worker(
 
             df_target_row_pool = df_target_row_pool.copy()
 
-        # Calculate SZRO (size overlap) and filter
+        # Size reciprocal overlap
         df_target_row_pool['SZRO'] = df_target_row_pool.apply(
             lambda row: np.min([svlen / row['SVLEN'], row['SVLEN'] / svlen]),
             axis=1
@@ -391,10 +443,10 @@ def _overlap_worker(
         if szro_min is not None:
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['SZRO'] >= szro_min].copy()
 
-        if df_target_row_pool.shape[0] == 0:
-            continue
+            if df_target_row_pool.shape[0] == 0:
+                continue
 
-        # Calculate offset and filter
+        # Offset
         df_target_row_pool['OFFSET'] = df_target_row_pool.apply(
             lambda row: np.min(
                 [
@@ -407,11 +459,10 @@ def _overlap_worker(
         if offset_max is not None:
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['OFFSET'] <= offset_max].copy()
 
-        if df_target_row_pool.shape[0] == 0:
-            continue
+            if df_target_row_pool.shape[0] == 0:
+                continue
 
         # Reciprocal overlap
-
         if svtype != 'INS':
             df_target_row_pool['RO'] = df_target_row_pool.apply(lambda row:
                 svpoplib.variant.reciprocal_overlap(pos, end, row['POS'], row['END']),
@@ -423,17 +474,20 @@ def _overlap_worker(
                 axis=1
             )
 
-        if offset_max is None:
-            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['RO'] >= szro_min].copy()
+        if ro_min is not None:
+            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['RO'] >= ro_min].copy()
 
             if df_target_row_pool.shape[0] == 0:
                 continue
 
-        # Filter by samples
-        if restrict_samples:
-            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MERGE_SAMPLES'].apply(
-                lambda sample_set: bool(sample_set & source_row['MERGE_SAMPLES'])
-            )].copy()
+        # Size-offset max
+        df_target_row_pool['OFFSZ'] = df_target_row_pool.apply(
+            lambda row: row['OFFSET'] / min(svlen, row['SVLEN']),
+            axis=1
+        )
+
+        if offsz_max is not None:
+            df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['OFFSZ'] <= offsz_max].copy()
 
             if df_target_row_pool.shape[0] == 0:
                 continue
@@ -460,27 +514,27 @@ def _overlap_worker(
         else:
             df_target_row_pool['MATCH'] = np.nan
 
-        # Redefine end points for insertions (make them by-length for reciprocal overlap calculation)
-        if source_row['SVTYPE'] == 'INS':
-            df_target_row_pool['END'] = df_target_row_pool['POS'] + df_target_row_pool['SVLEN']
-            end = pos + svlen
-
         # Get distance calculations
         if df_target_row_pool.shape[0] == 0:
             continue
 
-        df_distance = df_target_row_pool.apply(lambda row: pd.Series(
-            [
-                row['OFFSET'],
-                svpoplib.variant.reciprocal_overlap(pos, end, row['POS'], row['END']),
-                row['SZRO'],
-                row['OFFSET'] / svlen,
-                row['MATCH']
-            ],
-            index=['OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH']
-        ), axis=1)
+        #
+        # df_distance = df_target_row_pool.apply(lambda row: pd.Series(
+        #     [
+        #         row['OFFSET'],
+        #         svpoplib.variant.reciprocal_overlap(pos, end, row['POS'], row['END']),
+        #         row['SZRO'],
+        #         row['OFFSET'] / svlen,
+        #         row['MATCH']
+        #     ],
+        #     index=['OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH']
+        # ), axis=1)
+        #
+        # # Get max row
+        # max_row = df_distance.reset_index().sort_values(priority, ascending=priority_ascending).iloc[0]
 
-        max_row = df_distance.reset_index().sort_values(priority, ascending=priority_ascending).iloc[0]
+        # Get max row
+        max_row = df_target_row_pool.reset_index().sort_values(priority, ascending=priority_ascending).iloc[0]
 
         max_row['ID'] = index
 

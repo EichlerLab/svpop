@@ -69,7 +69,7 @@ class MergeParser(object):
         else:
             p[0] = [{
                 'type': p[1],
-                'val_list': p[3] if len(p) == 4 else []
+                'val_list': p[3] if len(p) == 5 else []
             }]
 
     ### Value primitives ###
@@ -127,12 +127,15 @@ class MergeParser(object):
         """
         val_list : val
                  | val ',' val_list
+                 | ',' val_list
         """
 
         if len(p) == 2:
             p[0] = p[1]
-        else:
+        elif len(p) == 4:
             p[0] = p[1] + p[3]
+        else:
+            p[0] = [None] + p[2]
 
     # spec and spec_list
     def p_val(self, p):

@@ -11,7 +11,8 @@ SV-Pop has a variant merge and intersect system built into it for comparing vari
 ## Merging paradigm
 
 SV-Pop has a flexible merging system and could support any number of merging strategies. Currently, it only has a
-nonredundant strategy build in ("nr"). This document will describe parameters for the "nr" merge in SV-Pop.
+nonredundant strategy build in ("nr", "nrsnv" for SNVs). This document will describe parameters for the "nr" merge in
+SV-Pop.
 
 We will likely support strategies provided by other tools Jasmine in the near future
 (https://www.biorxiv.org/content/10.1101/2021.05.27.445886v1). 
@@ -138,12 +139,11 @@ Example callerset section.
     "callerset": {
         "longreads": {
             "callsets": [
-                ["caller", "pav-hifi"],
-                ["caller", "pav-clr"],
-                ["caller", "pbsv-hifi"],
-                ["caller", "pbsv-clr"]
+                ["caller", "pav-hifi", "PAVHIFI"],
+                ["caller", "pav-clr", "PAVCLR"],
+                ["caller", "pbsv-hifi", "PBSVHIFI"],
+                ["caller", "pbsv-clr", "PBSVCLR"]
             ],
-            "name_list": ["PAVHIFI", "PAVCLR", "PBSVHIFI", "PBSVCLR"],
             "merge": {
                 "sv,indel": "nr:szro=50:offset=200",
                 "snv": "nr:refalt"
@@ -153,10 +153,12 @@ Example callerset section.
         }
     }
 
-`callsets` contains a list variant sources (each is a souncetype/souncename pair). `name_list` must be as long as
-`callsets` and contain short names for each source, which will be listed with each record in the merged variant table.
-`merge` is the same as for `sampleset` (a single merge definition or a dictionary of definitions keyed by svtype(s)).
-`name` is used for figures, and `description` is for documentation purposes and is unused.
+`callsets` contains a list variant sources (each is a souncetype/souncename/name trio). In an older version of SV-Pop,
+a separate `namelist` element contained the names of each source, but that information has been moved to the
+`callsets` list as a third element for each source. `merge` is the same as for `sampleset` (a single merge definition
+or a dictionary of definitions keyed by svtype(s)). `name` is used for figures, and `description` is for documentation
+purposes and is unused by the pipeline.
+
 
 ## Merging annotations
 
