@@ -63,6 +63,57 @@ rule variant_anno_seqcontent_gc:
         # Write
         df.to_csv(output.tsv, sep='\t', index=True, header=True, na_rep='NA', compression='gzip')
 
+# variant_anno_caller_seqcontent_ambig
+#
+# Annotate ambiguous content.
+rule variant_anno_seqcontent_ambig:
+    input:
+        bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        fa='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
+    output:
+        tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/ambiguous/ambiguous_content_{vartype}_{svtype}.tsv.gz'
+    wildcard_constraints:
+        svtype='ins|del|inv|dup|rgn|sub'
+    run:
+
+        # Read variants
+        df = pd.read_csv(input.bed, sep='\t', header=0, usecols=('ID', 'SVTYPE', 'SVLEN'), index_col='ID')
+
+        # Get GC
+        if os.stat(input.fa).st_size > 0:
+
+            ambi_list = list()
+
+            # Read table
+            with gzip.open(input.fa, 'rt') as in_file:
+                for record in Bio.SeqIO.parse(in_file, 'fasta'):
+                    seq = str(record.seq).upper()
+                    seq = re.sub('[ACGT]', '', seq)
+
+                    if len(seq) > 0:
+                        ambi_n = np.sum((base == 'N' for base in seq))
+                        ambi_other = len(seq) - ambi_n
+                    else:
+                        ambi_n = 0
+                        ambi_other = 0
+
+                    ambi_list.append(pd.Series(
+                        [record.id, ambi_n, ambi_other],
+                        index=['ID', 'AMBI_N_COUNT', 'AMBI_OTHER_COUNT']
+                    ))
+
+            # Assign GC to df
+            df_ambi = pd.concat(ambi_list, axis=1).T.set_index('ID').squeeze()
+            df = pd.concat([df, df_ambi], axis=1)
+
+        else:
+            # Empty FASTA, assign NA to all
+            df['AMBI_N_COUNT'] = np.nan
+            df['AMBI_OTHER_COUNT'] = np.nan
+
+        # Write
+        df.to_csv(output.tsv, sep='\t', index=True, header=True, na_rep='NA', compression='gzip')
+
 
 # variant_anno_caller_seqcontent_seq
 #

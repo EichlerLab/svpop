@@ -188,7 +188,7 @@ For example:
 
     "merge_def": {
         "szro-50-200": "nr:szro=50:offset=200",
-        "snvex": "nr:refalt",
+        "snvexact": "nr:refalt",
     }
 
 ### Intersect file

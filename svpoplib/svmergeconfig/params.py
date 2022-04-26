@@ -609,7 +609,7 @@ class MergeSpecMatch(MergeSpec):
                 ParamSpec('num', -1.0, 'mismatch', None, None, 0.0, False),
                 ParamSpec('num', -1.0, 'open', None, None, 0.0, True),
                 ParamSpec('num', -0.25, 'extend', None, None, 0.0, True),
-                ParamSpec('int_u', 20000, 'limit', 0, True),
+                ParamSpec('int_u', 4000, 'limit', 0, True),
                 ParamSpec('int', 9, 'ksize', 1, True),
             ],
             False

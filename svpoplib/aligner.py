@@ -166,7 +166,7 @@ class ScoreAligner:
             for i in range(1, len_a):
 
                 # Aligned bases
-                if seq_a[i - 1] == seq_b[j - 1] and seq_a[i - 1] in {'A', 'C', 'G', 'T'}:
+                if seq_a[i - 1] == seq_b[j - 1]:
                     score_max = trace_matrix_last[i - 1].score + self.__match
                     op_code = OP_MATCH
 
