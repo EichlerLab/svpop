@@ -187,8 +187,8 @@ below) contains the merge definition, which can be long and messy, and `merge_de
 For example:
 
     "merge_def": {
-        "szro-50-200": "nr:szro=50:offset=200",
-        "snvexact": "nr:refalt",
+        "szro-50-200": "nr::ro(0.5):szro(0.5,200,2):match",
+        "snvexact": "nrsnv::exact"
     }
 
 ### Intersect file

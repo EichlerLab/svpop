@@ -183,8 +183,8 @@ rule var_intersect_by_merge:
         b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz',
         fa=lambda wildcards:
             [
-                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'.format(**wildcards),
-                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'.format(**wildcards)
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'.format(**wildcards),
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'.format(**wildcards)
             ] if intersect_is_read_seq(wildcards, config) else []
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
@@ -232,8 +232,8 @@ rule var_intersect_bymerge_svset_diff:
         b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset_b}/bed/{vartype}_{svtype}.bed.gz',
         fa=lambda wildcards:
             [
-                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'.format(**wildcards),
-                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'.format(**wildcards)
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'.format(**wildcards),
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'.format(**wildcards)
             ] if intersect_is_read_seq(wildcards, config) else []
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset_a}_vs_{svset_b}/{vartype}_{svtype}/intersect.tsv.gz'
