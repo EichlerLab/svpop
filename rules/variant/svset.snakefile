@@ -13,7 +13,7 @@ rule variant_svsetfilter_run:
         bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'
     wildcard_constraints:
         svset='((?!all).*|all.+)',  # Do not allow "all"
-        svtype='ins|del|inv|dup|sub|rgn'
+        svtype='ins|del|inv|dup|sub|rgn|snv'
     run:
 
         # Read
@@ -41,7 +41,7 @@ rule variant_svsetfilter_fa:
         fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'
     wildcard_constraints:
         svset='((?!all).*|all.+)',  # Do not allow "all"
-        svtype='ins|del|inv|dup|sub|rgn'
+        svtype='ins|del|inv|dup|sub|rgn|snv'
     run:
 
         id_set = set(pd.read_csv(input.bed, sep='\t', usecols=('ID',))['ID'])
