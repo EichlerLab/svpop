@@ -11,11 +11,12 @@ SV-Pop has a variant merge and intersect system built into it for comparing vari
 ## Merging paradigm
 
 SV-Pop has a flexible merging system and could support any number of merging strategies. Currently, it only has a
-nonredundant strategy build in ("nr", "nrsnv" for SNVs). This document will describe parameters for the "nr" merge in
-SV-Pop.
+nonredundant strategy build in ("nr", or "nrsnv" for SNVs to enforce REF/ALT matches). This document will describe
+parameters for the "nr" merge in SV-Pop.
 
-We will likely support strategies provided by other tools Jasmine in the near future
-(https://www.biorxiv.org/content/10.1101/2021.05.27.445886v1). 
+We will likely support strategies provided by other tools, such as Jasmine
+(https://www.biorxiv.org/content/10.1101/2021.05.27.445886v1) and Truvari
+(https://www.biorxiv.org/content/10.1101/2022.02.21.481353v1.abstract).
 
 
 ## Nonredundant merging (nr)
@@ -37,48 +38,188 @@ In this example, the configuration JSON will contain a definition for sampleset 
 merging parameters. A set of samples is defined in a list called "allsamples" (defined in the `samplelist` section of
 `config/config.json`).
 
-### Comparing variants
+### Comparison strategies
 
-Variant comparisons during merges and intersects occur in several tiers.
+Several strategies are supported by SV-Pop's nonredundant merge process. Square brackets contain the merge strategy
+identifier that is used in merge configuration (next section).
 
-1. Exact: Variants matching exactly by size and position are considered first.
-1. RO: Variants must overlap reciprocally by size and position.
-1. Offset-size-RO: Variants within a set distance (offset) are compared by size whether or not they intersect.
+1. Exact [exact]: Size and position must match exactly.
+1. Reciprocal overlap [ro]: Variants must overlap reciprocally by size and position. This is a classic merge strategy
+   that works well for very large variants. For insertions, the length is added to the start position to obtain the
+   end position for this strategy.
+1. Offset-size reciprocal overlap [szro]: Variants within a set distance (offset) are compared by size whether or not
+   they intersect. The offset can be restricted by either a set number of bases or as a multiplier of the variant size
+   (or both). This strategy works better for smaller variants where small changes is position create large differences
+   by ro.
+1. Distance [distance]: A strict distance match that ignores the variant size. This strategy is useful for comparing
+   callsets with extreme variant size inaccuracies, typcially legacy short-read SV callsets (modern short-read callsets
+   should have more accurate sizes).
 
-RO is the classic way of comparing SVs before they were sequence-resolved and where breakpoint locations were less
-certain. For two variants (A and B), A must overlap B by a certain percentage and vice-versa. It still works fairly
-well for large SVs, but tends to under-merge small SVs and indels because small changes in the position cause RO to
-decline rapidly. The typical cutoff is 50% RO. Insertions occur at a point, but the SVLEN is added to the position
-to create a region for RO (only for the merge, the resulting variant BED file still has INS at a single point).
+The merging process can use one or more of these strategies in order. For example, merging by "ro" then "szro" would
+match everything by reciprcal overlep, and anything unmatched would then be matched by size-offset recprocal overlap.
 
-Offset-size was introduced to provide better merge performance for small SVs and indels. First, the offset is computed
-(minimum of POS difference or END difference), and if the offset is in a certain distance (typically 200 bp), then
-sizes are compared required a reciprocal size overlap (typically 50%). The size overlap is like RO if the variants were
-shifted to maximum overlap (i.e. shift variant B POS to A's POS).
+### Sequence match similarity
 
-Variants passing one of these criteria are considered a match.
+The nonredundant merging process can compare variant sequences if sequence-resolved callests are being compared (i.e.
+the sequence of each variant is known) using "match" parameters. Comparing sequences reduces over-merging by requiring
+the sequence content of matched variants be similar (e.g. 80% similarity). Sequence-resolved callsets cannot be
+generated from a VCF with symbolic ALTs (e.g. "<INS>") unless there is a SEQ INFO field for each containing the full
+variant sequence. Many modern tools, especially from long reads, provide appropriate callsets for match similarity
+
+The match similarity can be performed in two ways:
+1. Similarity by alignment
+1. Similarity by k-mer Jaccard
+
+Alignment similarity is achieved by aligning both sequences with a Smith-Waterman alignment with special code that
+allows it to remain sensitive when shifted variants alter the sequence inside the SV.
+
+Jaccard similarity is achieved by taking k-mers (default 9-mer, from Jasmine's default) from both sequences and
+comparing: A&B / (A!B + A&B + !AB).
+
+Similarity by alignment is the most accurate comparison method, but it becomes very slow for large variants. For
+HiFi callsets, k-mer Jaccard and alignment produce equivalent similarity scores above 4 kbp.
 
 
-### Merge parameters
+### Merge parameter syntax
 
-Merging is controlled by a string describing the parameters for the above merging process. The string begins with "nr:"
-to indicate that SV-Pop's nonredundant merge system should be used. The remaining string a colon-separated list of
-parameters and their values.
+Merging is controlled by a grammar starting with "nr::" followed by a colon-separated list of comparison strategies
+each with optional arguments in parenthesis. If no merge strategies are given, it defaults to exact merging without
+sequence matches.
 
-nr merge parameters:
+The "match" parameter may appear in the configuration string where it sets a default match for all strategies. It may
+also appear as an argument within a strategy where it overrides the default.
 
-| Parameter | Argument | Description |
-| --- | --- | --- |
-| ro | Percentage | Reciprocal overlap |
-| szro | Percentage | Size reciprocal overlap |
-| offset | Basepair distance | Variant offset |
-| refalt | | Match REF and ALT (SNV) |
-| ref | | Match REF (SNV) |
-| alt | | Match ALT (SNV) |
+Examples:
+1. "nr::" or "nr": Exact match all variants by size and positon, no match.
+1. "nr::exact": Exact match all variants by size and positon with match.
+1. "nr::ro:szro:exact": Match by ro, then by szro. Apply match parameters to both ro and szro.
 
-Percentages (ro and szro) are a whole number (e.g. "50" means 50%).
+The default values may be tuned for each step.
 
-The merge definitions we have used so far (Ebert 2021) are "nr:szro=50:offset=200" (SV and indel) or "nr:refalt" (SNVs). 
+Example:
+1. "nr::ro(0.8):match": Match by reciprocal overlap including default sequence match parameters.
+
+Each parameter has a list of parameters with default values for each. Arguments may be supplied in the same order as
+the list, with keywords, or both. Like Python, once a keyword argument is found, all subsequent arguments for that
+strategy must be keyword arguments. Both empty parethesis and no parenthesis indicate that all default parameters are
+used.
+
+Example:
+1. "nr::ro(ro=0.8):szro(0.2,szdist=2):match()"
+
+Match may appear inside or outside of strategies. This is typically not needed, but SV-Pop allows the flexibility.
+
+Examples:
+1. "nr::ro(0.8,match(0.75)):szro:match"
+
+This example uses the default match parameters for szro (and other strategies if they were present) and overrides the
+default to require 75% match for ro.
+
+#### Variant offsets
+
+Several merges can be restricted by breakpoint offsets. SV-Pop defines offset as the minimum distance between
+start positions and end positions. By taking the minimum of start and end positions, the distance parameter does not
+over-penalize distance for variants of differing sizes.
+
+#### Numeric types
+
+Each parameter has a set of types it can accept.
+
+Floating point (float):
+1. Any unqualified number with a dot
+   * 500.0, -5.0, 10.05, 0.002
+1. Any exponential number with "e" or "E":
+   * 5.0e2, -5e0, 1.005E1, 2e-3
+
+Integer (int):
+1. Any number without a dot
+   * 500, -5, 110000000
+1. Any number with a multiplier: k, m, g (not case sensitive)
+   * 0.5k, 110m, 3.1G
+
+The "unlimited" keyword may be substituted for a value to indicate that there is no limit. Not all paramers accept
+the unlimited keyword.
+
+Several parameter types may accept a mix of int, float, and unlimited. These are used in the parameter documentation
+below.
+
+1. num: float, int,
+1. num_u: float, int, unlimited
+1. int_u: int, unlimited
+1. float_u: float, unlimited
+
+
+#### Merge parameter: ro
+
+Match by reciprocal-overlap (ro). For two variants to pass, their size and position must overlap by at least some
+percentage. Since insertions are represented as a single point in the reference, the insertion length is added to the
+start position for the RO calculation (makes it equivalent to deletions). This is the classic intersect strategy
+(typically 50% RO), and it works well for very large variants. Small variants are over-penalized by RO alone since small
+breakpoint differences cause larger movement in RO for small variants than large variants.
+
+| Parameter | Type | Default | Range | Description |
+| --- | --- | --- | --- | --- |
+| ro | num | 0.5 | 0.0 < ro ≤ 1.0 | Proportion of overlap (defaults to 50% RO) |
+| dist | int_u | unlimited | 0 ≤ dist ≤ unlimited | Breakpoints must be within dist bp |
+
+
+#### Merge parameter: szro
+
+Size-reciprocal-overlap (szro) is more flexible than ro. Like ro, it requires that variant sizes match within some
+percentage by size, but it relaxes the restrictions on placement.
+
+| Parameter | Type | Default | Range | Description |
+| --- | --- | --- | --- | --- |
+| szro | num | 0.5 | 0.0 < ro ≤ 1.0 | Proportion of size overlap (defaults to 50% size match) |
+| dist | int_u | 200 | 0 ≤ dist ≤ unlimited | Breakpoints must be within dist bp |
+| szdist | num_u | unlimited | 0 ≤ dist ≤ unlimited | Breakpoints must be offset ≤ szdist * size |
+
+One of dist or szdist must not be unlimited.
+
+#### Merge parameter: distance
+
+Merge by distance. Can be restricted by szro and szdist, but it's better to use szro for those parameters. By default,
+the szro parameter is unset and ignore (size is not requried to match). Use this when comparing against variants with
+unknown or extremely inaccurate sizes.
+
+| Parameter | Type | Default | Range | Description |
+| --- | --- | --- | --- | --- |
+| szro | num | NA | 0.0 < ro ≤ 1.0 | Proportion of size overlap (defaults to 50% size match) |
+| dist | int_u | 500 | 0 ≤ dist ≤ unlimited | Breakpoints must be within dist bp |
+| szdist | num_u | unlimited | 0 ≤ dist ≤ unlimited | Breakpoints must be offset ≤ szdist * size |
+
+#### Merge parameter: exact
+
+Requires exact position and size matches. There are no parameters to control exact matches. If match parameters are
+also given, matches are further restricted by sequence content, which may or may not exactly match (even though the
+size and position match exactly).
+
+#### Match parameters
+
+Sequences are compared by alignment similarity or Jaccard.
+
+Alignment similarity is computed by taking the alignment score based on a Smith-Waterman alignment and dividing by
+the maximum score if all bases match based on the match score and the length of the smaller variant
+(match * min(len A, len B)). Alignment arguments (match, mismatch, open, and extend) parameterize an affine
+Smith-Waterman alignment over the sequences (affine allows separate gap-open and gap-extend scores to better model true
+biological indels and SVs). This method is far more accurate than Jaccard, especially for smaller variants.
+
+For larger variants, comparison by alignment consumes excessive CPU time, so the match can fall-back to Jaccard
+above a set size (limit). Each sequence is k-merized using a set k-mer size (ksize) and Jaccard similarity is
+computed, Jaccard = A&B / (!AB + A&B + A!B). If the limit is set to unlimited, all variant are compared by alignment.
+
+Whether computed by alignment or Jaccard, the similarity score must meet or exceed a set threshold (score).
+
+| Parameter | Type | Default | Range | Description |
+| --- | --- | --- | --- | --- |
+| score | num | 0.8 | 0 < score ≤ 1.0 | Minimum sequence match proportion |
+| match | num | 2.0 | 0 < match | Alignment base match score |
+| mismatch | num | -1.0 | mismatch < 0.0 | Alignment base mismatch score |
+| open | num | -1.0 | open ≤ 0.0 | Gap open score |
+| extend | num | -0.25 | extend ≤ 0.0 | Gap extend score |
+| limit | int_u | 4000 | 0 ≤ limit ≤ unlimited | Use Jaccard for length > limit |
+| ksize | int | 9 | 0 < ksize | K-mer size for Jaccard |
+
 
 ## Configuring merges
 
@@ -121,8 +262,10 @@ Example sampleset section defining a sampleset merge ("pavhifi").
             "sourcetype": "caller",
             "sourcename": "pav-hifi",
             "merge": {
-                "sv,indel": "nr:szro=50:offset=200",
-                "snv": "nr:refalt"
+                "sv:ins,del": "nr::szro(0.8,,4):match(0.8)",
+                "sv:inv": "nr::ro(0.8)",
+                "indel": "nr::szro(0.8,,4):match(0.8)",
+                "snv": "nrsnv::exact"
             },
             "name": "PAV HiFi",
             "description": "Pav HiFi"
@@ -145,8 +288,10 @@ Example callerset section.
                 ["caller", "pbsv-clr", "PBSVCLR"]
             ],
             "merge": {
-                "sv,indel": "nr:szro=50:offset=200",
-                "snv": "nr:refalt"
+                "sv:ins,del": "nr::szro(0.8,,4):match(0.8)",
+                "sv:inv": "nr::ro(0.8)",
+                "indel": "nr::szro(0.8,,4):match(0.8)",
+                "snv": "nrsnv::exact"
             },
             "name": "HGSVC2 LR",
             "description": "PAV/PBSV (HiFi & CLR)"
@@ -187,8 +332,9 @@ below) contains the merge definition, which can be long and messy, and `merge_de
 For example:
 
     "merge_def": {
-        "szro-50-200": "nr::ro(0.5):szro(0.5,200,2):match",
-        "snvexact": "nrsnv::exact"
+        "szro-80": "nr::szro(0.8,,4):match(0.8)",
+        "snv-exact": "nrsnv::exact",
+        "ro-80-nm": "nr::ro(0.8)"
     }
 
 ### Intersect file
