@@ -47,7 +47,7 @@ rule variant_anno_caller_region_intersect:
         shell(
             """{{\n"""
             """    echo "ID";\n"""
-            """    bedtools intersect -a {input.bed} -b {input.anno_bed} -wa {overlap_params} -u | cut -f 4;\n"""
+            """    bedtools intersect -a <(zcat {input.bed} | cut -f1-4) -b {input.anno_bed} -wa {overlap_params} -u | cut -f 4;\n"""
             """}} |"""
             """gzip > {output.tsv}"""
         )

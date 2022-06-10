@@ -25,6 +25,10 @@ def intersect_is_read_seq(wildcards, config):
 
     return svpoplib.svmergeconfig.params.get_merge_config(config_def).read_seq
 
+MERGE_INFO_FIELD_LIST = [
+    'MERGE_OFFSET', 'MERGE_RO', 'MERGE_SZRO', 'MERGE_OFFSZ', 'MERGE_MATCH'
+]
+
 
 #############
 ### Rules ###
@@ -206,8 +210,10 @@ rule var_intersect_by_merge:
             fa_list=input.fa if input.fa else None
         )
 
+        support_col_list = [col for col in df.columns if col in MERGE_INFO_FIELD_LIST]
+
         # Subset columns
-        df = df.loc[:, ['ID', 'MERGE_SAMPLES', 'MERGE_SRC', 'MERGE_VARIANTS']]
+        df = df.loc[:, ['ID', 'MERGE_SAMPLES', 'MERGE_SRC', 'MERGE_VARIANTS'] + support_col_list]
 
         # Create an ID column for sample (empty string if the variant was not in that sample)
         df.loc[df['MERGE_SAMPLES'] == 'A', 'MERGE_VARIANTS'] = df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] + ','
@@ -216,9 +222,20 @@ rule var_intersect_by_merge:
         df['ID_A'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[0])
         df['ID_B'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[1])
 
+        # Set support columns
+        new_col_list = list()
+
+        for col in support_col_list:
+            new_col = col[len('MERGE_'):]
+            new_col_list.append(new_col)
+
+            split_list = df[col].apply(lambda val: val.split(',') if not pd.isnull(val) else '')
+
+            df[new_col] = split_list.apply(lambda val: val[1] if len(val) > 1 else np.nan)
+
         # Subset and write
         df['SOURCE_SET'] = df['MERGE_SAMPLES']
-        df = df.loc[:, ['ID_A', 'ID_B', 'SOURCE_SET']]
+        df = df.loc[:, ['ID_A', 'ID_B', 'SOURCE_SET'] + new_col_list]
 
         df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')
 
@@ -244,30 +261,41 @@ rule var_intersect_bymerge_svset_diff:
         # Get configured merge definition
         config_def = svpoplib.svmerge.get_merge_def(wildcards.merge_def, config)
 
-        if config_def is None:
-            config_def = wildcards.merge_def
-
         # Merge
         df = svpoplib.svmerge.merge_variants(
             bed_list=[input.a, input.b],
             sample_names=['A', 'B'],
             strategy=config_def,
-            threads=6,
+            threads=params.cpu,
             fa_list=input.fa if input.fa else None
         )
 
+        support_col_list = [col for col in df.columns if col in MERGE_INFO_FIELD_LIST]
+
         # Subset columns
-        df = df.loc[:, ['ID', 'MERGE_SAMPLES', 'MERGE_SRC', 'MERGE_VARIANTS']]
+        df = df.loc[:, ['ID', 'MERGE_SAMPLES', 'MERGE_SRC', 'MERGE_VARIANTS'] + support_col_list]
 
         # Create an ID column for sample (empty string if the variant was not in that sample)
-        df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] =  df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] + ','
-        df.loc[df['MERGE_SRC'] == 'B', 'MERGE_VARIANTS'] =  ',' + df.loc[df['MERGE_SRC'] == 'B', 'MERGE_VARIANTS']
+        df.loc[df['MERGE_SAMPLES'] == 'A', 'MERGE_VARIANTS'] = df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] + ','
+        df.loc[df['MERGE_SAMPLES'] == 'B', 'MERGE_VARIANTS'] = ',' + df.loc[df['MERGE_SRC'] == 'B', 'MERGE_VARIANTS']
 
         df['ID_A'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[0])
         df['ID_B'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[1])
 
+        # Set support columns
+        new_col_list = list()
+
+        for col in support_col_list:
+            new_col = col[len('MERGE_'):]
+            new_col_list.append(new_col)
+
+            split_list = df[col].apply(lambda val: val.split(',') if not pd.isnull(val) else '')
+
+            df[new_col] = split_list.apply(lambda val: val[1] if len(val) > 1 else np.nan)
+
         # Subset and write
         df['SOURCE_SET'] = df['MERGE_SAMPLES']
-        df = df.loc[:, ['ID_A', 'ID_B', 'SOURCE_SET']]
+        df = df.loc[:, ['ID_A', 'ID_B', 'SOURCE_SET'] + new_col_list]
 
         df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')
+

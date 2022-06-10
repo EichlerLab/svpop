@@ -3,7 +3,7 @@
 VARIANT_VCF_INFO_HEADER = {
     'ID': ('ID', '1', 'String', 'Variant ID'),
     'SVTYPE': ('SVTYPE', '1', 'String', 'Variant type'),
-    'SVLEN': ('SVLEN', '.', 'String', 'Variant length'),
+    'SVLEN': ('SVLEN', '.', 'Integer', 'Variant length'),
     'SEQ': ('SEQ', '.', 'String', 'Variant sequence')
 }
 

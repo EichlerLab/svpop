@@ -32,7 +32,19 @@ class ScoreTraceNode:
         return f'TraceNode({OP_CODE[self.op_code]}, score={self.score}, id={id(self):x}'
 
 
-def jaccard_distance(seq_a, seq_b, k_util):
+def get_kmer_count(seq, k_size):
+
+    counter = collections.Counter()
+
+    seq = seq.strip().upper()
+
+    for index in range(len(seq) - k_size + 1):
+        counter[seq[index:index + k_size]] += 1
+
+    return counter
+
+
+def jaccard_distance(seq_a, seq_b, k_size):
     """
     Get the Jaccard distance between k-merized sequences. This Jaccard distance is computed on the total number of
     k-mers including multiplicity (the same kmer may appear more than once). For example, if a k-mer is in A twice
@@ -40,12 +52,13 @@ def jaccard_distance(seq_a, seq_b, k_util):
 
     :param seq_a: Sequence A (string).
     :param seq_b: Sequence B (string).
+    :param k_size: K-mer size.
 
     :return: Jaccard distance account for multiplicity.
     """
 
-    count1 = collections.Counter(kanapy.util.kmer.stream(seq_a, k_util))
-    count2 = collections.Counter(kanapy.util.kmer.stream(seq_b, k_util))
+    count1 = get_kmer_count(seq_a, k_size)
+    count2 = get_kmer_count(seq_b, k_size)
 
     key_set = set(count1.keys()) | set(count2.keys())
 
@@ -123,9 +136,6 @@ class ScoreAligner:
 
         if self.__jaccard_kmer <= 0:
             raise RuntimeError(f'Jaccard k-mer size must be > 0: {self.jaccard_kmer}')
-
-        # Set k-mer util
-        self.__k_util = kanapy.util.kmer.KmerUtil(self.__jaccard_kmer)
 
         return
 
@@ -238,7 +248,7 @@ class ScoreAligner:
             ])
 
         elif min_len > self.__jaccard_kmer:
-            return jaccard_distance(seq_a, seq_b, self.__k_util)
+            return jaccard_distance(seq_a, seq_b, self.__jaccard_kmer)
 
         else:
             return 1 if seq_a.upper() == seq_b.upper() else 0
