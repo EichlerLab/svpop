@@ -25,7 +25,7 @@ rule variant_tables_caller_summary_insdel:
     input:
         bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'
     output:
-        tab='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/tables/variant_summary/{vartype}_{svtype}.tsv.gz'
+        tsv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/tables/variant_summary/{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
         vartype='sv|indel|sub|rgn'
     run:
@@ -61,10 +61,10 @@ rule variant_tables_caller_summary_insdel:
             df_summary.sort_values('SVTYPE', inplace=True)
 
             # Write
-            df_summary.to_csv(output.tab, sep='\t', index=False)
+            df_summary.to_csv(output.tsv, sep='\t', index=False)
 
         else:
-            pd.DataFrame(columns=['SOURCETYPE', 'SOURCENAME', 'SAMPLE', 'SVTYPE', 'N', 'MEAN', 'BP']).to_csv(output.tab, sep='\t', index=False)
+            pd.DataFrame(columns=['SOURCETYPE', 'SOURCENAME', 'SAMPLE', 'SVTYPE', 'N', 'MEAN', 'BP']).to_csv(output.tsv, sep='\t', index=False)
 
 
 # variant_tables_caller_summary_snv
@@ -152,7 +152,7 @@ rule variant_tables_caller_summary_snv:
             df_stats['N'] = df_stats['N'].astype(np.int32)
             df_stats['NON_ACGT'] = df_stats['NON_ACGT'].astype(np.int32)
 
-            df_stats.to_csv(output.tab, sep='\t', index=False)
+            df_stats.to_csv(output.tsv, sep='\t', index=False)
 
 
         else:
