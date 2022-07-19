@@ -82,7 +82,11 @@ class ScoreAligner:
     :param jaccard_kmer: Jaccard k-mer size for comparisons falling back to Jaccard index in match_prop().
     """
 
-    def __init__(self, match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-0.25, map_limit=20000, jaccard_kmer=9):
+    def __init__(self,
+        match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-0.25,
+        map_limit=20000, jaccard_kmer=9,
+        rotate_min=3
+    ):
 
         # Check and assign values
         try:
@@ -118,6 +122,11 @@ class ScoreAligner:
         except ValueError:
             raise RuntimeError(f'ScoreAligner(): Parameter jaccard_kmer must be an integer: {jaccard_kmer}')
 
+        try:
+            self.__rotate_min = int(rotate_min)
+        except ValueError:
+            raise RuntimeError(f'ScoreAligner(): Parameter rotate_min must be an integer: {rotate_min}')
+
         # Check argument ranges
         if self.__match <= 0.0:
             raise RuntimeError(f'Match score must be > 0.0: {self.__match}')
@@ -135,7 +144,10 @@ class ScoreAligner:
             raise RuntimeError(f'Map must be >= 0.0 or None (no limit): {self.__map_limit}')
 
         if self.__jaccard_kmer <= 0:
-            raise RuntimeError(f'Jaccard k-mer size must be > 0: {self.jaccard_kmer}')
+            raise RuntimeError(f'Jaccard k-mer size must be > 0: {self.__jaccard_kmer}')
+
+        if self.__rotate_min <= 0:
+            raise RuntimeError(f'Minimum rotation size must be > 0: {self.__rotate_min}')
 
         return
 
@@ -242,10 +254,20 @@ class ScoreAligner:
         min_len = np.min([len(seq_a), len(seq_b)])
 
         if self.__map_limit is None or max_len <= self.__map_limit:
-            return min([
-                    np.min([self.score_align(seq_a, seq_b + seq_b), min_len * self.__match]) / (max_len * self.__match),
-                    1.0
-            ])
+
+            if min_len >= self.__rotate_min:
+                # Align with rotation
+                return min([
+                        np.min([self.score_align(seq_a, seq_b + seq_b), min_len * self.__match]) / (max_len * self.__match),
+                        1.0
+                ])
+
+            else:
+                # Align without rotation
+                return min([
+                        self.score_align(seq_a, seq_b) / (max_len * self.__match),
+                        1.0
+                ])
 
         elif min_len > self.__jaccard_kmer:
             return jaccard_distance(seq_a, seq_b, self.__jaccard_kmer)

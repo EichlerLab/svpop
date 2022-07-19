@@ -52,6 +52,44 @@ rule variant_anno_caller_region_intersect:
             """gzip > {output.tsv}"""
         )
 
+# variant_anno_caller_region_intersect
+#
+# Intersect annotations by region.
+rule variant_anno_caller_region_intersect_basecount:
+    input:
+        bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
+        anno_bed='data/anno/{annotype}/{annoname}_regions_{distance}_{flank}.bed.gz'
+    output:
+        tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/{annotype}/{annoname}_basecount_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz'
+    wildcard_constraints:
+        svtype='ins|del|inv|dup|snv|rgn|sub'
+    run:
+
+        # Get overlap parameters
+        if wildcards.overlap != 'any':
+            overlap_proportion = int(wildcards.overlap) / 100
+
+            if overlap_proportion <= 0 or overlap_proportion > 1:
+                raise ValueError(
+                    'Overlap length must be between 0 (exclusive) and 100 (inclusive): {}'.format(wildcards.overlap)
+                )
+
+            overlap_params = '-f {}'.format(overlap_proportion)
+
+        else:
+            overlap_params = ''
+
+        # Do intersect
+        shell(
+            """{{\n"""
+            """    echo -e "ID\tBP";\n"""
+            """    bedtools intersect -a <(zcat {input.bed} | cut -f1-4) -b <(zcat {input.anno_bed} | cut -f1-3) -wao {overlap_params} | \n"""
+            """    cut -f4,8 | \n"""
+            """    sort | \n"""
+            """    awk '{{arr[$1]+=$2}} END {{for (key in arr) printf("%s\\t%s\\n", key, arr[key])}}'; \n"""
+            """}} |"""
+            """gzip > {output.tsv}"""
+        )
 
 #
 # Chromosome Band

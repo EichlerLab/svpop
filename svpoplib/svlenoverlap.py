@@ -377,16 +377,8 @@ def _overlap_worker(
     match_seq = aligner is not None
 
     if match_seq:
-        # Short variant alignments with a single mismatch will fail the threshold, so an exact match is required. For
-        # these short variants, set a threshold for exact-match (SVLEN < min_match_len will not attempt alignment).
-        # Note that an imprecise factor (0.00001) is added to prevent imprecise floating point values from increasing
-        # the threshold; e.g. 1 / (1 - 0.8)) = 5.000000000000001, which pushes the threshold one base higher if not
-        # corrected.
-        min_match_len = np.ceil(1 / (1 - align_match_prop + 0.00001)) + 1
-
         df_source_chr['SEQ'] = df_source_chr['SEQ'].apply(lambda val: val.upper().strip())
         df_target_chr['SEQ'] = df_target_chr['SEQ'].apply(lambda val: val.upper().strip())
-
 
     # Setup list of maximum matches
     overlap_list = list()
@@ -496,14 +488,9 @@ def _overlap_worker(
         if match_seq:
 
             # Do match
-            if svlen < min_match_len:
-                # Do not attempt to align small matches incapable of tolerating a single unaligned base
-                df_target_row_pool['MATCH'] = df_target_row_pool['SEQ'].apply(lambda val: 1 if seq == val else 0)
-
-            else:
-                df_target_row_pool['MATCH'] = df_target_row_pool['SEQ'].apply(
-                    lambda seq_target: aligner.match_prop(seq, seq_target)
-                )
+            df_target_row_pool['MATCH'] = df_target_row_pool['SEQ'].apply(
+                lambda seq_target: aligner.match_prop(seq, seq_target)
+            )
 
             # Filter
             df_target_row_pool = df_target_row_pool.loc[df_target_row_pool['MATCH'] >= align_match_prop].copy()

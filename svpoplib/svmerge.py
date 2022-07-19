@@ -743,7 +743,7 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
         head_cols += ['REF']
 
     if 'ALT' in df_merge.columns:
-        head_cols += ['REF']
+        head_cols += ['ALT']
 
     # Add missing columns (unique fields from a caller with no records, keeps it consistent with the whole callset)
     for col in col_list:

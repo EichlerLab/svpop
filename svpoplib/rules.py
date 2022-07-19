@@ -177,10 +177,10 @@ def get_bed_fa_input(sample_entry, wildcards, default=None):
 
     # Check for explicit location
     if 'fa_pattern' in sample_entry['PARAMS']:
-        if sample_entry['PARAMS'] is None or not sample_entry['PARAMS'].strip():
+        if sample_entry['PARAMS'] is None or not sample_entry['PARAMS']['fa_pattern'].strip():
             return default
 
-        return sample_entry['PARAMS'].format(**wildcards)
+        return sample_entry['PARAMS']['fa_pattern'].format(**wildcards)
 
     fa_file_name = os.path.join(
         os.path.dirname(sample_entry['DATA']),
