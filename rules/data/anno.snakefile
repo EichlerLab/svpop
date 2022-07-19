@@ -123,6 +123,8 @@ rule data_encode_ccre2020_header:
             'CCRE2020'
         ]
 
+        df.sort_values(['#CHROM', 'POS'], inplace=True)
+
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 # data_encode_dhs2020_dl
