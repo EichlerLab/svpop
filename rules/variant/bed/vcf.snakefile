@@ -10,6 +10,10 @@ CALLER_VCF_STD_FIELDS = {
     'longshot': {
         'info': [],
         'format': ['GT', 'GQ', 'DP']
+    },
+    'deepvariant': {
+        'info': [],
+        'format': ['GT', 'GQ', 'DP', 'AD', 'VAF', 'PL']
     }
 }
 
@@ -270,6 +274,11 @@ rule variant_bed_vcf_tsv_to_bed:
 
                     if df.shape[0] == 0:
                         continue
+
+                    # Separate multiple alleles
+                    df['VCF_ALT'] = df['VCF_ALT'].apply(lambda val: val.split(','))
+
+                    df = df.explode('VCF_ALT').reset_index(drop=True)
 
                     # Get SV fields
                     df_var_fields = svpoplib.pd.apply_parallel(
