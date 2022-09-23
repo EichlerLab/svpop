@@ -122,7 +122,7 @@ rule variant_anno_repeat_rmsk_table:
         df = df.loc[:, head_cols + [col for col in df.columns if col not in head_cols]]
 
         # Write
-        df.to_csv(output.tsv, sep='\t', index=False)
+        df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')
 
 # variant_anno_repeat_rmsk_run
 #

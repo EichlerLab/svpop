@@ -67,6 +67,7 @@ rule variant_global_filter_region:
     output:
         bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
         fa='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+        fai='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz.fai',
         bed_filt='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/filter_dropped/{vartype}_{svtype}_dropped.bed.gz'
     wildcard_constraints:
         svtype='ins|del|inv|snv|dup|rgn|sub'
@@ -83,12 +84,16 @@ rule variant_global_filter_region:
             # Create output FASTA
             if os.path.isfile(input.fa) and os.stat(input.fa).st_size > 0:
                 shell(
-                    """cp {input.fa} {output.fa}"""
+                    """cp {input.fa} {output.fa}; """
+                    """samtools faidx {output.fa}"""
                 )
 
             else:
                 # Write empty FASTA
                 with open(output.fa, 'w') as out_file:
+                    pass
+
+                with open(output.fai, 'w') as out_file:
                     pass
 
         else:
@@ -108,9 +113,14 @@ rule variant_global_filter_region:
                 with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
                     SeqIO.write(svpoplib.seq.fa_to_record_iter(input.fa, id_set, require_all=False), out_file, 'fasta')
 
+                shell("""samtools faidx {output.fa}""")
+
             else:
                 # Write empty FASTA
                 with open(output.fa, 'w') as out_file:
+                    pass
+
+                with open(output.fai, 'w') as out_file:
                     pass
 
 

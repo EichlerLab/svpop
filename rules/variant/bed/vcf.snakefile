@@ -10,6 +10,18 @@ CALLER_VCF_STD_FIELDS = {
     'longshot': {
         'info': [],
         'format': ['GT', 'GQ', 'DP']
+    },
+    'deepvariant': {
+        'info': [],
+        'format': ['GT', 'GQ', 'DP', 'AD', 'VAF', 'PL']
+    },
+    'sniffles': {
+        'info': ['SVTYPE', 'SVLEN', 'END'],
+        'format': ['GT', 'GQ', 'DR', 'DV']
+    },
+    'svimasm': {
+        'info': ['SVTYPE', 'END', 'SVLEN'],
+        'format': ['GT']
     }
 }
 
@@ -71,7 +83,7 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
 
                     info_list += [val for val in std_entry['info'] if val not in info_list]
                     format_list += [val for val in std_entry['format'] if val not in format_list]
-                    keyword_set.add(avp)
+                    keyword_set.append(avp)
 
                 continue
 
@@ -157,11 +169,13 @@ rule variant_vcf_bed_fa:
 
             # Remove SEQ column
             del(df_seq)
-            del(df['SEQ'])
 
         else:
             # No sequence output. Make empty files.
             shell("""touch {output.fa}""")
+
+        if 'SEQ' in df.columns:
+            del(df['SEQ'])
 
         # Write
         df.to_csv(output.bed, sep='\t', index=False)
@@ -270,6 +284,11 @@ rule variant_bed_vcf_tsv_to_bed:
 
                     if df.shape[0] == 0:
                         continue
+
+                    # Separate multiple alleles
+                    df['VCF_ALT'] = df['VCF_ALT'].apply(lambda val: val.split(','))
+
+                    df = df.explode('VCF_ALT').reset_index(drop=True)
 
                     # Get SV fields
                     df_var_fields = svpoplib.pd.apply_parallel(
