@@ -1,19 +1,19 @@
 # Changes
 
-# 3.1.0
+## 3.1.0
 * CCRE annotations needed to be sorted.
 * VCF input support for DeepVariant and multiallelic sites.
 * Moved Sniffles and SVIM-asm input parsers to the VCF parser framework (no longer custom parsers, not needed).
 * Variant FASTA files get FAI.
 
-# 3.0.0
+## 3.0.0
 * Added altdup for remapping INS as DUPs (allows DUP version to be treated as a separate callset - i.e. merging, intersects, annotations)
 * Merging handles multi-allelic sites better.
 * Flexible merging parameter backend.
 * Revived VCF writer for standard BED files.
 * VCF: SVLEN header had the incorrect data type. 
 
-# 2.3.3
+## 2.3.3
 * Dropped "expand" support for merging
 * Dropped "MERGE_AC" and "MERGE_AF" columns. These are not true AC and AF calculations without confident
   genotypes, which depends heavily on the input callset. A future version might consider GT if present.
