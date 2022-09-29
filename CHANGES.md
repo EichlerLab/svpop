@@ -1,7 +1,34 @@
 # Changes
 
-## 2.2.0
+# 3.1.0
+* CCRE annotations needed to be sorted.
+* VCF input support for DeepVariant and multiallelic sites.
+* Moved Sniffles and SVIM-asm input parsers to the VCF parser framework (no longer custom parsers, not needed).
+* Variant FASTA files get FAI.
 
+# 3.0.0
+* Added altdup for remapping INS as DUPs (allows DUP version to be treated as a separate callset - i.e. merging, intersects, annotations)
+* Merging handles multi-allelic sites better.
+* Flexible merging parameter backend.
+* Revived VCF writer for standard BED files.
+* VCF: SVLEN header had the incorrect data type. 
+
+# 2.3.3
+* Dropped "expand" support for merging
+* Dropped "MERGE_AC" and "MERGE_AF" columns. These are not true AC and AF calculations without confident
+  genotypes, which depends heavily on the input callset. A future version might consider GT if present.
+* Added "MERGE_N". Counts the number of samples supporting a variant.
+
+## 2.3.2
+* Changed default merging parameters
+
+## 2.3.1
+* Updated pipeline documentation
+
+## 2.3.0
+* Added kanapy as a submodule
+
+## 2.2.0
 * Added "match" option to nr strategy. Value is a comma-separated string where fields
   may be missing or empty to accept the default parameter (e.g. "match=0.75"). Fields:
   * SCORE_PROP [0.8]: Alignment score must be this proportion of the max where max
@@ -20,11 +47,3 @@
 * Merge strategy "fam" was removed. This was an NR strategy that added columns for
   inheritance. This annotation should be done outside SV-Pop.
 
-
-# 2.3.3
-
-Merging
-* Dropped "expand" support for merging
-* Dropped "MERGE_AC" and "MERGE_AF" columns. These are not true AC and AF calculations without confident
-  genotypes, which depends heavily on the input callset. A future version might consider GT if present.
-* Added "MERGE_N". Counts the number of samples supporting a variant.
