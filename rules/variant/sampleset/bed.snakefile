@@ -101,7 +101,8 @@ rule variant_sampleset_fa_merge:
             wildcards
         )
     output:
-        fa='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
+        fa='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+        fai='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz.fai'
     wildcard_constraints:
         svtype='ins|del|inv|sub|rgn'
     run:
@@ -125,3 +126,5 @@ rule variant_sampleset_fa_merge:
                 ),
                 out_file, 'fasta'
             )
+
+        shell("""samtools faidx {output.fa}""")

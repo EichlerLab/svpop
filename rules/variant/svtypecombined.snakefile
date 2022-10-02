@@ -117,7 +117,8 @@ rule variant_global_concat_insdel_fa:
         fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_ins.fa.gz',
         fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_del.fa.gz'
     output:
-        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdel.fa.gz'
+        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdel.fa.gz',
+        fai='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdel.fa.gz.fai'
     run:
 
         def get_fa_iter():
@@ -129,6 +130,9 @@ rule variant_global_concat_insdel_fa:
         with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
             SeqIO.write(get_fa_iter(), out_file, 'fasta')
 
+        shell("""samtools faidx {output.fa}""")
+
+
 # variant_global_concat_all_fa
 #
 # Concatenate insertion, deletion, and inversion records into one FASTA.
@@ -138,7 +142,8 @@ rule variant_global_concat_insdelinv_fa:
         fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_del.fa.gz',
         fa_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_inv.fa.gz'
     output:
-        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdelinv.fa.gz'
+        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdelinv.fa.gz',
+        fai='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdelinv.fa.gz.fai'
     run:
 
         def get_fa_iter():
@@ -149,3 +154,5 @@ rule variant_global_concat_insdelinv_fa:
 
         with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
             SeqIO.write(get_fa_iter(), out_file, 'fasta')
+
+        shell("""samtools faidx {output.fa}""")

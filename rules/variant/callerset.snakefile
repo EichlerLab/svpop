@@ -122,7 +122,8 @@ rule variant_callerset_fa:
             wildcards
         )
     output:
-        fa='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz'
+        fa='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
+        fai='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz.fai'
     params:
         mem=lambda wildcards: svpoplib.callerset.cluster_param_anno_mem(wildcards, config),
     wildcard_constraints:
@@ -154,6 +155,7 @@ rule variant_callerset_fa:
                 'fasta'
             )
 
+        shell("""samtools faidx {output.fa}""")
 
 
 # variant_callerset_anno_merge
