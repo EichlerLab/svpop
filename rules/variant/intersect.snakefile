@@ -87,7 +87,7 @@ rule var_intersect_venn:
 
             df['LEN'] = df.apply(val_len, axis=1)
 
-            len_series = df[['ID', 'LEN']].set_index('ID').squeeze()
+            len_series = df.set_index('ID')['LEN']
         else:
             len_series = None
 
