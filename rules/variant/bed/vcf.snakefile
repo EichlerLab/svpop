@@ -22,6 +22,14 @@ CALLER_VCF_STD_FIELDS = {
     'svimasm': {
         'info': ['SVTYPE', 'END', 'SVLEN'],
         'format': ['GT']
+    },
+    'clair3': {
+        'info': ['P', 'F'],
+        'format': ['GT', 'GQ', 'DP', 'AD', 'PL', 'AF']
+    },
+    'cutesv': {
+        'info': ['PRECISE', 'IMPRECISE', 'SVTYPE', 'SVLEN', 'END', 'CIPOS', 'CILEN'],
+        'format': ['GT', 'DR', 'DV', 'PL', 'GQ']
     }
 }
 
