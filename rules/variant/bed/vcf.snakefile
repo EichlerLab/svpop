@@ -202,7 +202,7 @@ rule variant_bed_vcf_tsv_to_bed:
     params:
         cpu=6,
         mem='6000',
-        df_chunk_size=5000  # DataFrame chunk size
+        df_chunk_size=20000  # DataFrame chunk size
     run:
 
 

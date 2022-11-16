@@ -39,6 +39,10 @@ def variant_bed_altdup_input_filename(wildcards, type):
     return TYPE_PATTERN[type].format(**data_tok_dict)
 
 
+#
+# Rules
+#
+
 # variant_bed_altdup_bed
 #
 # Get ALT-DUP BED file from INS.
