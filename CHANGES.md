@@ -1,6 +1,6 @@
 # Changes
 
-# 3.1.1
+# 3.2.0
 * Set ply submodule version to 3.10
 * Alt-map retains CIGAR operations
 * Alt-DUP calls inner-variants (SV/indel INS/DEL & SNVs) from duplications using the alt-map CIGAR
