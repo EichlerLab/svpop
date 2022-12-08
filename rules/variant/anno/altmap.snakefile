@@ -65,11 +65,11 @@ rule variant_caller_anno_altmap_bed:
         header_list = [
             '#CHROM', 'POS', 'END', 'ID', 'MAPQ',
             'FLAGS', 'IS_REV',
-            'MATCH_BP', 'MISMATCH_BP', 'INS_BP', 'INS_N', 'DEL_BP', 'DEL_N',
-            'CLIPPED_BP', 'CLIPPED_N',
-            'MAP_LEN', 'SV_CHROM',
-            'SV_POS', 'SV_END', 'SVLEN', 'LEN_RO',
-            'DISTANCE', 'DISTANCE_PROP'
+            'MATCH_BP', 'MISMATCH_BP',
+            'INS_BP', 'INS_N', 'DEL_BP', 'DEL_N',
+            'CLIPPED_BP', 'CLIPPED_N', 'MAP_LEN',
+            'QUERY_POS', 'QUERY_END'
+            'CIGAR'
         ]
 
         # Write no records in input BAM is empty
@@ -97,7 +97,7 @@ rule variant_caller_anno_altmap_bed:
                         [
                             record.reference_name,
                             record.reference_start,
-                            record.reference_start + record.reference_length,
+                            record.reference_end,
                             record.query_name,
                             record.mapq,
                             record.flag,
@@ -110,14 +110,19 @@ rule variant_caller_anno_altmap_bed:
                             cigar_stat_n[CIGAR_INT['D']],
                             cigar_stat_bp[CIGAR_INT['S']] + cigar_stat_bp[CIGAR_INT['H']],
                             cigar_stat_n[CIGAR_INT['S']] + cigar_stat_n[CIGAR_INT['H']],
-                            record.reference_length
+                            record.reference_length,
+                            record.query_alignment_start,
+                            record.query_alignment_end,
+                            record.cigarstring
                         ],
                         index=[
                             '#CHROM', 'POS', 'END', 'ID', 'MAPQ',
                             'FLAGS', 'IS_REV',
                             'MATCH_BP', 'MISMATCH_BP',
                             'INS_BP', 'INS_N', 'DEL_BP', 'DEL_N',
-                            'CLIPPED_BP', 'CLIPPED_N', 'MAP_LEN'
+                            'CLIPPED_BP', 'CLIPPED_N', 'MAP_LEN',
+                            'QUERY_POS', 'QUERY_END',
+                            'CIGAR'
                         ]
                     ))
 

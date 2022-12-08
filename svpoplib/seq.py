@@ -10,7 +10,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 
-def bed_to_seqrecord_iter(df, record_set=None, require_all=True, skip_na=True):
+def bed_to_seqrecord_iter(df, record_set=None, require_all=True, skip_na=True, seq_col='SEQ'):
     """
     Get a `SeqRecord` iterator for records in a dataframe. Record IDs use the ID column, and record sequences use
     the SEQ column.
@@ -21,12 +21,13 @@ def bed_to_seqrecord_iter(df, record_set=None, require_all=True, skip_na=True):
         ignored.
     :param require_all: If `True`, throw an error if all records from record_set are not found.
     :param skip_na: Skip NA values without throwing an error.
+    :param seq_col: Column in `df` that contains the sequence to be written.
 
     :return: An iterator for `SeqRecord` objects.
     """
 
     # Check columns
-    missing_col = [val for val in ('ID', 'SEQ') if val not in df.columns]
+    missing_col = [val for val in ('ID', seq_col) if val not in df.columns]
 
     if missing_col:
         raise RuntimeError('Missing required column(s) for BED seqrecord conversion: {}'.format(','.join(missing_col)))
@@ -53,7 +54,7 @@ def bed_to_seqrecord_iter(df, record_set=None, require_all=True, skip_na=True):
     for index, row in df.iterrows():
 
         record_id = row['ID']
-        record_seq = row['SEQ']
+        record_seq = row[seq_col]
 
         record_id_org = record_id
 
@@ -70,7 +71,7 @@ def bed_to_seqrecord_iter(df, record_set=None, require_all=True, skip_na=True):
             if skip_na:
                 continue
             else:
-                raise RutimeError('Error converting record to sequence: Missing SEQ: {}'.format(record_id_org))
+                raise RuntimeError('Error converting record to sequence: Missing sequence: {}'.format(record_id_org))
 
         # Check for duplicates
         if record_id in found_set:

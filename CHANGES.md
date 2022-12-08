@@ -1,5 +1,10 @@
 # Changes
 
+# 3.1.1
+* Set ply submodule version to 3.10
+* Alt-map retains CIGAR operations
+* Alt-DUP calls inner-variants (SV/indel INS/DEL & SNVs) from duplications using the alt-map CIGAR
+
 ## 3.1.0
 * CCRE annotations needed to be sorted.
 * VCF input support for DeepVariant and multiallelic sites.
