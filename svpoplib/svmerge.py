@@ -788,13 +788,18 @@ def read_variant_table(
     head_cols = ['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN']
     col_list = head_cols + [col for col in col_list if col not in head_cols]
 
+    # Ensure chrom types match
+    if subset_chrom is not None:
+        subset_chrom = str(subset_chrom)
+
     # Read variants
     col_set = set(col_list)
 
     df = svpoplib.pd.read_csv_chrom(
         bed_file_name, chrom=subset_chrom,
         sep='\t', header=0,
-        usecols=lambda col: col in col_set
+        usecols=lambda col: col in col_set,
+        dtype={'#CHROM': str}
     )
 
     # Read SEQ column

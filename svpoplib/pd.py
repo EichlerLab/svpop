@@ -30,6 +30,15 @@ def read_csv_chrom(
     if chrom is None:
         return pd.read_csv(in_file_name, **kwargs)
 
+    # Check for dtypes
+    if kwargs is None:
+        kwargs = dict()
+
+    if 'dtype' not in kwargs:
+        kwargs['dtype'] = {'#CHROM': 'str'}
+    elif '#CHROM' not in kwargs['dtype']:
+        kwargs['dtype']['#CHROM'] = 'str'
+
     # Read
     df_list = list()
     col_list = None  # Save list of columns and return appropriate columns if no rows are found

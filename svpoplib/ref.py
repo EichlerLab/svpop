@@ -118,15 +118,21 @@ def get_df_fai(fai_file_name, usecols=('CHROM', 'LEN'), index_col='CHROM', squee
     :return: A DataFrame or Series of the FAI file.
     """
 
-    return pd.read_csv(
+    df = pd.read_csv(
         fai_file_name,
         sep='\t',
         names=['CHROM', 'LEN', 'POS', 'LINE_BP', 'LINE_BYTES'],
         usecols=usecols,
-        index_col=index_col,
-        squeeze=squeeze,
         dtype={'CHROM': str, 'LEN': int, 'POS': int, 'LINE_BP': int, 'LINE_BYTES': int}
     )
+
+    if index_col is not None:
+        df.set_index(index_col, inplace=True)
+
+    if squeeze:
+        df = df.squeeze(axis=1)
+
+    return df
 
 
 def get_ref_region(df, ref_fa):
@@ -178,8 +184,8 @@ def get_ref_info(ref_fa):
 
     # Check completeness and sizes against the FAI
     if set(df.index) != set(df_fai.index):
-        missing_df = set(df_fai.index) - set(df.index)
-        missing_fai = set(df.index) - set(df_fai.index)
+        missing_df = {str(val) for val in (set(df_fai.index) - set(df.index))}
+        missing_fai = {str(val) for val in (set(df.index) - set(df_fai.index))}
 
         raise RuntimeError('Reference and FAI mismatch: {} missing in FASTA ({}{}), {} missing in FAI ({}{})'.format(
             len(missing_df), ', '.join(sorted(missing_df)[:3]) if missing_df else 'OK',
