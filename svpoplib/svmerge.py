@@ -83,7 +83,7 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
         raise RuntimeError('Unrecognized merge strategy "{}": {}'.format(merge_config.strategy, strategy))
 
 
-def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset_chrom=None, threads=1):
+def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset_chrom=None, threads=1, verbose=False):
     """
     Merge all non-redundant variants from multiple samples.
 
@@ -113,6 +113,7 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
         variants where each FASTA record ID is the variant ID and the sequence is the variant sequence.
     :param subset_chrom: Merge only records from this chromosome. If `None`, merge all records.
     :param threads: Number of threads to use for intersecting variants.
+    :param verbose: Print progress if True.
 
     :return: A Pandas dataframe of a BED file with the index set to the ID column.
     """
@@ -142,7 +143,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
         raise RuntimeError('Sample names may not be duplicated')
 
     # Report parameters
-    print(merge_config.__repr__(pretty=True))
+    if verbose:
+        print(merge_config.__repr__(pretty=True))
 
     # Check fa_list if sequences are required
     seq_in_col = False
@@ -180,7 +182,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
     # Initialize a table of variants with the first sample. All variants from this sample are in the merged set.
     sample_name = sample_names[0]
 
-    print('Merging: {}'.format(sample_name))
+    if verbose:
+        print('Merging: {}'.format(sample_name))
 
     df = read_variant_table(bed_list[0], sample_name, subset_chrom, fa_list[0], col_list)
 
@@ -222,7 +225,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
         # Read next variant table
         sample_name = sample_names[index]
 
-        print('Merging: {}'.format(sample_name))
+        if verbose:
+            print('Merging: {}'.format(sample_name))
 
         df_next = read_variant_table(bed_list[index], sample_name, subset_chrom, fa_list[index], col_list)
         df_next['SAMPLE'] = sample_name
@@ -240,7 +244,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
 
         # Process match types
         for merge_spec in merge_config.spec_list:
-            print(f'* {merge_spec}')
+            if verbose:
+                print(f'* {merge_spec}')
 
             spec_type = merge_spec.spec_type.lower()
 
@@ -266,7 +271,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
                     match_ref=merge_spec.refalt,
                     match_alt=merge_spec.refalt,
                     align_match_prop=merge_spec.align_match_prop,
-                    aligner=merge_spec.aligner
+                    aligner=merge_spec.aligner,
+                    verbose=verbose
                 )
 
             elif merge_spec.spec_type == 'szro':
@@ -282,7 +288,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
                     match_ref=merge_spec.refalt,
                     match_alt=merge_spec.refalt,
                     align_match_prop=merge_spec.align_match_prop,
-                    aligner=merge_spec.aligner
+                    aligner=merge_spec.aligner,
+                    verbose=verbose
                 )
 
                 pass
@@ -871,8 +878,8 @@ def get_support_table(
         match_ref=False,
         match_alt=False,
         align_match_prop=None,
-        aligner=None
-
+        aligner=None,
+        verbose=False
     ):
     """
     Get a table describing matched variants between `df` and `df_next` and columns of evidence for support.
@@ -888,6 +895,7 @@ def get_support_table(
     :param match_alt: ALT column must match if True.
     :param align_match_prop: Minimum matched base proportion in alignment.
     :param aligner: Configured aligner for matching sequences.
+    :param verbose: Print progress if True.
 
     See `svpoplib.svlenoverlap.nearest_by_svlen_overlap` for a description of the returned columns.
 
@@ -984,7 +992,8 @@ def get_support_table(
                 ]
 
             # Report
-            print('\t* Split ref {} into {} parts'.format(chrom, len(record_pair_list)))
+            if verbose:
+                print('\t* Split ref {} into {} parts'.format(chrom, len(record_pair_list)))
 
             # Shortcut if no records
             if len(record_pair_list) > 0:
@@ -1064,7 +1073,9 @@ def get_support_table(
                         pass
 
                 # Wait for jobs
-                print('Waiting...')
+                if verbose:
+                    print('Waiting...')
+
                 sys.stderr.flush()
                 sys.stdout.flush()
 
@@ -1073,7 +1084,9 @@ def get_support_table(
                 sys.stderr.flush()
                 sys.stdout.flush()
 
-                print('Done Waiting.')
+                if verbose:
+                    print('Done Waiting.')
+
                 sys.stderr.flush()
                 sys.stdout.flush()
 
