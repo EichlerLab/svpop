@@ -667,13 +667,15 @@ def version_id(id_col, existing_id_set=None):
         if name in dup_set:
 
             # Get current variant version (everything after "." if present, 1 by default)
-            tok = name.rsplit('.', 1)
-            if len(tok) == 1:
+
+            if not re.match(r'.*\.\d+$', name):
                 name_version = 1
 
             else:
                 try:
+                    tok = name.rsplit('.', 1)
                     name_version = int(tok[1]) + 1
+
                 except ValueError:
                     raise RuntimeError(f'Error de-duplicating variant ID field: Split "{name}" on "." and expected to find an integer at the end')
 
