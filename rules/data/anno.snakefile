@@ -467,6 +467,8 @@ rule data_rmsk_to_bed:
         df = df.loc[:, ('genoName', 'genoStart', 'genoEnd', 'ID', 'swScore', 'strand', 'repClass', 'repFamily', 'repName', 'milliDiv', 'milliDel', 'milliIns')]
         df.columns = ('#CHROM', 'POS', 'END', 'ID', 'SCORE', 'STRAND', 'REP_CLASS', 'REP_FAM', 'REP_NAME', 'MILLI_DIV', 'MILLI_DEL', 'MILLI_INS')
 
+        df.sort_values(['#CHROM', 'POS', 'END', 'ID'], inplace=True)
+
         # Write
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
