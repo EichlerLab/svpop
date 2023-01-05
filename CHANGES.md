@@ -1,5 +1,18 @@
 # Changes
 
+# 3.3.3
+* Bug in ID de-duplication code
+* Sorting RMSK annotations
+
+# 3.3.2
+* Fixed bugs processing chromosome names containing a "." when de-duplicating variant IDs
+
+# 3.3.1
+* Removed verbose output from merging (now optional)
+
+# 3.3.0
+* Fixed pavlib functions PAV uses that cause numeric chromosome problems.
+
 # 3.2.0
 * Set ply submodule version to 3.10
 * Alt-map retains CIGAR operations

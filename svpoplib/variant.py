@@ -670,6 +670,7 @@ def version_id(id_col, existing_id_set=None):
 
             if not re.match(r'.*\.\d+$', name):
                 name_version = 1
+                tok = [name]
 
             else:
                 try:
