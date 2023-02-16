@@ -205,7 +205,6 @@ rule variant_bed_vcf_tsv_to_bed:
         df_chunk_size=20000  # DataFrame chunk size
     run:
 
-
         # Definitions
         COL_RENAME = {
             'CHROM': '#CHROM',
@@ -296,12 +295,15 @@ rule variant_bed_vcf_tsv_to_bed:
                     if df.shape[0] == 0:
                         continue
 
+                    # Save VCF index
+                    df['VCF_IDX'] = df.index
+
                     # Separate multiple alleles
                     df['VCF_ALT'] = df['VCF_ALT'].apply(lambda val: val.split(','))
 
                     df = df.explode('VCF_ALT').reset_index(drop=True)
 
-                    df = df.loc[df['VCF_ALT'] != '<NON_REF>']
+                    df = df.loc[(df['VCF_ALT'] != '<NON_REF>') & (df['VCF_ALT'] != '.')]
 
                     if df.shape[0] == 0:
                         continue
@@ -326,9 +328,6 @@ rule variant_bed_vcf_tsv_to_bed:
 
                     if df.shape[0] == 0:
                         continue
-
-                    # Save VCF index
-                    df['VCF_IDX'] = df.index
 
                     # Set index and arrange columns
                     df['ALT'] = df['VCF_ALT']

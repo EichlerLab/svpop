@@ -233,7 +233,7 @@ def order_variant_columns(
     return df.loc[:, head_cols + mid_cols + tail_cols]
 
 
-def get_variant_id(df, apply_version=True):
+def get_variant_id(df, apply_version=True, existing_id_set=None):
     """
     Get variant IDs using '#CHROM', 'POS', 'SVTYPE', and 'SVLEN' columns.
 
@@ -241,6 +241,8 @@ def get_variant_id(df, apply_version=True):
     :param apply_version: Version ID (add "." and a number for duplicated IDs). SV-Pop does not allow duplicate IDs, so
         this should be explicitly turned on unless duplicates are checked and handled explicitly. If there are no
         duplicate IDs before versioning, this option has no effect on the output ("." in only added if necessary).
+    :param existing_id_set: A set of existing variant IDs that must also be avoided. If any IDs in id_col match these
+        IDs, they are altered as if the variant intersects another ID in id_col.
 
     :return: A Series of variant IDs for `df`.
     """
@@ -248,7 +250,7 @@ def get_variant_id(df, apply_version=True):
     id_col = df.apply(get_variant_id_from_row, axis=1)
 
     if apply_version:
-        id_col = version_id(id_col)
+        id_col = version_id(id_col, existing_id_set=existing_id_set)
 
     return id_col
 
@@ -437,7 +439,7 @@ def gt_to_ac(gt, no_call=-1, no_call_strict=False):
     """
     ac = 0
 
-    gt_list = re.split('[/|]', gt)
+    gt_list = re.split('[/|]', str(gt))
 
     # Handle all no-call
     if '.' in gt_list:
@@ -667,9 +669,9 @@ def version_id(id_col, existing_id_set=None):
         if name in dup_set:
 
             # Get current variant version (everything after "." if present, 1 by default)
-
             if not re.match(r'.*\.\d+$', name):
                 name_version = 1
+                tok = [name]
 
             else:
                 try:
