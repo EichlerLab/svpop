@@ -323,8 +323,8 @@ rule variant_bed_vcf_tsv_to_bed:
 
                     df = pd.concat([df, df_var_fields], axis=1)
 
-                    if 'GT' in df.columns and np.min(df['AC'] > 0):
-                        df = df.loc[df['AC'] > 0]
+                    if 'GT' in df.columns:
+                        df = df.loc[df['AC'] > 0].copy()
 
                     if df.shape[0] == 0:
                         continue
