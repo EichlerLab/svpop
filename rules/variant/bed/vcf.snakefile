@@ -19,6 +19,10 @@ CALLER_VCF_STD_FIELDS = {
         'info': ['SVTYPE', 'SVLEN', 'END'],
         'format': ['GT', 'GQ', 'DR', 'DV']
     },
+    'sniffles2': {
+        'info': ['SVTYPE', 'SVLEN', 'END'],
+        'format': ['GT', 'GQ', 'DR', 'DV']
+    },
     'svimasm': {
         'info': ['SVTYPE', 'END', 'SVLEN'],
         'format': ['GT']
@@ -34,6 +38,10 @@ CALLER_VCF_STD_FIELDS = {
 }
 
 VARIANT_BED_VCF_TYPE_PATTERN = '(vcf|{})'.format('|'.join(CALLER_VCF_STD_FIELDS.keys()))
+
+#
+# Helper functions
+#
 
 def variant_bed_vcf_get_bcftools_query(wildcards):
     """
@@ -133,6 +141,42 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
     # Return formatted query string
     return query_string
 
+def variant_bed_vcf_fix_sniffles2(df):
+    """
+    Correct poor VCF formatting in Sniffles2.
+    """
+
+    df_list = list()
+
+    # Transform records to symbolic ALTs where SEQ was stuck into the ALT column by Sniffles2.
+    for index, row in df.iterrows():
+        if row['VCF_REF'].upper() == 'N':
+            if re.match('^(?![Nn])[ACGTNacgtn]*$', row['VCF_ALT']) is not None:
+                row['SEQ'] = row['VCF_ALT']
+                row['VCF_REF'] = '.'
+                row['VCF_ALT'] = '<INS>'
+
+        elif row['VCF_ALT'].upper() == 'N':
+            if re.match('^(?![Nn])[ACGTNacgtn]*$', row['VCF_REF']) is not None:
+                row['SEQ'] = row['VCF_REF']
+                row['VCF_REF'] = '.'
+                row['VCF_ALT'] = '<DEL>'
+
+        else:
+            row['SEQ'] = np.nan
+
+        df_list.append(row)
+
+    return pd.concat(df_list, axis=1).T
+
+
+CALLER_CALLBACK_PRE_BED = {
+    'sniffles2': variant_bed_vcf_fix_sniffles2
+}
+
+#
+# Rules
+#
 
 # variant_vcf_bed_fa
 #
@@ -202,163 +246,18 @@ rule variant_bed_vcf_tsv_to_bed:
     params:
         cpu=6,
         mem='6000',
-        df_chunk_size=20000  # DataFrame chunk size
+        chunk_size=20000  # DataFrame chunk size
     run:
-
-
-        # Definitions
-        COL_RENAME = {
-            'CHROM': '#CHROM',
-            'REF': 'VCF_REF',
-            'POS': 'VCF_POS',
-            'ALT': 'VCF_ALT'
-        }
-
-        REQUIRED_COLS = {'CHROM', 'POS', 'REF', 'ALT', 'QUAL', 'FILTER', 'GT'}
-
-        # Read (as iterator)
-        df_iter = pd.read_csv(input.tsv, sep='\t', header=0, low_memory=False, iterator=True, chunksize=params.df_chunk_size)
-
-        # Process input in chunks
-        col_names = None      # Input column names (after first regex transform)
-        out_col_order = None  # Output column order
-
-        id_set = set()  # Set of IDs already seen (used for ensuring IDs are unique)
-
-        write_header = True  # Write header for this chunk (only true for first chunk)
-        filt_header = True   # Write header for this chunk's dropped SV records (only true for first chunk)
-
-        df = None
 
         with gzip.open(output.bed, 'wt') as out_file:
             with gzip.open(output.tsv_filt, 'wt') as filt_file:
-                for df in df_iter:
-
-                    # Remove prefixes added by bcftools (e.g. "# [1]CHROM" to "CHROM", "[2]POS" to "POS"
-                    df.columns = [re.sub('^#?\s*\[[^\]]+\]', '', col) for col in df.columns]
-
-                    if col_names is None:
-
-                        # Check samples. If single-sample VCF, accept it regardless of the sample name. If multi-sample, must contain
-                        # wildcards.sample as a sample in the VCF.
-                        samples = {col.split(':', 1)[0] for col in df.columns if re.match('.+:.+', col)}
-
-                        if len(samples) > 1:
-
-                            # Multi-samples and none match wildcards.sample
-                            if wildcards.sample not in samples:
-                                raise RuntimeError(
-                                    'Detected multiple samples in VCF with no samples matching wildcards.sample: {}'.format(
-                                        ', '.join(sorted(samples))
-                                    )
-                                )
-
-                            # Subset to non-sample columns (CHROM, POS, REF, ALT, etc) and sample columns (GT, etc)
-                            col_names = [col for col in df.columns if not re.match('.+:.+', col) or col.startswith(wildcards.sample + ':')]
-
-                        else:
-                            col_names = df.columns
-
-                    # Subset to required columns
-                    df = df[col_names].copy()
-
-                    # Remove sample name from columns
-                    df.columns = [(col if ':' not in col else col.split(':', 1)[1]) for col in df.columns]
-
-                    if len(samples) > 1 and 'GT' not in df.columns:
-                        raise RuntimeError('Multi-sample VCF missing GT column')
-
-                    # Check columns and rename
-                    missing_cols = REQUIRED_COLS - set(df.columns)
-
-                    if missing_cols:
-                        raise RuntimeError('Missing VCF columns: {}'.format(', '.join(sorted(missing_cols))))
-
-                    df.columns = [COL_RENAME[col] if col in COL_RENAME else col for col in df.columns]
-
-                    # Set FILTER on QUAL if FILTER is missing
-                    df['FILTER'] = df.apply(svpoplib.variant.qual_to_filter, axis=1)
-
-                    df_pass_filter = (df['FILTER'] == 'PASS') | (df['FILTER'] == '.')
-
-                    # Filter on FILTER column
-
-                    df_filt = df.loc[~ df_pass_filter]
-
-                    if df_filt.shape[0] > 0:
-                        df_filt.to_csv(filt_file, sep='\t', index=False, header=filt_header)
-                        filt_file.flush()
-
-                        filt_header = False
-
-                    df = df.loc[df_pass_filter]
-
-                    if df.shape[0] == 0:
-                        continue
-
-                    # Separate multiple alleles
-                    df['VCF_ALT'] = df['VCF_ALT'].apply(lambda val: val.split(','))
-
-                    df = df.explode('VCF_ALT').reset_index(drop=True)
-
-                    df = df.loc[df['VCF_ALT'] != '<NON_REF>']
-
-                    if df.shape[0] == 0:
-                        continue
-
-                    # Get SV fields
-                    df_var_fields = svpoplib.pd.apply_parallel(
-                        df, svpoplib.variant.vcf_fields_to_seq,
-                        n_part=500, n_core=params.cpu,
-                        kwds={
-                            'pos_row': 'VCF_POS',
-                            'ref_row': 'VCF_REF',
-                            'alt_row': 'VCF_ALT'
-                        }
-                    )
-
-                    df = df[[col for col in df.columns if col not in df_var_fields.columns]]
-
-                    df = pd.concat([df, df_var_fields], axis=1)
-
-                    if 'GT' in df.columns and np.min(df['AC'] > 0):
-                        df = df.loc[df['AC'] > 0]
-
-                    if df.shape[0] == 0:
-                        continue
-
-                    # Save VCF index
-                    df['VCF_IDX'] = df.index
-
-                    # Set index and arrange columns
-                    df['ALT'] = df['VCF_ALT']
-                    df['ID'] = svpoplib.variant.get_variant_id(df)
-
-                    if out_col_order is None:
-                        out_col_order = list(svpoplib.variant.order_variant_columns(df, tail_cols=('QUAL', 'FILTER', 'VCF_POS', 'VCF_REF', 'VCF_ALT', 'VCF_IDX', 'SEQ')).columns)
-
-                    df = df.loc[:, out_col_order]
-
-                    # Rename duplicates
-                    df['ID'] = svpoplib.variant.version_id(df['ID'], id_set)
-                    id_set |= set(df['ID'])
-
-                    # Write
-                    df.to_csv(out_file, sep='\t', index=False, header=write_header)
-                    out_file.flush()
-
-                    write_header = False
-
-                # Write empty file header if no records were output
-                if write_header:
-                    if df is None:
-                        raise RuntimeError('No dataframes generated by this rule (bug?)')
-
-                    if df.shape[0] != 0:
-                        raise RuntimeError(f'No header written, but the last dataframe is not empty: nrow={df.shape[0]} (bug?)')
-
-                    df.to_csv(out_file, sep='\t', index=False, header=write_header)
-                    out_file.flush()
+                for df in svpoplib.variant.vcf_tsv_to_bed(
+                    input.tsv, out_file, filt_file,
+                    chunk_size=params.chunk_size,
+                    threads=params.cpu,
+                    callback_pre_bed=CALLER_CALLBACK_PRE_BED.get(wildcards.callertype, None)
+                ):
+                    pass  # Iterate through all records
 
 
 
