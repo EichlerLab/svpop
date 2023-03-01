@@ -216,8 +216,14 @@ rule var_intersect_by_merge:
         df = df.loc[:, ['ID', 'MERGE_SAMPLES', 'MERGE_SRC', 'MERGE_VARIANTS'] + support_col_list]
 
         # Create an ID column for sample (empty string if the variant was not in that sample)
-        df.loc[df['MERGE_SAMPLES'] == 'A', 'MERGE_VARIANTS'] = df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] + ','
-        df.loc[df['MERGE_SAMPLES'] == 'B', 'MERGE_VARIANTS'] = ',' + df.loc[df['MERGE_SRC'] == 'B', 'MERGE_VARIANTS']
+        df['MERGE_SAMPLES'] = df['MERGE_SAMPLES'].apply(lambda val:
+            val + ',' if val == 'A' else (',' + val if val == 'B' else val)
+        )
+
+        df['MERGE_VARIANTS'] = df.apply(lambda row:
+            row['MERGE_VARIANTS'] + ',' if row['MERGE_SAMPLES'] == 'A,' else (',' + row['MERGE_VARIANTS'] if row['MERGE_SAMPLES'] == ',B' else row['MERGE_VARIANTS']),
+            axis=1
+        )
 
         df['ID_A'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[0])
         df['ID_B'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[1])

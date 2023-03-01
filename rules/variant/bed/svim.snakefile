@@ -171,7 +171,7 @@ rule variant_bed_svim_tsv_to_bed:
 # VCF to TSV file.
 rule variant_bed_svim_vcf_to_tsv:
     input:
-        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='svim')['DATA']
+        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='svim')['DATA']
     output:
         tsv=temp('temp/variant/caller/svim/{sourcename}/{sample}/tsv/variants.tsv.gz')
     params:

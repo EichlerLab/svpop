@@ -54,10 +54,10 @@ def get_sample_table(sample_table_file_name):
             ['NAME', 'SAMPLE'], drop=False
         )
 
-    return sample_table
+    return sample_table.sort_index().copy()
 
 
-def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=None, format_data=True):
+def sample_table_entry(name, sample_table, sample=None, wildcards=None, caller_type=None, format_data=True):
     """
     Get an entry from sample_table (SAMPLE_TABLE read by `Snakefile`).
 
@@ -65,7 +65,7 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
     :param sample_table: Sample table DataFrame.
     :param sample: Sample name. If not present, extract from "sample" entry in `wildcards`.
     :param wildcards: If present, parse the table entry with this value. Otherwise, parse with sample=sample.
-    :param type: Entry must be declared as this type (points to parser used to process the input data).
+    :param caller_type: Entry must be declared as this type (points to parser used to process the input data).
     :param format_data: If True, parse wildcards into 'DATA' entry. If False, leave 'DATA' with wildcards in it.
 
     :return: A configuration entry (Pandas.Series).
@@ -119,7 +119,15 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
             name, sample
         ))
 
-    sample_entry = sample_table.loc[(name, entry_sample)].copy()
+    sample_entry = sample_table.loc[[(name, entry_sample)]]
+
+    if sample_entry.shape[0] == 0:
+        raise RuntimeError(f'No entries in sample TSV: NAME="{name}", SAMPLE="{sample}"')
+
+    if sample_entry.shape[0] > 1:
+        raise RuntimeError(f'Multiple entries in sample TSV: NAME="{name}", SAMPLE="{sample}": rows={sample_entry.shape[0]}')
+
+    sample_entry = sample_entry.iloc[0].copy()
 
     # Set type field
     sample_entry_type = sample_entry['TYPE']
@@ -128,15 +136,15 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, type=Non
         sample_entry_type = sample_entry_type.strip()
 
     if pd.isnull(sample_entry_type) or sample_entry_type == '':
-        raise RuntimeError('Emtpy TYPE for table entry name "{}" (sample "{}")'.format(name, sample))
+        raise RuntimeError(f'Emtpy TYPE for table entry: NAME="{name}", SAMPLE="{sample}"')
 
     sample_entry['TYPE'] = sample_entry['TYPE'].strip().lower()
 
     # Check type
-    if type is not None:
-        if sample_entry['TYPE'] != type:
+    if caller_type is not None:
+        if sample_entry['TYPE'] != caller_type:
             raise RuntimeError('Source type mismatch for sample entry ({}, {}): Expected type "{}", entry has type "{}"'.format(
-                name, sample, type, sample_entry['TYPE']
+                name, sample, caller_type, sample_entry['TYPE']
             ))
 
     # Save wildcards (some rules need to know which wildcards were replaced)
@@ -194,7 +202,7 @@ def get_bed_fa_input(sample_entry, wildcards, default=None):
     return default
 
 
-def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=None, type=None):
+def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=None, caller_type=None):
     """
     Parse a file pattern with wildcards derived from rule wildcards and the sample config.
 
@@ -204,13 +212,13 @@ def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=Non
     :param sample_table: Sample table DataFrame.
     :param sample: Sample name. If not present, extract from "sample" entry in `wildcards`.
     :param wildcards: If present, parse the table entry with this value. Otherwise, parse with sample=sample.
-    :param type: Entry must be declared as this type (points to parser used to process the input data).
+    :param caller_type: Entry must be declared as this type (points to parser used to process the input data).
 
     :return: `file_pattern` with patterns filled in.
     """
 
     # Get sample entry
-    sample_entry = sample_table_entry(name=name, sample_table=sample_table, sample=sample, wildcards=wildcards, type=type)
+    sample_entry = sample_table_entry(name=name, sample_table=sample_table, sample=sample, wildcards=wildcards, caller_type=caller_type)
 
     # Set wildcards
     wildcards = dict(wildcards)

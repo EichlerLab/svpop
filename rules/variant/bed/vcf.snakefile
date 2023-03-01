@@ -23,6 +23,10 @@ CALLER_VCF_STD_FIELDS = {
         'info': ['SVTYPE', 'SVLEN', 'END'],
         'format': ['GT', 'GQ', 'DR', 'DV']
     },
+    'svimasm0': {
+        'info': ['SVTYPE', 'END', 'SVLEN'],
+        'format': ['GT']
+    },
     'svimasm': {
         'info': ['SVTYPE', 'END', 'SVLEN'],
         'format': ['GT']
@@ -57,7 +61,7 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
         wildcards.sourcename,
         SAMPLE_TABLE,
         wildcards=wildcards,
-        type=wildcards.callertype
+        caller_type=wildcards.callertype
     )
 
     # Initialize INFO and FORMAT field lists
@@ -141,37 +145,37 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
     # Return formatted query string
     return query_string
 
-def variant_bed_vcf_fix_sniffles2(df):
-    """
-    Correct poor VCF formatting in Sniffles2.
-    """
-
-    df_list = list()
-
-    # Transform records to symbolic ALTs where SEQ was stuck into the ALT column by Sniffles2.
-    for index, row in df.iterrows():
-        if row['VCF_REF'].upper() == 'N':
-            if re.match('^(?![Nn])[ACGTNacgtn]*$', row['VCF_ALT']) is not None:
-                row['SEQ'] = row['VCF_ALT']
-                row['VCF_REF'] = '.'
-                row['VCF_ALT'] = '<INS>'
-
-        elif row['VCF_ALT'].upper() == 'N':
-            if re.match('^(?![Nn])[ACGTNacgtn]*$', row['VCF_REF']) is not None:
-                row['SEQ'] = row['VCF_REF']
-                row['VCF_REF'] = '.'
-                row['VCF_ALT'] = '<DEL>'
-
-        else:
-            row['SEQ'] = np.nan
-
-        df_list.append(row)
-
-    return pd.concat(df_list, axis=1).T
+# def variant_bed_vcf_fix_sniffles2(df):
+#     """
+#     Correct poor VCF formatting in Sniffles2.
+#     """
+#
+#     df_list = list()
+#
+#     # Transform records to symbolic ALTs where SEQ was stuck into the ALT column by Sniffles2.
+#     for index, row in df.iterrows():
+#         if row['VCF_REF'].upper() == 'N':
+#             if re.match('^(?![Nn])[ACGTNacgtn]+(?<![Nn])$', row['VCF_ALT']) is not None:
+#                 row['SEQ'] = row['VCF_ALT']
+#                 row['VCF_REF'] = '.'
+#                 row['VCF_ALT'] = '<INS>'
+#
+#         elif row['VCF_ALT'].upper() == 'N':
+#             if re.match('^(?![Nn])[ACGTNacgtn]+(?<![Nn])$', row['VCF_REF']) is not None:
+#                 row['SEQ'] = row['VCF_REF']
+#                 row['VCF_REF'] = '.'
+#                 row['VCF_ALT'] = '<DEL>'
+#
+#         else:
+#             row['SEQ'] = np.nan
+#
+#         df_list.append(row)
+#
+#     return pd.concat(df_list, axis=1).T
 
 
 CALLER_CALLBACK_PRE_BED = {
-    'sniffles2': variant_bed_vcf_fix_sniffles2
+#     'sniffles2': variant_bed_vcf_fix_sniffles2
 }
 
 #
@@ -266,7 +270,7 @@ rule variant_bed_vcf_tsv_to_bed:
 # VCF to TAB file.
 rule variant_bed_vcf_to_tsv:
     input:
-        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type=wildcards.callertype)['DATA']
+        vcf=lambda wildcards: svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type=wildcards.callertype)['DATA']
     output:
         tsv=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/bcftools_table.tsv.gz')
     params:
