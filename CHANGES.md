@@ -1,5 +1,17 @@
 # Changes
 
+# 3.3.5
+* Added threads to rules (supports --cores)
+* Fixed output format in rule hpref_merge_bed (was not gzipped)
+* Moved VCF parsing code to svpoplib (supports svpoplib use as an external library)
+* Input VCF parser assumes GT "1/." if the GT field is missing
+* Removed GT field for CuteSV (writes "./." causing the parser to drop variants)
+* Better support for writing VCF files with no variants (was causing crashes)
+* Can input dataframes to merging/intersect svpoplib routines (supports svpoplib use as an external library)
+
+# 3.3.4
+* Fixed parsing Sniffles2 VCFs that are incorrectly formatted with "N" and SEQ in REF/ALT instead of symbolic ALTs 
+
 # 3.3.3
 * Bug in ID de-duplication code
 * Sorting RMSK annotations
