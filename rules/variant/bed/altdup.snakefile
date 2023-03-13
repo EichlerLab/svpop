@@ -16,7 +16,7 @@ def variant_bed_altdup_input_filename(wildcards, type):
 
     # Get sample entry
     sample_entry = svpoplib.rules.sample_table_entry(
-        wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='altdup'
+        wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='altdup'
     )
 
     # Get DATA tokens (sourcetype, sourcename, alt-map aligner)

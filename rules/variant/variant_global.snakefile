@@ -99,9 +99,16 @@ rule variant_global_filter_region:
         else:
             # Filter from all
 
-            shell(
-                """bedtools intersect -wa -v -sorted -a {input.bed} -b {input.filter} -header | gzip > {output.bed}; """
-                """bedtools intersect -wa -u -sorted -a {input.bed} -b {input.filter} -header | gzip > {output.bed_filt}; """
+            shell(  # Note: head causes SIGPIPE, must disable pipefail
+                """set +o pipefail;\n"""
+                """{{\n"""
+                """    zcat {input.bed} | head -n 1 | grep -E '^#';\n"""
+                """    bedtools intersect -wa -v -sorted -a {input.bed} -b {input.filter};\n"""
+                """}} | gzip > {output.bed};"""
+                """{{\n"""
+                """    zcat {input.bed} | head -n 1 | grep -E '^#';\n"""
+                """    bedtools intersect -wa -u -sorted -a {input.bed} -b {input.filter};\n"""
+                """}} | gzip > {output.bed_filt}"""
             )
 
             # Create output FASTA

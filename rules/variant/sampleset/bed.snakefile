@@ -61,9 +61,9 @@ rule variant_sampleset_bed_merge_chrom:
             'temp/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}/chrom_{chrom}.bed.gz'
         )
     params:
-        cpu=lambda wildcards: svpoplib.sampleset.cluster_param_cpu(wildcards, config),
         mem=lambda wildcards: svpoplib.sampleset.cluster_param_mem(wildcards, config),
         rt=lambda wildcards: svpoplib.sampleset.cluster_param_rt(wildcards, config)
+    threads: lambda wildcards: svpoplib.sampleset.cluster_param_cpu(wildcards, config)
     run:
 
         # Get sample and input list
@@ -77,7 +77,7 @@ rule variant_sampleset_bed_merge_chrom:
             merge_strategy['strategy'],
             fa_list=input.fa if input.fa else None,
             subset_chrom=wildcards.chrom,
-            threads=params.cpu
+            threads=threads
         )
 
         # Bylen to byref

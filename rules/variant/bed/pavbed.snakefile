@@ -8,11 +8,11 @@ Read from PAV BED files (not from VCF).
 rule variant_pavbed_bed:
     input:
         bed=lambda wildcards: os.path.join(
-            svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='pavbed')['DATA'],
+            svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='pavbed')['DATA'],
             '{vartype}_{svtype}.bed.gz'.format(**wildcards)
         ),
         fa=lambda wildcards: os.path.join(
-            svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='pavbed')['DATA'],
+            svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='pavbed')['DATA'],
             'fa/{vartype}_{svtype}.fa.gz'.format(**wildcards)
         )
     output:
@@ -30,7 +30,7 @@ rule variant_pavbed_bed:
 rule variant_pavbed_bed_snv:
     input:
         bed=lambda wildcards: os.path.join(
-            svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, type='pavbed')['DATA'],
+            svpoplib.rules.sample_table_entry(wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='pavbed')['DATA'],
             '{vartype}_{svtype}.bed.gz'.format(**wildcards)
         )
     output:
