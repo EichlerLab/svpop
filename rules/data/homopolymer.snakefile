@@ -18,8 +18,8 @@ rule hpref_merge_bed:
         rep_len='homopolymer|dinucleotide'
     run:
 
-        with open(output.bed, 'wt') as out_file:
-        #with gzip.open(output.bed, 'wt') as out_file:
+        #with open(output.bed, 'wt') as out_file:
+        with gzip.open(output.bed, 'wt') as out_file:
             out_file.write('#CHROM\tPOS\tEND\tBASE\tCOUNT\n')
 
             for bed_file_name in input.bed:
@@ -69,6 +69,8 @@ rule hpref_bed_chrom:
                 # Write last position (if homopolymer)
                 if count > 1 and last_base in {'A', 'C', 'G', 'T'}:
                     out_file.write('{:}\t{:d}\t{:d}\t{}\t{:d}\n'.format(chrom, pos - count, pos, last_base, count))
+
+            out_file.flush()
 
 # hpref_bed_chrom
 #

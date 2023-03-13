@@ -37,7 +37,7 @@ CALLER_VCF_STD_FIELDS = {
     },
     'cutesv': {
         'info': ['PRECISE', 'IMPRECISE', 'SVTYPE', 'SVLEN', 'END', 'CIPOS', 'CILEN'],
-        'format': ['GT', 'DR', 'DV', 'PL', 'GQ']
+        'format': ['DR', 'DV', 'PL', 'GQ']
     }
 }
 
@@ -248,17 +248,19 @@ rule variant_bed_vcf_tsv_to_bed:
     wildcard_constraints:
         callertype=VARIANT_BED_VCF_TYPE_PATTERN
     params:
-        cpu=6,
         mem='6000',
         chunk_size=20000  # DataFrame chunk size
+    threads: 6
     run:
 
-        with gzip.open(output.bed, 'wt') as out_file:
+        with gzip.open(output.bed, 'wt') as bed_file:
             with gzip.open(output.tsv_filt, 'wt') as filt_file:
                 for df in svpoplib.variant.vcf_tsv_to_bed(
-                    input.tsv, out_file, filt_file,
+                    input.tsv,
+                    sample=wildcards.sample,
+                    bed_file=bed_file, filt_file=filt_file,
                     chunk_size=params.chunk_size,
-                    threads=params.cpu,
+                    threads=threads,
                     callback_pre_bed=CALLER_CALLBACK_PRE_BED.get(wildcards.callertype, None)
                 ):
                     pass  # Iterate through all records

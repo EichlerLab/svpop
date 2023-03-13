@@ -69,7 +69,7 @@ rule vcf_write_vcf:
         df = pd.read_csv(input.bed, sep='\t')
 
         # Read sequence from FASTA
-        if alt_seq:
+        if alt_seq and df.shape[0] > 0:
 
             # FASTA cannot be empty
             if os.stat(input.fa).st_size == 0:
@@ -110,7 +110,8 @@ rule vcf_write_vcf:
         df['VARTYPE'] = wildcards.vartype.upper()
 
         # SVTYPE
-        df['SVTYPE'] = df['SVTYPE'].apply(lambda val: val.upper())
+        if df.shape[0] > 0:
+            df['SVTYPE'] = df['SVTYPE'].apply(lambda val: val.upper())
 
         # Reformat fields for INFO
         df['SVLEN'] = df.apply(lambda row: np.abs(row['SVLEN']) * (-1 if row['SVTYPE'] == 'DEL' else 1), axis=1)
@@ -126,7 +127,8 @@ rule vcf_write_vcf:
         info_header_id_list.append('SVTYPE')
 
         # INFO: Add SV/INDEL annotations
-        df['INFO'] = df.apply(lambda row: row['INFO'] + (';SVLEN={SVLEN}'.format(**row)) if row['SVTYPE'] != 'SNV' else '', axis=1)
+        if df.shape[0] > 0:
+            df['INFO'] = df.apply(lambda row: row['INFO'] + (';SVLEN={SVLEN}'.format(**row)) if row['SVTYPE'] != 'SNV' else '', axis=1)
         info_header_id_list.append('SVLEN')
 
         # REF
@@ -134,31 +136,35 @@ rule vcf_write_vcf:
 
         # ALT
         if wildcards.svtype != 'snv':
-            if symbolic_alt:
-                df['ALT'] = df['SVTYPE'].apply(lambda val: f'<{val}>')
+            if df.shape[0] > 0:
+                if symbolic_alt:
+                    df['ALT'] = df['SVTYPE'].apply(lambda val: f'<{val}>')
 
-                if alt_seq:
-                    df['INFO'] = df.apply(lambda row: row['INFO'] + ';SEQ={SEQ}'.format(**row), axis=1)
-                    info_header_id_list.append('SEQ')
+                    if alt_seq:
+                        df['INFO'] = df.apply(lambda row: row['INFO'] + ';SEQ={SEQ}'.format(**row), axis=1)
+                        info_header_id_list.append('SEQ')
+
+                else:
+
+                    df['REF'] = df.apply(lambda row:
+                        ((row['REF'] + row['SEQ']) if row['POS'] > 0 else (row['SEQ'] + row['REF'])) if row['SVTYPE'] == 'DEL' else row['REF'],
+                        axis=1
+                    )
+
+                    df['ALT'] = df.apply(lambda row:
+                        ((row['REF'] + row['SEQ']) if row['POS'] > 0 else (row['SEQ'] + row['REF'])) if row['SVTYPE'] == 'INS' else row['REF'][0],
+                        axis=1
+                    )
 
             else:
-
-                df['REF'] = df.apply(lambda row:
-                    ((row['REF'] + row['SEQ']) if row['POS'] > 0 else (row['SEQ'] + row['REF'])) if row['SVTYPE'] == 'DEL' else row['REF'],
-                    axis=1
-                )
-
-                df['ALT'] = df.apply(lambda row:
-                    ((row['REF'] + row['SEQ']) if row['POS'] > 0 else (row['SEQ'] + row['REF'])) if row['SVTYPE'] == 'INS' else row['REF'][0],
-                    axis=1
-                )
+                df['ALT'] = np.nan
 
         else:
             # Fix position for SNVs (0-based BED to 1-based VCF)
             df['POS'] += 1
 
         # Remove SEQ
-        if alt_seq:
+        if alt_seq and df.shape[0] > 0:
             del df['SEQ']
 
         # No masked bases in REF/ALT

@@ -60,8 +60,8 @@ rule var_intersect_venn:
         df['SOURCE_SET'] = df['SOURCE_SET'].apply(lambda val: set(val.split(',')))
 
         # Read original variant table
-        len_a = pd.read_csv(input.a, sep='\t', usecols=('ID', 'SVLEN'), index_col='ID', squeeze=True)
-        len_b = pd.read_csv(input.b, sep='\t', usecols=('ID', 'SVLEN'), index_col='ID', squeeze=True)
+        len_a = pd.read_csv(input.a, sep='\t', usecols=('ID', 'SVLEN'), index_col='ID').squeeze()
+        len_b = pd.read_csv(input.b, sep='\t', usecols=('ID', 'SVLEN'), index_col='ID').squeeze()
 
         df['ID'] = df.apply(lambda row:
             'A:{}'.format(row['ID_A']) if 'A' in row['SOURCE_SET'] else
@@ -192,8 +192,7 @@ rule var_intersect_by_merge:
             ] if intersect_is_read_seq(wildcards, config) else []
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
-    params:
-        cpu=8
+    threads: 8
     wildcard_constraints:
         svtype='ins|del|inv|dup|sub|snv|rgn'
     run:
@@ -206,7 +205,7 @@ rule var_intersect_by_merge:
             bed_list=[input.a, input.b],
             sample_names=['A', 'B'],
             strategy=config_def,
-            threads=params.cpu,
+            threads=threads,
             fa_list=input.fa if input.fa else None
         )
 
@@ -260,6 +259,7 @@ rule var_intersect_bymerge_svset_diff:
             ] if intersect_is_read_seq(wildcards, config) else []
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset_a}_vs_{svset_b}/{vartype}_{svtype}/intersect.tsv.gz'
+    threads: 8
     wildcard_constraints:
         svtype='ins|del|inv|dup|sub|snv|rgn'
     run:
@@ -272,7 +272,7 @@ rule var_intersect_bymerge_svset_diff:
             bed_list=[input.a, input.b],
             sample_names=['A', 'B'],
             strategy=config_def,
-            threads=params.cpu,
+            threads=threads,
             fa_list=input.fa if input.fa else None
         )
 

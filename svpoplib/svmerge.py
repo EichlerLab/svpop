@@ -694,7 +694,10 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
         df_support_sample.index.name = 'INDEX'
 
         # Read variants from sample
-        df_sample = pd.read_csv(bed_file_name, sep='\t', header=0)
+        if type(bed_file_name) != pd.DataFrame:
+            df_sample = pd.read_csv(bed_file_name, sep='\t', header=0)
+        else:
+            df_sample = bed_file_name.copy()
 
         # Update columns
         col_list.extend([col for col in df_sample.columns if col not in col_list])
@@ -802,12 +805,23 @@ def read_variant_table(
     # Read variants
     col_set = set(col_list)
 
-    df = svpoplib.pd.read_csv_chrom(
-        bed_file_name, chrom=subset_chrom,
-        sep='\t', header=0,
-        usecols=lambda col: col in col_set,
-        dtype={'#CHROM': str}
-    )
+    if type(bed_file_name) != pd.DataFrame:
+        df = svpoplib.pd.read_csv_chrom(
+            bed_file_name, chrom=subset_chrom,
+            sep='\t', header=0,
+            usecols=lambda col: col in col_set,
+            dtype={'#CHROM': str}
+        )
+
+    else:
+        df = bed_file_name.copy()
+
+        missing_cols = sorted({col for col in col_set if col not in df.columns})
+
+        if missing_cols:
+            raise RuntimeError(f'Error getting variant table from an existing DataFrame: Missing columns: {", ".join(missing_cols)}')
+
+        df['#CHROM'] = df['#CHROM'].astype(str)
 
     # Read SEQ column
     if fa_file_name is not None:
