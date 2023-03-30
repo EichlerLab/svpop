@@ -38,8 +38,6 @@ COL_DTYPE = {
     'DP': np.int32,
     'GQ': np.int32,
     'QA': np.int32,
-    'POS': np.int32,
-    'SVLEN': np.int32,
     'CALLERSET_N': np.int32,
     'MERGE_AC': np.int32
 }

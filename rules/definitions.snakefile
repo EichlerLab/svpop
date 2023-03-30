@@ -113,7 +113,7 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
     # Correct for altdup
     source_suffix = None
 
-    if sourcetype == 'caller' and sourcename in SAMPLE_TABLE.index and SAMPLE_TABLE.loc[sourcename, 'TYPE'].squeeze() == 'altdup':
+    if sourcetype == 'caller' and sourcename in SAMPLE_TABLE.index and SAMPLE_TABLE.loc[sourcename, 'TYPE'].iloc[0] == 'altdup':
         tok = SAMPLE_TABLE.loc[sourcename, 'DATA'].squeeze().split(',')
         tok = [v.strip() for v in tok]
 
@@ -133,7 +133,7 @@ def get_sample_name(sourcetype, sourcename, sample, prefix_sourcename=False):
 
     elif sourcetype == 'caller':
         if sourcename in SAMPLE_TABLE.index:
-            sample_type = SAMPLE_TABLE.loc[sourcename, 'TYPE'].squeeze()
+            sample_type = SAMPLE_TABLE.loc[sourcename, 'TYPE'].iloc[0]
         else:
             sample_type = sourcename
 
