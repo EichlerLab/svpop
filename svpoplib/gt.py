@@ -118,7 +118,7 @@ def get_gt_summary_table(ins_bed, del_bed):
                           'DEL_N', 'DEL_SUM', 'DEL_MED',
                           'ALL_N', 'ALL_SUM', 'ALL_MED'
                       ),
-                      index=('HOM-REF', 'HOM-ALT', 'HET', 'NO-CALL'), dtype=np.int
+                      index=('HOM-REF', 'HOM-ALT', 'HET', 'NO-CALL'), dtype=np.int32
                       )
 
 
@@ -127,14 +127,14 @@ def get_gt_summary_table(ins_bed, del_bed):
 
     df['INS_N'] = group.count()['SVLEN']
     df['INS_SUM'] = group.sum()['SVLEN']
-    df['INS_MED'] = group.median()['SVLEN'].astype(np.int)
+    df['INS_MED'] = group.median()['SVLEN'].astype(np.int32)
 
     # Summarize deletions
     group = df_del.groupby('GT')
 
     df['DEL_N'] = group.count()['SVLEN']
     df['DEL_SUM'] = group.sum()['SVLEN']
-    df['DEL_MED'] = group.median()['SVLEN'].astype(np.int)
+    df['DEL_MED'] = group.median()['SVLEN'].astype(np.int32)
 
     # Summarize merged ins & del
     df_all = pd.concat([df_ins, df_del], axis=0)
@@ -143,7 +143,7 @@ def get_gt_summary_table(ins_bed, del_bed):
 
     df['ALL_N'] = group.count()['SVLEN']
     df['ALL_SUM'] = group.sum()['SVLEN']
-    df['ALL_MED'] = group.median()['SVLEN'].astype(np.int)
+    df['ALL_MED'] = group.median()['SVLEN'].astype(np.int32)
 
     # Return
     return df
