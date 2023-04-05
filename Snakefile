@@ -75,9 +75,9 @@ SAMPLE_TABLE = svpoplib.rules.get_sample_table(SAMPLE_TABLE_FILE_NAME)
 ### Sample info table ###
 
 SAMPLE_INFO_TABLE_COL_TYPES = {
-    'SAMPLE': np.object,
-    'SEX': np.object,
-    'ETHNICITY': np.object
+    'SAMPLE': object,
+    'SEX': object,
+    'ETHNICITY': object
 }
 
 SAMPLE_INFO_FILE_NAME = config.get('sample_info_table', 'config/sample_info.tab')
