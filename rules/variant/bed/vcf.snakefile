@@ -256,7 +256,7 @@ rule variant_bed_vcf_tsv_to_bed:
         with gzip.open(output.bed, 'wt') as bed_file:
             with gzip.open(output.tsv_filt, 'wt') as filt_file:
                 for df in svpoplib.variant.vcf_tsv_to_bed(
-                    input.tsv,
+                    tsv_in=input.tsv,
                     sample=wildcards.sample,
                     bed_file=bed_file, filt_file=filt_file,
                     chunk_size=params.chunk_size,

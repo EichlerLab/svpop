@@ -264,7 +264,7 @@ def gfa_to_record_iter(gfa_file_name, record_set=None, require_all=True):
 
 def fa_to_series(fa_file_name):
     """
-    Read records from a FASTA file and generate a Pandas Series with IDs an keys and sequences as values. FASTA may
+    Read records from a FASTA file and generate a Pandas Series with IDs and keys and sequences as values. FASTA may
     be gzipped.
 
     :param fa_file_name: FASTA file name.
