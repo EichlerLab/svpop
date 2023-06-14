@@ -1,5 +1,13 @@
 # Changes
 
+# 3.3.6
+* SNV format changed to "CHROM-POS-SVTYPE-REFALT" (eliminated dash between REF and ALT). All variant IDs can be
+  split on "-" to obtain 4 fields (note that a ".n" may also be appended to distinguish multiple calls of the same
+  type and at the same location).
+* Improved multi-allele VCF handling. Resulting tables now include "VCF_ALT_IDX" to match the alt genotypes each
+  record was retrieved from. Each alternate allele will be separated into a separate record and assigned to samples
+  where VCF_ALT_IDX is in GT.
+
 # 3.3.5
 * Added threads to rules (supports --cores)
 * Fixed output format in rule hpref_merge_bed (was not gzipped)

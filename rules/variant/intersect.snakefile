@@ -57,7 +57,7 @@ rule var_intersect_venn:
         # Read intersect table
         df = pd.read_csv(input.tsv, sep='\t')
 
-        df['SOURCE_SET'] = df['SOURCE_SET'].apply(lambda val:  set([x for x in val.split(",") if x != ""]))
+        df['SOURCE_SET'] = df['SOURCE_SET'].apply(lambda val: set(val.split(',')) - {''})
 
         # Read original variant table
         len_a = pd.read_csv(input.a, sep='\t', usecols=('ID', 'SVLEN'), index_col='ID').squeeze()

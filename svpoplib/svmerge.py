@@ -695,7 +695,7 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
 
         # Read variants from sample
         if type(bed_file_name) != pd.DataFrame:
-            df_sample = pd.read_csv(bed_file_name, sep='\t', header=0)
+            df_sample = pd.read_csv(bed_file_name, sep='\t', header=0)  # TODO: low_memory=False
         else:
             df_sample = bed_file_name.copy()
 
