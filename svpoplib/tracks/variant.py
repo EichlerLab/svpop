@@ -72,7 +72,11 @@ def report_status(message, verbose):
         print('Status: ' + message)
 
 
-def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_description, field_table_file_name=None, verbose=True):
+def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_description, field_table_file_name=None, verbose=True, reset_index=True):
+
+    # Reset index
+    if reset_index:
+        df.reset_index(inplace=True, drop=True)
 
     # Trim large INS records that extend past chromosome end
     df['END'] = df['POS'] + df['SVLEN']
@@ -124,6 +128,11 @@ def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_des
 
     # Reformat columns
     for col in df.columns:
+        if col == '#CHROM':
+            if np.any(pd.isnull(df[col])):
+                raise RuntimeError(f'Error formatting {col}: Found null values in this column (not allowed)')
+
+            continue
 
         if 'DEFAULT' in df_as.columns and not pd.isnull(df_as.loc[col, 'DEFAULT']):
             default_val = df_as.loc[col, 'DEFAULT']
