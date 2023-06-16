@@ -43,17 +43,18 @@ CALLER_VCF_STD_FIELDS = {
 
 VARIANT_BED_VCF_TYPE_PATTERN = '(vcf|{})'.format('|'.join(CALLER_VCF_STD_FIELDS.keys()))
 
+DEFAULT_FILTER_PASS_SET = {'PASS', '.'}
+
 #
 # Helper functions
 #
 
-def variant_bed_vcf_get_bcftools_query(wildcards):
+def variant_bed_vcf_get_param_dict(wildcards):
     """
-    Get the bcftools query string for this entry.
+    Get dictionary of parameters
 
     :param wildcards: Rule wildcards.
-
-    :return: bcftools format string.
+    :return:
     """
 
     # Get sample entry
@@ -65,8 +66,12 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
     )
 
     # Initialize INFO and FORMAT field lists
-    info_list = list()    # List of INFO fields to include
-    format_list = list()  # List of FORMAT fields to gather
+    param_dict = {
+        'info_list': list(),    # List of INFO fields to include
+        'format_list': list(),  # List of FORMAT fields to gather
+        'pass': None      # Set of passing FILTER values. Set to default value if None
+    }
+
     keyword_set = list()  # Keywords already processed
 
     # Add type keyword
@@ -74,13 +79,17 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
 
         # Check for recognized caller type
         if wildcards.callertype not in CALLER_VCF_STD_FIELDS.keys():
-            raise RunimeError('Error processing entry "{}" (type "{}", sample "{}"): Unrecognized type "{}"'.format(
+            raise RuntimeError('Error processing entry "{}" (type "{}", sample "{}"): Unrecognized type "{}"'.format(
                 wildcards.sourcename, wildcards.callertype, wildcards.sample, wildcards.callertype
             ))
 
         # Add to INFO and FORMAT
-        info_list = CALLER_VCF_STD_FIELDS[wildcards.callertype]['info']
-        format_list = CALLER_VCF_STD_FIELDS[wildcards.callertype]['format']
+        param_dict['info_list'] = CALLER_VCF_STD_FIELDS[wildcards.callertype]['info']
+        param_dict['format_list'] = CALLER_VCF_STD_FIELDS[wildcards.callertype]['format']
+
+        # Add filter
+        if 'pass' in CALLER_VCF_STD_FIELDS[wildcards.callertype]:
+            param_dict['pass'] = CALLER_VCF_STD_FIELDS[wildcards.callertype]['pass']
 
     # Process options
     param_string = sample_entry['PARAM_STRING']
@@ -101,43 +110,85 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
                 if avp not in keyword_set:
                     std_entry = CALLER_VCF_STD_FIELDS[avp]
 
-                    info_list += [val for val in std_entry['info'] if val not in info_list]
-                    format_list += [val for val in std_entry['format'] if val not in format_list]
+                    param_dict['info_list'] += [val for val in std_entry['info'] if val not in param_dict['info_list']]
+                    param_dict['format_list'] += [val for val in std_entry['format'] if val not in param_dict['format_list']]
                     keyword_set.append(avp)
 
                 continue
 
-            if '=' not in avp:
-                raise RunimeError('Error processing entry "{}" (type "{}", sample "{}"): Unrecognized bare keyword "{}" (no "=") in parameter string "{}"'.format(
-                    wildcards.sourcename, wildcards.callertype, wildcards.sample, avp, param_string
-                ))
+            if '=' in avp:
+                attrib, value = avp.split('=', 1)
+                value = value.strip()
+            else:
+                attrib, value = avp, None
 
             # Split and process attribute/value
-            attrib, value = avp.split('=', 1)
-
             attrib = attrib.strip()
-            value = value.strip()
 
-            if attrib == 'info':
-                info_list += [val for val in value.split(',') if val not in info_list]
+            if attrib == '':
+                # Ignore empty entries
+                if value is not None and value != '':
+                    raise RuntimeError(f'Found value with an empty attribute (blank before "=": {avp}')
+
+            elif attrib == 'info':
+                if value is None:
+                    raise RuntimeError(f'Missing value for "info" in callset configuration: {avp}')
+
+                param_dict['info_list'] += [val for val in value.split(',') if val not in param_dict['info_list']]
 
             elif attrib == 'format':
-                format_list += [val for val in value.split(',') if val not in format_list]
+                if value is None:
+                    raise RuntimeError(f'Missing value for "format" in callset configuration: {avp}')
+
+                param_dict['format_list'] += [val for val in value.split(',') if val not in param_dict['format_list']]
+
+            elif attrib == 'pass':
+                # Append to pass filters if "=" is in the avp
+                # Accept all filters if "=" is not in the avp (override existing list)
+
+                if value is not None:
+                    if param_dict['pass'] is None:
+                        param_dict['pass'] = set()
+
+                    new_filter_set = set([filter_val.strip() for filter_val in value.split(',') if filter_val.strip()])
+                    param_dict['pass'] |= new_filter_set
+
+                else:
+                    param_dict['pass'] = set()
 
             else:
-                pass
-                # Ignore, let the VCF parser handle unknown attribute values
-                # raise RunimeError('Error processing entry "{}" (type "{}", sample "{}"): Unrecognized keyword "{}" in parameter string "{}"'.format(
-                #     wildcards.sourcename, wildcards.callertype, wildcards.sample, attrib, param_string
-                # ))
+                # Add as a list of values, one for each attribute appearance.
+
+                if 'attrib' not in param_dict:
+                    param_dict['attrib'] = list()
+
+                param_dict['attrib'].append(value)
+
+    # Set default values
+    if param_dict['pass'] is None:
+        param_dict['pass'] = DEFAULT_FILTER_PASS_SET
+
+    return param_dict
+
+
+def variant_bed_vcf_get_bcftools_query(wildcards):
+    """
+    Get the bcftools query string for this entry.
+
+    :param wildcards: Rule wildcards.
+
+    :return: bcftools format string.
+    """
+
+    param_dict = variant_bed_vcf_get_param_dict(wildcards)
 
     # Construct query string for bcftools
     query_string = r'"%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%FILTER'
 
-    for element in info_list:
+    for element in param_dict['info_list']:
         query_string += f'\\t%INFO/{element}'
 
-    for element in format_list:
+    for element in param_dict['format_list']:
         query_string += f'[\\t%{element}]'
 
     query_string += '\\n"'
@@ -253,6 +304,8 @@ rule variant_bed_vcf_tsv_to_bed:
     threads: 6
     run:
 
+        param_dict = variant_bed_vcf_get_param_dict(wildcards)
+
         with gzip.open(output.bed, 'wt') as bed_file:
             with gzip.open(output.tsv_filt, 'wt') as filt_file:
                 for df in svpoplib.variant.vcf_tsv_to_bed(
@@ -261,7 +314,8 @@ rule variant_bed_vcf_tsv_to_bed:
                     bed_file=bed_file, filt_file=filt_file,
                     chunk_size=params.chunk_size,
                     threads=threads,
-                    callback_pre_bed=CALLER_CALLBACK_PRE_BED.get(wildcards.callertype, None)
+                    callback_pre_bed=CALLER_CALLBACK_PRE_BED.get(wildcards.callertype, None),
+                    filter_pass_set=param_dict['pass']
                 ):
                     pass  # Iterate through all records
 

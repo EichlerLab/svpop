@@ -4,7 +4,7 @@ Apply filters to sets of variant calls.
 
 A filter spec string specifications is a comma-separated list of filter specifications:
 
-filter_spec_str ::= filter_spec | filter_spec,filter_spec_list
+filter_spec_str ::= filter_spec | filter_spec+filter_spec_str
 
 
 Each specification is a name separated by a colon and it's arguments (colon and arguments are optional)
@@ -599,14 +599,14 @@ def get_filter_spec_list(filter_spec_str):
         raise RuntimeError('Filter spec string is empty')
 
     filter_spec_list = [
-        re.split('\s*:\s*', spec.strip(), 1) for spec in filter_spec_str.split(',') if spec.strip()
+        re.split('\s*:\s*', spec.strip(), 1) for spec in filter_spec_str.split('+') if spec.strip()
     ]
 
     # Do not allow empty filter specs
     for spec_element in filter_spec_list:
         if not spec_element[0]:
             raise RuntimeError(
-                'Filter spec contains at least one element with no filter name (e.g. ",," or ",:"): {}'.format(filter_spec_str)
+                'Filter spec contains at least one element with no filter name (e.g. "++" or "+:"): {}'.format(filter_spec_str)
             )
 
     # Add a "None" element to spec elements that did not have an argument
