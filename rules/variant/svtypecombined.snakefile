@@ -43,9 +43,9 @@ rule variant_global_concat_anno_sv_insdelinv:
 # Concatenate SV types: ins, del, and inv.
 rule variant_global_concat_sv_insdelinv:
     input:
-        sv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_ins.bed.gz',
-        sv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_del.bed.gz',
-        sv_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_inv.bed.gz'
+        sv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_ins.bed.gz',
+        sv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_del.bed.gz',
+        sv_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_inv.bed.gz'
     output:
         all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_insdelinv.bed.gz'
     run:

@@ -318,7 +318,7 @@ def vcf_fields_to_seq(row, pos_row='POS', ref_row='REF', alt_row='ALT'):
         ref = alt + ref
 
     # Fix common malformed VCFs (SVIM-asm)
-    if ref == '.':
+    if ref == '.' and not alt.startswith('<'):
         ref = 'N'
         alt = 'N' + alt
 
