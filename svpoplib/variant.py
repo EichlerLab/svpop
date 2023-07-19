@@ -960,8 +960,9 @@ def vcf_tsv_to_bed(
 
         df['VCF_ALT_IDX'] = df['VCF_ALT_IDX'].astype(str)  # Compared as a string while filtering by GT
 
-        # Remove gVCF records
-        df = df.loc[(df['VCF_ALT'] != '<NON_REF>') & (df['VCF_ALT'] != '.')]
+        # Remove gVCF records and upstream deletion missing alleles
+        df = df.loc[(df['VCF_ALT'] != '<NON_REF>') & (df['VCF_ALT'] != '.') & (df['VCF_ALT'] != '*')]
+
 
         # Pick records for this sample
         if len(gt_cols) > 0 and df.shape[0] > 0:
