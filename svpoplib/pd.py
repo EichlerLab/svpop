@@ -12,15 +12,17 @@ from multiprocessing import Pool
 import svpoplib.util
 
 def read_csv_chrom(
-        in_file_name, chrom=None, chunksize=5000, **kwargs
+        in_file_name, chrom=None, chunksize=5000, chrom_field='#CHROM', **kwargs
 ):
     """
     Read a DataFrame in chunks and save only records for a chromosome. Prevents reading a whole DataFrame into memory
     when only a chromosome is needed.
 
     :param in_file_name: Input file name.
-    :param chrom: Chromosome or `None` to read the whole table.
+    :param chrom: Subset to this chromosome (or None to read all). May be a string (single chromosome name) or
+        a list, tuple, or set of chromosome names.
     :param chunksize: Size of chunks to read.
+    :param chrom_field: Chromosome field name. Elements of `chrom` are matched against this field.
     :param kwargs: Additional arguments to `pd.read_csv`.
 
     :return: A Pandas DataFrame.
@@ -29,6 +31,16 @@ def read_csv_chrom(
     # Check for base case (no chrom set, just return the dataframe)
     if chrom is None:
         return pd.read_csv(in_file_name, **kwargs)
+
+    # Check chrom (make into a set)
+    if isinstance(chrom, str):
+        chrom = {chrom}
+    elif isinstance(chrom, list) or isinstance(chrom, tuple):
+        chrom = set(chrom)
+    elif not isinstance(chrom, set):
+        raise RuntimeError(
+            f'Unrecognized type for parameter type "chrom": {type(chrom)}: Must be string, list, tuple, or set'
+        )
 
     # Check for dtypes
     if kwargs is None:
@@ -50,13 +62,10 @@ def read_csv_chrom(
         if col_list is None:
             col_list = df.columns
 
-        if chrom is not None and '#CHROM' not in df.columns:
-            raise RuntimeError(f'Cannot subset "{in_file_name}" for chromosome "{chrom}": No "#CHROM" field')
+        if chrom_field not in df.columns:
+            raise RuntimeError(f'Cannot subset "{in_file_name}" by chromosome: No "{chrom_field}" field')
 
-        if chrom is not None:
-            df_list.append(df.loc[df['#CHROM'] == chrom])
-        else:
-            df_list.append(df)
+        df_list.append(df.loc[df['#CHROM'].isin(chrom)])
 
     # Return
     if len(df_list) > 0:

@@ -55,7 +55,8 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
         `bed_list`.
     :param strategy: Describes how to merge variants.
     :param fa_list: List of FASTA files (variant ID is FASTA record ID). Needed if sequences are used during merging.
-    :param subset_chrom: Merge only records from this chromosome. If `None`, merge all records.
+    :param subset_chrom: Merge only records from this chromosome. If `None`, merge all records. May be a string (single
+        chromosome name) or a list, tuple, or set of chromosome names.
     :param threads: Number of threads to use for intersecting variants.
 
     :return: A Pandas dataframe of a BED file with the index set to the ID column.
@@ -111,7 +112,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
     :param merge_config: Parameter object controlling this merge.
     :param fa_list: List of FASTA files matching `bed_list` and `sample_names`. FASTA files contain sequences for
         variants where each FASTA record ID is the variant ID and the sequence is the variant sequence.
-    :param subset_chrom: Merge only records from this chromosome. If `None`, merge all records.
+    :param subset_chrom: Merge only records from this chromosome. If `None`, merge all records. May be a string (single
+        chromosome name) or a list, tuple, or set of chromosome names.
     :param threads: Number of threads to use for intersecting variants.
     :param verbose: Print progress if True.
 
@@ -785,7 +787,8 @@ def read_variant_table(
 
     :param bed_file_name: BED file name.
     :param sample_name: Sample name.
-    :param subset_chrom: Subset to this chromosome (or None to read all).
+    :param subset_chrom: Subset to this chromosome (or None to read all). May be a string (single chromosome name) or
+        a list, tuple, or set of chromosome names.
     :param fa_file_name: FASTA file name to read variant sequences (into SEQ column), or `None` if variant sequences
         do not need to be read. FASTA record IDs must match the variant ID column.
     :param col_list: List of columns to be read. Used to order and filter columns.
@@ -797,10 +800,6 @@ def read_variant_table(
     # Ensure column list contains required columns
     head_cols = ['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN']
     col_list = head_cols + [col for col in col_list if col not in head_cols]
-
-    # Ensure chrom types match
-    if subset_chrom is not None:
-        subset_chrom = str(subset_chrom)
 
     # Read variants
     col_set = set(col_list)
