@@ -135,6 +135,7 @@ include: 'rules/variant/bedconversion.snakefile'
 include: 'rules/variant/bed/altdup.snakefile'
 include: 'rules/variant/bed/bed.snakefile'
 include: 'rules/variant/bed/pavbed.snakefile'
+include: 'rules/variant/bed/pavbedhap.snakefile'
 include: 'rules/variant/bed/pbsv.snakefile'
 #include: 'rules/variant/bed/sniffles.snakefile'  # Moved to VCF parser
 include: 'rules/variant/bed/svim.snakefile'
