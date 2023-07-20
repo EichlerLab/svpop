@@ -311,18 +311,55 @@ rule variant_bed_vcf_tsv_to_bed:
 
         param_dict = variant_bed_vcf_get_param_dict(wildcards)
 
-        with gzip.open(output.bed, 'wt') as bed_file:
-            with gzip.open(output.tsv_filt, 'wt') as filt_file:
-                for df in svpoplib.variant.vcf_tsv_to_bed(
-                    tsv_in=input.tsv,
-                    sample=wildcards.sample,
-                    bed_file=bed_file, filt_file=filt_file,
-                    chunk_size=params.chunk_size,
-                    threads=threads,
-                    callback_pre_bed=CALLER_CALLBACK_PRE_BED.get(wildcards.callertype, None),
-                    filter_pass_set=param_dict['pass']
-                ):
-                    pass  # Iterate through all records
+        write_header = True
+
+        ref_fa = None
+
+        try:
+
+            with gzip.open(output.bed, 'wt') as bed_file:
+                with gzip.open(output.tsv_filt, 'wt') as filt_file:
+                    for df in svpoplib.variant.vcf_tsv_to_bed(
+                        tsv_in=input.tsv,
+                        sample=wildcards.sample,
+                        bed_file=None,
+                        filt_file=filt_file,
+                        chunk_size=params.chunk_size,
+                        threads=threads,
+                        callback_pre_bed=CALLER_CALLBACK_PRE_BED.get(wildcards.callertype, None),
+                        filter_pass_set=param_dict['pass']
+                    ):
+
+                        if df.shape[0] > 0:
+
+                            # Add missing deletion sequences
+                            if np.any((df['SVTYPE'] == 'DEL') & pd.isnull(df['SEQ'])):
+
+                                if ref_fa is None:
+                                    ref_fa = pysam.FastaFile(config['reference'])
+
+                                for index, row in df.loc[(df['SVTYPE'] == 'DEL') & pd.isnull(df['SEQ'])]:
+                                    df.loc[index, 'SEQ'] = fa_file.fetch(row['#CHORM'], row['POS'], row['END']).upper()
+
+                            # Write
+                            df.to_csv(bed_file, sep='\t', index=False, header=write_header)
+                            bed_file.flush()
+
+                            write_header = False
+
+                    # Write empty BED if no records were found
+                    if write_header:
+                        pd.DataFrame(
+                            [],
+                            columns=['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN', 'REF', 'ALT']
+                        ).to_csv(
+                            bed_file, sep='\t', index=False, header=True
+                        )
+
+                        bed_file.flush()
+        finally:
+            if ref_fa is not None:
+                ref_fa.close()
 
 
 
