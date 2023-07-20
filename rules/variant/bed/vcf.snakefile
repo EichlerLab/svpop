@@ -38,6 +38,10 @@ CALLER_VCF_STD_FIELDS = {
     'cutesv': {
         'info': ['PRECISE', 'IMPRECISE', 'SVTYPE', 'SVLEN', 'END', 'CIPOS', 'CILEN'],
         'format': ['DR', 'DV', 'PL', 'GQ']
+    },
+    'delly': {
+        'info': ['END', 'PE', 'SR', 'SVLEN', 'SVTYPE', 'SVMETHOD', 'HOMLEN'],
+        'format': ['GT', 'GQ', 'RR', 'RV', 'DR', 'DV']
     }
 }
 
@@ -196,6 +200,7 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
     # Return formatted query string
     return query_string
 
+# NOTE: Integrated into svpoplib.variant.vcf_fields_to_seq()
 # def variant_bed_vcf_fix_sniffles2(df):
 #     """
 #     Correct poor VCF formatting in Sniffles2.
