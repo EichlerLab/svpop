@@ -5,13 +5,22 @@ Read from PAV BED files per haplotype.
 def _variant_pavbedhap_get_var_bed(wildcards):
 
     # Check sample name
-    match = re.search(r'^(.*)-h(\d+)$')
+    match = re.search(r'^(.*)-h(\d+)$', wildcards.sample)
 
     if not match:
         raise RuntimeError(f'Variant callset type "pavbedhap" requires sample names to be appended with the haplotype (e.g. "SAMPLE" haplotype 1 is "SAMPLE-h1"): Received sample: {wildcards.sample}')
 
     sample = match[1]
     hap = f'h{match[2]}'
+
+    # Set vartype and svtype
+    if wildcards.svtype in {'ins', 'del'}:
+        if wildcards.vartype not in {'sv', 'indel'}:
+            raise RuntimeError(f'Unknown vartype "{wildcards.vartype}" for svtype "{wildcards.svtype}"')
+
+        vartype = 'svindel'
+    else:
+        vartype = wildcards.vartype
 
     return os.path.join(
         svpoplib.rules.sample_table_entry(
@@ -21,7 +30,7 @@ def _variant_pavbedhap_get_var_bed(wildcards):
         sample,
         'bed', 'pre_merge',
         hap,
-        '{vartype}_{svtype}.bed.gz'.format(**wildcards)
+        '{vartype}_{svtype}.bed.gz'.format(vartype=vartype, svtype=wildcards.svtype)
     )
 
 # variant_pavbedhap_bed
@@ -36,6 +45,13 @@ rule variant_pavbedhap_bed:
     run:
 
         df = pd.read_csv(input.bed, sep='\t')
+
+        # Input as svindel (separate)
+        if wildcards.vartype == 'sv':
+            df = df.loc[df['SVLEN'] >= 50]
+
+        elif wildcards.vartype == 'indel':
+            df = df.loc[df['SVLEN'] < 50]
 
         # Write FASTA
         if wildcards.vartype != 'snv':

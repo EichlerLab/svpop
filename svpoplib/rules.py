@@ -229,4 +229,14 @@ def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=Non
     return file_pattern.format(**wildcards)
 
 
+def get_sample_list(sample_list_name, config):
+    """
+    Get a named list of samples ("samplelist" in config).
 
+    :param sample_list_name: Name of the sample list to retrieve.
+    :param config: Config object.
+
+    :return: List of sample names or None if the sample list was not found.
+    """
+
+    return config.get('samplelist', dict()).get(sample_list_name, None)
