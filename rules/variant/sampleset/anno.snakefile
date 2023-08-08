@@ -27,7 +27,7 @@ rule variant_sampleset_anno_merge:
     output:
         tab='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
     params:
-        mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config),
+        mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config)
     wildcard_constraints:
         svtype='ins|del|inv|dup|sub|rgn|snv',
         ext='tsv|bed'

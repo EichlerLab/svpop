@@ -129,12 +129,10 @@ include: 'rules/variant/svset.snakefile'
 include: 'rules/variant/svtypecombined.snakefile'
 include: 'rules/variant/bedconversion.snakefile'
 
-# include: 'rules/variant/intersect_nearest.snakefile'
 
 # Flag rules
 include: 'rules/flag/variant.snakefile'
-
-
+include: 'rules/flag/intersect.snakefile'
 
 # Variant BED parsers for callers
 include: 'rules/variant/bed/altdup.snakefile'

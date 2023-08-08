@@ -2,33 +2,6 @@
 Variant set intersections.
 """
 
-ruleorder: var_intersect_bymerge_svset_diff > var_intersect_by_merge
-
-###################
-### Definitions ###
-###################
-
-def intersect_is_read_seq(wildcards, config):
-    """
-    Determine if merge requires input sequence.
-
-    :param wildcards: Rule wildcards.
-    :param config: Configuration.
-
-    :return: `True` if sequences should be read.
-    """
-
-    config_def = svpoplib.svmerge.get_merge_def(wildcards.merge_def, config)
-
-    if config_def is None:
-        config_def = wildcards.merge_def
-
-    return svpoplib.svmergeconfig.params.get_merge_config(config_def).read_seq
-
-MERGE_INFO_FIELD_LIST = [
-    'MERGE_OFFSET', 'MERGE_RO', 'MERGE_SZRO', 'MERGE_OFFSZ', 'MERGE_MATCH'
-]
-
 
 #############
 ### Rules ###
@@ -178,130 +151,116 @@ rule var_intersect_combined_insdelinv:
 # Do intersect
 #
 
+ruleorder: var_intersect_by_merge_svindel > var_intersect_by_merge
+
+# var_intersect_by_merge_svindel
+#
+# Overlap variants: svindel
+rule var_intersect_by_merge_svindel:
+    input:
+        bed=lambda wildcards: svpoplib.intersect.intersect_get_input(
+            [
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter_a}/{svset_a}/bed/svindel_{svtype}.bed.gz',
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter_b}/{svset_b}/bed/svindel_{svtype}.bed.gz'
+            ], wildcards, config
+        ),
+        fa=lambda wildcards: svpoplib.intersect.intersect_get_input(
+            [
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter_a}/{svset_a}/bed/fa/svindel_{svtype}.fa.gz',
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter_b}/{svset_b}/bed/fa/svindel_{svtype}.fa.gz'
+            ], wildcards, config
+        )
+    output:
+        tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/svindel_{svtype}/intersect.tsv.gz',
+        tsv_sv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/sv_{svtype}/intersect.tsv.gz',
+        tsv_indel='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/indel_{svtype}/intersect.tsv.gz'
+    threads: 8
+    wildcard_constraints:
+        svtype='ins|del'
+    run:
+
+
+        # Intersect
+        df = svpoplib.intersect.run_intersect(
+            input.bed,
+            svpoplib.svmerge.get_merge_def(wildcards.merge_def, config),
+            input.fa if len(input.fa) > 0 else None,
+            threads=threads
+        )
+
+        # Read SV set
+        df_a = pd.read_csv(input.bed[0], sep='\t', usecols=('ID', 'SVLEN'))
+        df_b = pd.read_csv(input.bed[1], sep='\t', usecols=('ID', 'SVLEN'))
+
+        sv_set_a = set(df_a.loc[df_a['SVLEN'] >= 50, 'ID'])
+        sv_set_b = set(df_b.loc[df_b['SVLEN'] >= 50, 'ID'])
+
+        del(df_a)
+        del(df_b)
+
+        # Write
+        df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')
+
+        df.loc[
+            df['ID_A'].isin(sv_set_a) | df['ID_B'].isin(sv_set_a)
+        ].to_csv(
+            output.tsv_sv, sep='\t', index=False, compression='gzip'
+        )
+
+        df.loc[
+            (~ df['ID_A'].isin(sv_set_a)) | (~ df['ID_B'].isin(sv_set_a))
+        ].to_csv(
+            output.tsv_indel, sep='\t', index=False, compression='gzip'
+        )
+
 # var_intersect_by_merge
 #
-# Get sets of variants with reciprocal overlaps using the same svset filter.
+# Overlap variants: non-svindel.
+# svindel: Rule "var_intersect_by_merge_svindel" has higher priority.
 rule var_intersect_by_merge:
     input:
-        a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz',
-        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz',
-        fa=lambda wildcards:
+        bed=lambda wildcards: svpoplib.intersect.intersect_get_input(
             [
-                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'.format(**wildcards),
-                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'.format(**wildcards)
-            ] if intersect_is_read_seq(wildcards, config) else []
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter_a}/{svset_a}/bed/{vartype}_{svtype}.bed.gz',
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter_b}/{svset_b}/bed/{vartype}_{svtype}.bed.gz'
+            ], wildcards, config
+        ),
+        fa=lambda wildcards: svpoplib.intersect.intersect_get_input(
+            [
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter_a}/{svset_a}/bed/fa/{vartype}_{svtype}.fa.gz',
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter_b}/{svset_b}/bed/fa/{vartype}_{svtype}.fa.gz'
+            ], wildcards, config
+        )
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
     threads: 8
     wildcard_constraints:
+        vartype='sv|indel|snv|sub|rgn',
         svtype='ins|del|inv|dup|sub|snv|rgn'
     run:
 
-        # Get configured merge definition
-        config_def = svpoplib.svmerge.get_merge_def(wildcards.merge_def, config)
 
-        # Merge
-        df = svpoplib.svmerge.merge_variants(
-            bed_list=[input.a, input.b],
-            sample_names=['A', 'B'],
-            strategy=config_def,
-            threads=threads,
-            fa_list=input.fa if input.fa else None
+        # Intersect
+        df = svpoplib.intersect.run_intersect(
+            input.bed,
+            svpoplib.svmerge.get_merge_def(wildcards.merge_def, config),
+            input.fa if len(input.fa) > 0 else None,
+            threads=threads
         )
 
-        support_col_list = [col for col in df.columns if col in MERGE_INFO_FIELD_LIST]
+        # Read SV set
+        df_a = pd.read_csv(input.bed[0], sep='\t', usecols=('ID', 'SVLEN'))
+        df_b = pd.read_csv(input.bed[1], sep='\t', usecols=('ID', 'SVLEN'))
 
-        # Subset columns
-        df = df.loc[:, ['ID', 'MERGE_SAMPLES', 'MERGE_SRC', 'MERGE_VARIANTS'] + support_col_list]
+        sv_set_a = set(df_a.loc[df_a['SVLEN'] >= 50, 'ID'])
+        sv_set_b = set(df_b.loc[df_b['SVLEN'] >= 50, 'ID'])
 
-        # Create an ID column for sample (empty string if the variant was not in that sample)
-        df['MERGE_SAMPLES'] = df['MERGE_SAMPLES'].apply(lambda val:
-            val + ',' if val == 'A' else (',' + val if val == 'B' else val)
-        )
+        del(df_a)
+        del(df_b)
 
-        df['MERGE_VARIANTS'] = df.apply(lambda row:
-            row['MERGE_VARIANTS'] + ',' if row['MERGE_SAMPLES'] == 'A,' else (',' + row['MERGE_VARIANTS'] if row['MERGE_SAMPLES'] == ',B' else row['MERGE_VARIANTS']),
-            axis=1
-        )
-
-        df['ID_A'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[0])
-        df['ID_B'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[1])
-
-        # Set support columns
-        new_col_list = list()
-
-        for col in support_col_list:
-            new_col = col[len('MERGE_'):]
-            new_col_list.append(new_col)
-
-            split_list = df[col].apply(lambda val: val.split(',') if not pd.isnull(val) else '')
-
-            df[new_col] = split_list.apply(lambda val: val[1] if len(val) > 1 else np.nan)
-
-        # Subset and write
-        df['SOURCE_SET'] = df['MERGE_SAMPLES']
-        df = df.loc[:, ['ID_A', 'ID_B', 'SOURCE_SET'] + new_col_list]
-
+        # Write
         df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')
 
-
-# var_intersect_bymerge_svset_diff
-#
-# Get sets of variants with reciprocal overlaps using a different svset filter for each sample.
-rule var_intersect_bymerge_svset_diff:
-    input:
-        a='results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset_a}/bed/{vartype}_{svtype}.bed.gz',
-        b='results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset_b}/bed/{vartype}_{svtype}.bed.gz',
-        fa=lambda wildcards:
-            [
-                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'.format(**wildcards),
-                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'.format(**wildcards)
-            ] if intersect_is_read_seq(wildcards, config) else []
-    output:
-        tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset_a}_vs_{svset_b}/{vartype}_{svtype}/intersect.tsv.gz'
-    threads: 8
-    wildcard_constraints:
-        svtype='ins|del|inv|dup|sub|snv|rgn'
-    run:
-
-        # Get configured merge definition
-        config_def = svpoplib.svmerge.get_merge_def(wildcards.merge_def, config)
-
-        # Merge
-        df = svpoplib.svmerge.merge_variants(
-            bed_list=[input.a, input.b],
-            sample_names=['A', 'B'],
-            strategy=config_def,
-            threads=threads,
-            fa_list=input.fa if input.fa else None
+        df.to_csv(
+            output.tsv, sep='\t', index=False, compression='gzip'
         )
-
-        support_col_list = [col for col in df.columns if col in MERGE_INFO_FIELD_LIST]
-
-        # Subset columns
-        df = df.loc[:, ['ID', 'MERGE_SAMPLES', 'MERGE_SRC', 'MERGE_VARIANTS'] + support_col_list]
-
-        # Create an ID column for sample (empty string if the variant was not in that sample)
-        df.loc[df['MERGE_SAMPLES'] == 'A', 'MERGE_VARIANTS'] = df.loc[df['MERGE_SRC'] == 'A', 'MERGE_VARIANTS'] + ','
-        df.loc[df['MERGE_SAMPLES'] == 'B', 'MERGE_VARIANTS'] = ',' + df.loc[df['MERGE_SRC'] == 'B', 'MERGE_VARIANTS']
-
-        df['ID_A'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[0])
-        df['ID_B'] = df['MERGE_VARIANTS'].apply(lambda val: val.split(',')[1])
-
-        # Set support columns
-        new_col_list = list()
-
-        for col in support_col_list:
-            new_col = col[len('MERGE_'):]
-            new_col_list.append(new_col)
-
-            split_list = df[col].apply(lambda val: val.split(',') if not pd.isnull(val) else '')
-
-            df[new_col] = split_list.apply(lambda val: val[1] if len(val) > 1 else np.nan)
-
-        # Subset and write
-        df['SOURCE_SET'] = df['MERGE_SAMPLES']
-        df = df.loc[:, ['ID_A', 'ID_B', 'SOURCE_SET'] + new_col_list]
-
-        df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')
-

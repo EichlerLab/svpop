@@ -70,65 +70,122 @@ rule variant_global_filter_region:
         fai='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz.fai',
         bed_filt='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/filter_dropped/{vartype}_{svtype}_dropped.bed.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|snv|dup|rgn|sub'
+    params:
+        batch_size=10000
     run:
 
-        if wildcards.filter == 'all':
-            # Pull from base caller temp
+        # Read filter file
+        empty_filter = False
 
-            shell(
-                """cp {input.bed} {output.bed}; """
-                """touch {output.bed_filt}; """
-            )
+        if wildcards.filter != 'all':
 
-            # Create output FASTA
-            if os.path.isfile(input.fa) and os.stat(input.fa).st_size > 0:
-                shell(
-                    """cp {input.fa} {output.fa}; """
-                    """samtools faidx {output.fa}"""
-                )
+            with svpoplib.seq.PlainOrGzReader(input.bed_filt, 'rt') as in_file:
+                try:
+                    has_header = next(in_file).strip().startswith('#')
+                except StopIteration:
+                    empty_filter = True
 
-            else:
-                # Write empty FASTA
-                with open(output.fa, 'w') as out_file:
-                    pass
+            if has_header and not empty_filter:
+                df_filter = pd.read_csv(input.bed_filt, sep='\t')
 
-                with open(output.fai, 'w') as out_file:
-                    pass
+                missing_cols = [col for col in ('#CHROM', 'POS', 'END') if col not in set(df_filter.columns)]
+
+                if missing_cols:
+                    raise RuntimeError(f'Filter file is missing required columns: {", ".join(missing_cols)}')
+
+                df_filter = df_filter[['#CHROM', 'POS', 'END']]
+
+            elif not empty_filter:
+                df_filter = pd.read_csv(input.bed_filt, sep='\t', header=None)
+
+                if df_filter.shape[1] < 3:
+                    raise RuntimeError(f'Filter file must have at least three columns: #CHROM, POS, and END (header line optional): {input.bed_filt}')
+
+                df_filter = df_filter[[0, 1, 2]]
+                df_filter.columns = ['#CHROM', 'POS', 'END']
+
+            df_filter['#CHROM'] = df_filter['#CHROM'].astype(str)
 
         else:
-            # Filter from all
+            empty_filter = True
 
-            shell(  # Note: head causes SIGPIPE, must disable pipefail
-                """set +o pipefail;\n"""
-                """{{\n"""
-                """    zcat {input.bed} | head -n 1 | grep -E '^#';\n"""
-                """    bedtools intersect -wa -v -sorted -a {input.bed} -b {input.filter};\n"""
-                """}} | gzip > {output.bed};"""
-                """{{\n"""
-                """    zcat {input.bed} | head -n 1 | grep -E '^#';\n"""
-                """    bedtools intersect -wa -u -sorted -a {input.bed} -b {input.filter};\n"""
-                """}} | gzip > {output.bed_filt}"""
-            )
+        # Get filter interval
+        filter_tree = collections.defaultdict(intervaltree.intervaltree.IntervalTree)
 
-            # Create output FASTA
-            if os.path.isfile(input.fa) and os.stat(input.fa).st_size > 0:
+        if not empty_filter:
+            for index, row in df_filter.iterrows():
+                filter_tree[row['#CHROM']][row['POS']:row['END']] = True
 
-                # Subset FASTA
-                id_set = set(pd.read_csv(output.bed, sep='\t', usecols=('ID', ))['ID'])
+        # Process BED
+        df_iter = pd.read_csv(
+            input.bed, sep='\t',
+            iterator=True,
+            chunksize=params.batch_size
+        )
 
-                with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
-                    SeqIO.write(svpoplib.seq.fa_to_record_iter(input.fa, id_set, require_all=False), out_file, 'fasta')
+        # Do filter
+        chrom_set = set(svpoplib.ref.get_df_fai(config['reference_fai']).index)
 
-                shell("""samtools faidx {output.fa}""")
+        col_names = None
 
-            else:
-                # Write empty FASTA
-                with open(output.fa, 'w') as out_file:
-                    pass
+        write_header_pass = True
+        write_header_filt = True
 
-                with open(output.fai, 'w') as out_file:
-                    pass
+        id_set = set()  # Set of variant IDs passing filters
+
+        with gzip.open(output.bed, 'wt') as out_file, gzip.open(output.bed_filt, 'wt') as out_file_filt:
+            for df in df_iter:
+
+                if col_names is None and df.shape[1] > 0:
+                    col_names = list(df.columns)
+
+                if df.shape[0] == 0:
+                    continue
+
+                filter_pass = df['#CHROM'].isin(chrom_set)
+                filter_pass &= df.apply(lambda row: len(filter_tree[row['#CHROM']][row['POS']:row['END']]) == 0, axis=1)
+
+                df_filt = df[~ filter_pass]
+                df = df[filter_pass]
+
+                if df.shape[0] > 0:
+                    df.to_csv(out_file, sep='\t', index=False, header=write_header_pass)
+                    write_header_pass = False
+
+                    id_set |= set(df['ID'])
+
+                if df_filt.shape[0] > 0:
+                    df_filt.to_csv(out_file_filt, sep='\t', index=False, header=write_header_filt)
+                    write_header_filt = False
+
+            # Write empty BED files
+            if col_names is None:
+                col_names = ['#CHROM', 'POS', 'END', 'SVTYPE', 'SVLEN'] + (['REF', 'ALT'] if wildcards.vartype == 'snv' else [])
+
+            if write_header_pass:
+                pd.DataFrame([], columns=col_names).to_csv(out_file, sep='\t', index=False, header=True)
+
+            if write_header_filt:
+                pd.DataFrame([], columns=col_names).to_csv(out_file_filt, sep='\t', index=False, header=True)
+
+        # Create output FASTA
+        if os.path.isfile(input.fa) and os.stat(input.fa).st_size > 0 and len(id_set) > 0:
+
+            # Subset FASTA
+            with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
+                SeqIO.write(svpoplib.seq.fa_to_record_iter(input.fa, id_set, require_all=False), out_file, 'fasta')
+
+            pysam.faidx(output.fa)
+
+        else:
+            # Write empty FASTA
+            with open(output.fa, 'w') as out_file:
+                pass
+
+            with open(output.fai, 'w') as out_file:
+                pass
 
 
 # # variant_global_filter_region

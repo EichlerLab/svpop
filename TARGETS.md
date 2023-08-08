@@ -9,7 +9,7 @@ available targets.
 Base variant BED files (bed 6+).
 
 Columns are:
-1. \#CHROM: Chromosome
+1. #CHROM: Chromosome
 1. POS: Position
 1. END: End position
 1. ID: Unique variant ID (only unique to a single file, other files may have another variant with the same ID)

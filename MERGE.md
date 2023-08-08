@@ -8,6 +8,10 @@ SV-Pop has a variant merge and intersect system built into it for comparing vari
 1. Intersect: Generate a table of variants from two sources indicating which are found in both and which are exclusive
    to either source.
 
+For samplesets, SVs and indels are merged together to avoid artifacts on SV boundaries (i.e. missing support for a 50
+bp SV from a 49 bp indel).
+
+
 ## Merging paradigm
 
 SV-Pop has a flexible merging system and could support any number of merging strategies. Currently, it only has a
@@ -262,9 +266,8 @@ Example sampleset section defining a sampleset merge ("pavhifi").
             "sourcetype": "caller",
             "sourcename": "pav-hifi",
             "merge": {
-                "sv:ins,del": "nr::szro(0.8,,4):match(0.8)",
+                "svindel": "nr::szro(0.8,,4):match(0.8)",
                 "sv:inv": "nr::ro(0.8)",
-                "indel": "nr::szro(0.8,,4):match(0.8)",
                 "snv": "nrsnv::exact"
             },
             "name": "PAV HiFi",
@@ -274,6 +277,13 @@ Example sampleset section defining a sampleset merge ("pavhifi").
 `sourcetype` and `sourcename` determine where samples are pulled from. The `merge` section can be a single merge
 definition or a dictionary of merge strategies keyed by `svtype` (comma-separated list of svtypes is allowed). The
 `name` will show up in figures generated for this merged callset. `description` is for documentation and is unused.
+
+To merge SVs or indels, the entry vartype must be "svindel" since they are merged together.
+
+The svtype (after the ":") is optional, but if it is present, it must match the svtype being merged. Entries with a
+matching svtype are prioritized over entries without a matching svtype. If more than one entry can match, then the
+first one in the list has the higher precedence. A key of "DEFAULT" matches everything with the lowest precedence.
+
 
 ### callerset
 

@@ -26,6 +26,7 @@ rule variant_anno_caller_region_intersect:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/{annotype}/{annoname}_regions_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     run:
 

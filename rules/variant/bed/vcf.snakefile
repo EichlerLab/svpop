@@ -23,10 +23,6 @@ CALLER_VCF_STD_FIELDS = {
         'info': ['SVTYPE', 'SVLEN', 'END'],
         'format': ['GT', 'GQ', 'DR', 'DV']
     },
-    'svimasm0': {
-        'info': ['SVTYPE', 'END', 'SVLEN'],
-        'format': ['GT']
-    },
     'svimasm': {
         'info': ['SVTYPE', 'END', 'SVLEN'],
         'format': ['GT']
@@ -73,7 +69,10 @@ def variant_bed_vcf_get_param_dict(wildcards):
     param_dict = {
         'info_list': list(),    # List of INFO fields to include
         'format_list': list(),  # List of FORMAT fields to gather
-        'pass': None      # Set of passing FILTER values. Set to default value if None
+        'pass': None,           # Set of passing FILTER values. Set to default value if None
+        'fill_del': False,      # Fill missing deletion sequences (will consume large amounts of memory for large erroneous deletions)
+        'filter_gt': True,      # Filter the GT column for present haplotypes. Turn off if the GT column is not filled in (some callers write "./." for all records).
+        'cnv_deldup': True      # Translate CNVs to deletions (DEL) and duplications (DUP).
     }
 
     keyword_set = list()  # Keywords already processed
@@ -159,6 +158,33 @@ def variant_bed_vcf_get_param_dict(wildcards):
 
                 else:
                     param_dict['pass'] = set()
+
+            elif attrib == 'fill_del':
+                if value is not None:
+                    try:
+                        param_dict['fill_del'] = svpoplib.util.as_bool(value)
+                    except ValueError as e:
+                        raise RuntimeError(f'Error processing boolean value for parameter "fill_del": {e}')
+                else:
+                    param_dict['fill_del'] = True
+
+            elif attrib == 'filter_gt':
+                if value is not None:
+                    try:
+                        param_dict['filter_gt'] = svpoplib.util.as_bool(value)
+                    except ValueError as e:
+                        raise RuntimeError(f'Error processing boolean value for parameter "filter_gt": {e}')
+                else:
+                    param_dict['filter_gt'] = True
+
+            elif attrib == 'cnv_deldup':
+                if value is not None:
+                    try:
+                        param_dict['cnv_deldup'] = svpoplib.util.as_bool(value)
+                    except ValueError as e:
+                        raise RuntimeError(f'Error processing boolean value for parameter "cnv_deldup": {e}')
+                else:
+                    param_dict['cnv_deldup'] = True
 
             else:
                 # Add as a list of values, one for each attribute appearance.
@@ -290,7 +316,7 @@ rule variant_vcf_bed_fa:
             del(df['SEQ'])
 
         # Write
-        df.to_csv(output.bed, sep='\t', index=False)
+        df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 # variant_dv_tsv_to_bed
 #
@@ -305,7 +331,7 @@ rule variant_bed_vcf_tsv_to_bed:
         callertype=VARIANT_BED_VCF_TYPE_PATTERN
     params:
         mem='6000',
-        chunk_size=20000  # DataFrame chunk size
+        chunk_size=5000  # DataFrame chunk size
     threads: 6
     run:
 
@@ -314,6 +340,8 @@ rule variant_bed_vcf_tsv_to_bed:
         write_header = True
 
         ref_fa = None
+
+        chrom_set = set(svpoplib.ref.get_df_fai(config['reference_fai']).index)
 
         try:
 
@@ -327,19 +355,24 @@ rule variant_bed_vcf_tsv_to_bed:
                         chunk_size=params.chunk_size,
                         threads=threads,
                         callback_pre_bed=CALLER_CALLBACK_PRE_BED.get(wildcards.callertype, None),
-                        filter_pass_set=param_dict['pass']
+                        filter_pass_set=param_dict['pass'],
+                        filter_gt=param_dict['filter_gt'],
+                        cnv_deldup=param_dict['cnv_deldup']
                     ):
+
+                        # Drop chromosomes not in this reference (e.g. Called against and ALT reference with SV-Pop using a no-ALT reference)
+                        df = df.loc[df['#CHROM'].isin(chrom_set)]
 
                         if df.shape[0] > 0:
 
                             # Add missing deletion sequences
-                            if np.any((df['SVTYPE'] == 'DEL') & pd.isnull(df['SEQ'])):
+                            if param_dict['fill_del'] and (np.any((df['SVTYPE'] == 'DEL') & pd.isnull(df['SEQ']))):
 
                                 if ref_fa is None:
                                     ref_fa = pysam.FastaFile(config['reference'])
 
-                                for index, row in df.loc[(df['SVTYPE'] == 'DEL') & pd.isnull(df['SEQ'])]:
-                                    df.loc[index, 'SEQ'] = fa_file.fetch(row['#CHORM'], row['POS'], row['END']).upper()
+                                for index, row in df.loc[(df['SVTYPE'] == 'DEL') & pd.isnull(df['SEQ'])].iterrows():
+                                    df.loc[index, 'SEQ'] = ref_fa.fetch(row['#CHROM'], row['POS'], row['END']).upper()
 
                             # Write
                             df.to_csv(bed_file, sep='\t', index=False, header=write_header)

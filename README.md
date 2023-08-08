@@ -125,16 +125,24 @@ TYPE: Determines how the input is parsed.
 Supported types are:
 1. bed: DATA paths for pre-formatted BED file (BED 6+, #CHROM, POS, END, ID, SVTYPE, SVLEN, + other optional fields).
    IDs must be unique.
+1. deepvariant: DATA is a path to a DeepVariant VCF.
+1. clair3: DATA is a path to a Clair3 VCF.
+1. cutesv: DATA is a path to a CuteSV VCF.
+1. delly: DATA is a path to a Delly2 VCF.
 1. pavbed: DATA is a path to a bed directory in PAV (`results/{sample}/bed` in a PAV run directory).
-1. pbsv: DATA is a path to pbsv output VCFs. Requires wildcard "{vartype}" in the path which is filled with "sv" for SVs
-   or "dup" for duplication calls.
-1. sniffles: DATA is a path to a Sniffles VCF.
-1. svim: DATA is a path to a SVIM VCF.
-1. svimasm: DATA is a path to a SVIM-asm VCF.
+1. pavbedhap: Each haplotype is an independent callset. DATA is a path to the PAV run directory (where `results` is 
+   found). Each PAV sample has two samplesin SV-Pop, one with "-h1" and one with "-h2" appended to the sample name.
+   For example, for PAV sample "HG00733", SV-Pop would have samples "HG00733-h1" and "HG00733-h2", but not "HG00733". 
 1. gatk: DATA is a path to a GATK VCF.
     * Retrieves FORMAT fields GT, GQ, DP, and AD
 1. longshot: DATA is a path to a longshot VCF.
     * Retrieves FORMAT fields GT, GQ, and DP
+1. pbsv: DATA is a path to pbsv output VCFs. Requires wildcard "{vartype}" in the path which is filled with "sv" for SVs
+   or "dup" for duplication calls.
+1. sniffles: DATA is a path to a Sniffles VCF.
+1. sniffles2: DATA is a path to a Sniffles2 VCF.
+1. svim: DATA is a path to a SVIM VCF.
+1. svimasm: DATA is a path to a SVIM-asm VCF.
 1. vcf: DATA is a path to an arbitrary VCF.
     * Use PARAM field keywords "info" and "format" to specify INFO and FORMAT fields to include in the BED file as
      variant annotations (e.g. "info=AF;format=GT,GQ").
@@ -143,8 +151,25 @@ DATA: Path to input. See supported types for a description of what DATA should p
 
 VERSION: Can be used by parsers to modify how variants are parsed. Currently only used for documentation purposes.
 
-PARAMS: Additional parameters. Currently used by the generic VCF parser to specify which additional field should be
-included.
+PARAMS: Additional parameters:
+
+1. info: List of INFO fields to pull from the VCF
+1. format: List of FORMAT fields to pull from the VCF
+1. pass: List of FILTER column values to allow. The FILTER column must match at least one element in this set. If no
+   list of filters is given (i.e. bare "pass" in the config line), then all variants are accepted. Note that "." in the
+   VCF FILTER column is an implicit "PASS" (used by variant callers that do not have a PASS column).
+1. fill_del [default False]: If "True" (or bare "fill_del" value), then retrieve missing DEL sequences if they are not
+   in the VCF (i.e. symbolic ALT with no INFO/SEQ). This allows intersects and merging using sequence match criteria on
+   these events. Note that large erroneous DELs will require excessive memory to store sequences (often many times
+   larger than the host genome).
+1. filter_gt [default True]: Filter variants on the GT column. For each record, if all GT alleles are "0" and/or ".",
+   the variant record is dropped. Some callers write "./." for all GT records, and setting "filter_gt=False" will
+   prevent all records from being dropped. If this is used in combination with a multi-sample VCF, all variant records
+   will be kept in all samples (identical callsets across samples).
+1. cnv_deldup [default True]: Translate CNV records to either DEL or DUP based on the CN field and add them to the
+   DUP and DEL callsets. The original CNV calls are still available as CNVs (i.e. "sv_cnv"). To disable adding CNVs
+   to DEL and DUP, set "cnv_deldup=False".
+
 
 ## Running SV-Pop
 

@@ -30,36 +30,25 @@ DEFAULT_RESOURCES = {
 }
 
 
-def get_config_entry(sampleset_name, sampleset_list, config):
+def get_config_entry(sampleset_name, sample_list_name, config):
     """
     Get config entry for this sampleset and check it.
 
     :param sampleset_name: Name of the sample set.
-    :param sampleset_list: Name of the list of samples. May contain a dash, and everything after the dash is parsed into
-        "{id}" in the sample list and sample set configuration dictionary.
+    :param sample_list_name: Name of the list of samples. May be `None` to get a configuration where the sample list
+        is unknown.
     :param config: Pipeline configuration.
     """
 
-    # Split samplelist_name into list name and id (if it contains a dash)
-    sampleset_list_tuple = sampleset_list.split('-')
-
-    if len(sampleset_list_tuple) == 1:
-        sampleset_list_name = sampleset_list_tuple[0]
-        sampleset_id = None
+    # Get list of samples
+    if sample_list_name is not None:
+        try:
+            sample_list = svpoplib.rules.get_sample_list(sample_list_name, config)
+        except Exception as e:
+            raise RuntimeError(f'Unable to get samples from list name {sample_list_name}: {e}')
 
     else:
-        sampleset_list_name = sampleset_list_tuple[0]
-        sampleset_id = sampleset_list_tuple[1].strip()
-
-    if not sampleset_list_name:
-        raise RuntimeError(
-            'Sampleset list name is empty (format "name-id" where "-id" is optional): {}'.format(sampleset_list)
-        )
-
-    if not sampleset_id:
-        sampleset_id = None
-    else:
-        sampleset_id_dict = {'id': sampleset_id}
+        sample_list = None
 
     # Get attributes
     if 'sampleset' not in config:
@@ -70,34 +59,13 @@ def get_config_entry(sampleset_name, sampleset_list, config):
     if sampleset_config is None:
         raise RuntimeError('Missing definition in config for sampleset: {}'.format(sampleset_name))
 
-    sampleset_config = sampleset_config.copy()
+    sampleset_entry = sampleset_config.copy()
 
-    # Parse entries
-    sampleset_entry = dict()
-
-    for key in sampleset_config.keys():
-        val = sampleset_config[key]
-
-        if sampleset_id is not None:
-            sampleset_entry[key] = val.format(**sampleset_id_dict)
-        else:
-            sampleset_entry[key] = val
-
-    # Set list of samples
-    if 'samplelist' not in config:
-        raise RuntimeError('Missing "samplelist" configuration section')
-
-    if sampleset_list_name not in config['samplelist']:
-        raise RuntimeError(
-            'Missing samplelist definition: {}: Reference by sampleset {}'.format(sampleset_list_name, sampleset_name)
-        )
-
-    if sampleset_id is not None:
-        sampleset_entry['samples'] = [
-            element.format(**sampleset_id_dict) for element in config['samplelist'][sampleset_list_name]
-        ]
+    # Set sample list
+    if sample_list is not None:
+        sampleset_entry['samples'] = sample_list
     else:
-        sampleset_entry['samples'] = config['samplelist'][sampleset_list_name]
+        sampleset_entry['samples'] = list()
 
     sampleset_entry['n'] = len(sampleset_entry['samples'])
 
@@ -274,16 +242,35 @@ def cluster_param_rt(wildcards, config):
         ).get('rt', DEFAULT_RESOURCES['sampleset']['rt'])
 
 
-def cluster_param_anno_mem(wildcards, config):
+def cluster_param_anno_mem(wildcards, config, vartype=None, svtype=None):
     """
     Get amount of memory to be allocated for callerset/sampleset annotation merge jobs.
+
+    :param wildcards: Wildcards.
+    :param config: Config.
+    :param vartype: Variant type in case it's not in wildcards (i.e. svindel merge step). If not None, overrides
+        `wildcards.vartype` if present. The variant type must be in `wildcards` or this parameter.
+    :param vartype: SV type in case it's not in wildcards. If not None, overrides
+        `wildcards.svtype` if present. The type must be in `wildcards` or this parameter.
     """
+
+    if vartype is None:
+        if wildcards.get('vartype', None) is None:
+            raise RuntimeError('"vartype" not found in wildcards or vartype argument')
+
+        vartype = wildcards.vartype
+
+    if svtype is None:
+        if wildcards.get('svtype', None) is None:
+            raise RuntimeError('"svtype" not found in wildcards or svtype argument')
+
+        svtype = wildcards.svtype
 
     return \
         get_merge_strategy(
             get_config_entry(wildcards.sourcename, wildcards.sample, config),
-            wildcards.vartype,
-            wildcards.svtype,
+            vartype,
+            svtype,
             config
         ).get('anno_mem', DEFAULT_RESOURCES['sampleset']['anno_mem'])
 
@@ -317,40 +304,119 @@ def get_merge_strategy(sampleset_entry, vartype, svtype, config):
     else:
         raise RuntimeError('Set entry does not appear to be a sampleset or callerset')
 
-    # Get strategy entry
+    # Get strategy entries
+
     merge_entry_dict = sampleset_entry['merge']
 
     if issubclass(merge_entry_dict.__class__, dict):
 
-        best_match = None
-        best_match_level = 0
+        # Match levels:
+        # 1) Matches key DEFAULT
+        # 2) Match vartype with no svtype (svtype not defined, else it must match)
+        # 4) Match vartype and svtype
+        #
+        # If more than two entries have a highest matching score, the first one is chosen
 
-        # Find best match
+        # Prepare entries: List of tuples
+        # 1) key
+        # 2) Set of acceptable vartypes
+        # 3) Set of acceptable svtypes or None if no svtype specified
+        # 4) Match level
+        entry_list = list()
+
         for key in merge_entry_dict.keys():
 
-            if key == 'DEFAULT' and best_match is None:
-                best_match = key
-                best_match_level = 1
+            # Default key
+            if key == 'DEFAULT':
+                entry_list.append(key, set(), set(), 1)
                 continue
 
+            # Split key vartype, svtype
             key_tok = key.split(':')
 
             if len(key_tok) > 2:
                 raise RuntimeError(
-                    'Key token in {} definition "{}" has more than one colon-separated field (expected vartype:svtype or vartype): {}'.format(
-                        set_type, set_name, key_tok
+                    f'Key token in {set_type} definition "{set_name}" has more than one colon-separated field '
+                    f'(expected vartype:svtype or vartype): {key_tok}'
+                )
+
+            key_vartype = key_tok[0]
+            key_svtype = key_tok[1] if len(key_tok) == 2 else None
+            key_svtype_set = set(key_svtype.split(',')) if key_svtype is not None else None
+
+            if key_vartype == 'svindel':
+
+                # svtype must be only ins, del, or insdel
+                if key_svtype_set is not None:
+                    bad_type = sorted([val for val in key_svtype_set if val not in {'ins', 'del', 'insdel'}])
+
+                    if bad_type:
+                        raise RuntimeError(
+                            f'Bad sampleset merge entry "{key_vartype}": svindel entry variant types must contain only '
+                            f'insertion and deletion records: Found {", ".join(bad_type)}'
+                        )
+
+                # Match aggregate svtype
+                if key_svtype_set is not None:
+                    if 'insdel' in key_svtype_set:
+                        key_svtype_set = {'ins', 'del'}
+                else:
+                    key_svtype_set = {'ins', 'del'}
+
+                # Add entry
+                entry_list.append(
+                    (
+                        key,
+                        {'svindel', 'sv', 'indel'},
+                        key_svtype_set,
+                        1 if key_svtype is None else 2
                     )
                 )
 
-            if vartype in set(key_tok[0].split(',')):
-                if len(key_tok) == 2:
-                    if svtype in set(key_tok[1].split(',')) and best_match_level < 2:
-                        best_match = key
-                        best_match_level = 2
+            elif key_vartype in {'sv', 'indel'}:
 
-                elif best_match_level < 1:
-                    best_match = key
-                    best_match_level = 1
+                if key_svtype_set is not None:
+                    bad_type = sorted([val for val in key_svtype_set if val in {'ins', 'del', 'insdel'}])
+
+                    if bad_type:
+                        raise RuntimeError(
+                            f'Bad sampleset merge entry "{key_vartype}": sv or indel entry types must not contain '
+                            f'insertion or deletion records: Found {", ".join(bad_type)} ("ins", "del", and "insdel") '
+                            f'svtypes must be in "svindel" vartype records (e.g. "svindel:ins", not "sv:ins")'
+                        )
+
+                entry_list.append(
+                    (key, {key_vartype}, key_svtype_set, 1 if key_svtype is None else 2)
+                )
+
+            else:
+                entry_list.append(
+                    (key, {key_vartype}, key_svtype_set, 1 if key_svtype is None else 2)
+                )
+
+        # Find the best match
+        best_match = None
+        best_match_level = 0  # Higher level is a better match
+
+        # Find best match
+        for key, vartype_set, svtype_set, key_match_level in entry_list:
+
+            if key == 'DEFAULT':
+                this_match_level = key_match_level
+
+            else:
+                if vartype not in vartype_set:
+                    continue
+
+                if svtype_set is not None and svtype not in svtype_set:
+                    continue
+
+                this_match_level = key_match_level
+
+            # Update best match
+            if this_match_level > best_match_level:
+                best_match = key
+                best_match_level = this_match_level
 
         # Get best match
         if best_match is None:

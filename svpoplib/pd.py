@@ -5,6 +5,7 @@ Utilities for pandas dataframes.
 import pandas as pd
 import numpy as np
 import threading
+import traceback
 import sys
 
 from multiprocessing import Pool
@@ -180,6 +181,7 @@ def _apply_func(df, func, axis=1, kwds={}):
         return df.apply(func, axis=axis, **kwds)
 
     except Exception as ex:
+        traceback.print_exc()  # Print exception and trace
         return ex
 
 
@@ -289,7 +291,7 @@ def apply_parallel(df, func, n_part, n_core=None, kwds=None, verbose=False):
 
     # Check for errors
     if p_pool.e_list:
-        raise p_pool.e_list[0]
+        raise RuntimeError(f'Parallel job failed with exception: {p_pool.e_list[0]}') from p_pool.e_list[0]
 
     # Return merged dataframe
     return pd.concat(df_split_results, axis=0)

@@ -83,6 +83,7 @@ def bcftools_query_to_tsv(df, sample, strict_sample=False, filter_gt=True, multi
     # Return formatted DataFrame
     return df
 
+
 def gt_has_alt(gt):
     """
     Parse a genotype (GT field) separating on "/" or "|" and output `True` if any  field is an integer greater than 1.

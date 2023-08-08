@@ -6,7 +6,7 @@ Implementations solves a partition problem by Largest Differencing Method (LDM) 
 
 import pandas as pd
 
-import libdupmap
+import svpoplib.ds.max_heap
 
 
 class SeqFai:
@@ -120,14 +120,14 @@ def partition(chrom_series, partitions):
 
         heap.append(Partition(val_list))
 
-    libdupmap.max_heap.heapify(heap)
+    svpoplib.ds.max_heap.heapify(heap)
 
     # Iteratively collapse partitions until there is one left
     while len(heap) > 1:
-        libdupmap.max_heap.insert(
+        svpoplib.ds.max_heap.insert(
             heap,
-            libdupmap.max_heap.pop(heap).merge(
-                libdupmap.max_heap.pop(heap)
+            svpoplib.ds.max_heap.pop(heap).merge(
+                svpoplib.ds.max_heap.pop(heap)
             )
         )
 
