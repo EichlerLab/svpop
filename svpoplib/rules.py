@@ -231,7 +231,7 @@ def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=Non
 
 def get_sample_list(sample_list_name, config):
     """
-    Get a named list of samples ("samplelist" in config).
+    Get a named list of samples ("samplelist" in config) or a single sample name if the sample-list is not defined.
 
     :param sample_list_name: Name of the sample list to retrieve.
     :param config: Config object.
@@ -276,10 +276,10 @@ def get_sample_list(sample_list_name, config):
         raise RuntimeError(f'Conflicting sample list attributes: Cannot set "hapexp" and "expmatch" for the same list')
 
     # Get list
-    sample_list = config.get('samplelist', dict()).get(list_name, None)
+    sample_list = config.get('samplelist', dict()).get(list_name, [list_name])
 
     # Process attributes
-    if hap_expand:
+    if hap_expand and sample_list is not None:
         exp_sample_list = list()
 
         for sample_name in sample_list:
@@ -288,7 +288,7 @@ def get_sample_list(sample_list_name, config):
 
         sample_list = exp_sample_list
 
-    if expand_match:
+    if expand_match and sample_list is not None:
         exp_sample_list = list()
 
         for sample_name in sample_list:

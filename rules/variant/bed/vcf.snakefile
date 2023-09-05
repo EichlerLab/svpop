@@ -33,11 +33,15 @@ CALLER_VCF_STD_FIELDS = {
     },
     'cutesv': {
         'info': ['PRECISE', 'IMPRECISE', 'SVTYPE', 'SVLEN', 'END', 'CIPOS', 'CILEN'],
-        'format': ['DR', 'DV', 'PL', 'GQ']
+        'format': ['GT', 'DR', 'DV', 'PL', 'GQ']
     },
     'delly': {
         'info': ['END', 'PE', 'SR', 'SVLEN', 'SVTYPE', 'SVMETHOD', 'HOMLEN'],
         'format': ['GT', 'GQ', 'RR', 'RV', 'DR', 'DV']
+    },
+    'debreak': {
+        'info': ['END', 'SVLEN', 'SVTYPE', 'LARGEINS'],
+        'format': ['GT']
     }
 }
 
@@ -72,7 +76,8 @@ def variant_bed_vcf_get_param_dict(wildcards):
         'pass': None,           # Set of passing FILTER values. Set to default value if None
         'fill_del': False,      # Fill missing deletion sequences (will consume large amounts of memory for large erroneous deletions)
         'filter_gt': True,      # Filter the GT column for present haplotypes. Turn off if the GT column is not filled in (some callers write "./." for all records).
-        'cnv_deldup': True      # Translate CNVs to deletions (DEL) and duplications (DUP).
+        'cnv_deldup': True,     # Translate CNVs to deletions (DEL) and duplications (DUP).
+        'strict_sample': False  # Require sample name to match the sample column even if there is a single sample.
     }
 
     keyword_set = list()  # Keywords already processed
@@ -357,7 +362,8 @@ rule variant_bed_vcf_tsv_to_bed:
                         callback_pre_bed=CALLER_CALLBACK_PRE_BED.get(wildcards.callertype, None),
                         filter_pass_set=param_dict['pass'],
                         filter_gt=param_dict['filter_gt'],
-                        cnv_deldup=param_dict['cnv_deldup']
+                        cnv_deldup=param_dict['cnv_deldup'],
+                        strict_sample=param_dict['strict_sample']
                     ):
 
                         # Drop chromosomes not in this reference (e.g. Called against and ALT reference with SV-Pop using a no-ALT reference)

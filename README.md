@@ -132,7 +132,13 @@ Supported types are:
 1. pavbed: DATA is a path to a bed directory in PAV (`results/{sample}/bed` in a PAV run directory).
 1. pavbedhap: Each haplotype is an independent callset. DATA is a path to the PAV run directory (where `results` is 
    found). Each PAV sample has two samplesin SV-Pop, one with "-h1" and one with "-h2" appended to the sample name.
-   For example, for PAV sample "HG00733", SV-Pop would have samples "HG00733-h1" and "HG00733-h2", but not "HG00733". 
+   For example, for PAV sample "HG00733", SV-Pop would have samples "HG00733-h1" and "HG00733-h2", but not "HG00733".
+    * Optional `sample_pattern="..."` in the PARAMS column allows flexible matching for sample names. For example, if
+      PAV was run on sample "SAMPLE1" with two assemblers, hifiasm (sample name "ha_SAMPLE1") and Verkko (sample name
+      "vk_SAMPLE1"), SV-Pop allows these to be separated into distinct entries while retaining the original sample name.
+      In this example, one entry in the sample table would have `sample_pattern=ha_{sample}` (for example
+      NAME="pav-ha") and the other `sample_pattern=vk_{sample}` (for example NAME="pav-vk"). This allows PAV to be
+      run on a collection of assemblies and split into distinct entries in SV-Pop without mangling the sample name.
 1. gatk: DATA is a path to a GATK VCF.
     * Retrieves FORMAT fields GT, GQ, DP, and AD
 1. longshot: DATA is a path to a longshot VCF.
@@ -169,6 +175,8 @@ PARAMS: Additional parameters:
 1. cnv_deldup [default True]: Translate CNV records to either DEL or DUP based on the CN field and add them to the
    DUP and DEL callsets. The original CNV calls are still available as CNVs (i.e. "sv_cnv"). To disable adding CNVs
    to DEL and DUP, set "cnv_deldup=False".
+1. strict_sample [default False]: Require the VCF sample name to match the sample name being processed by SV-Pop even
+   if there is only one sample column in the VCF.
 
 
 ## Running SV-Pop

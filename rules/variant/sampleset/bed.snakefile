@@ -29,8 +29,7 @@ rule variant_sampleset_bed_merge_svindel:
         bed_sv='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/sv_{svtype}.bed.gz',
         bed_indel='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/indel_{svtype}.bed.gz'
     wildcard_constraints:
-        svtype='ins|del',
-        samplelist='[^/]+'
+        svtype='ins|del'
     params:
         mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config, 'svindel')
     run:
@@ -59,8 +58,7 @@ rule variant_sampleset_bed_merge:
     output:
         bed='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/{varsvtype}.bed.gz'
     wildcard_constraints:
-        varsvtype='sv_inv|sv_dup|snv_snv',
-        samplelist='[^/]+'
+        varsvtype='sv_inv|sv_dup|snv_snv'
     params:
         mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config, wildcards.varsvtype.split('_')[0], wildcards.varsvtype.split('_')[1])
     run:

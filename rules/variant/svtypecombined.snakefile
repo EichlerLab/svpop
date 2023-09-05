@@ -35,10 +35,10 @@ rule variant_global_concat_svindel:
 # Concatenate annotations.
 rule variant_global_concat_svindel_anno:
     input:
-        tsv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_{svtype}.{ext}.gz',
-        tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_indel_{svtype}.{ext}.gz'
+        tsv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_sv_{svtype}.{ext}.gz',
+        tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_indel_{svtype}.{ext}.gz'
     output:
-        tsv_all='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_svindel_{svtype}.{ext}.gz'
+        tsv_all='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_svindel_{svtype}.{ext}.gz'
     wildcard_constraints:
         ext='tsv|bed'
     run:
@@ -62,11 +62,11 @@ rule variant_global_concat_svindel_anno:
 # Concatenate insertion and deletion records into one FASTA.
 rule variant_global_concat_svindel_fa:
     input:
-        fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/sv_{svtype}.fa.gz',
-        fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/indel_{svtype}.fa.gz'
+        fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/sv_{svtype}.fa.gz',
+        fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/indel_{svtype}.fa.gz'
     output:
-        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/svindel_{svtype}.fa.gz',
-        fai='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/svindel_{svtype}.fa.gz.fai'
+        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/svindel_{svtype}.fa.gz',
+        fai='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/svindel_{svtype}.fa.gz.fai'
     run:
 
         def get_fa_iter():
@@ -90,10 +90,10 @@ rule variant_global_concat_svindel_fa:
 # Concatenate all SV types (ins, del, and inv).
 rule variant_global_concat_insdel:
     input:
-        sv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_ins.bed.gz',
-        sv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_del.bed.gz'
+        sv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/{vartype}_ins.bed.gz',
+        sv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/{vartype}_del.bed.gz'
     output:
-        all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_insdel.bed.gz'
+        all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/{vartype}_insdel.bed.gz'
     wildcard_constraints:
         vartype='sv|indel'
     run:
@@ -111,10 +111,10 @@ rule variant_global_concat_insdel:
 # Concatenate annotations.
 rule variant_global_concat_insdel_anno:
     input:
-        tsv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_ins.{ext}.gz',
-        tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_del.{ext}.gz'
+        tsv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_ins.{ext}.gz',
+        tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_del.{ext}.gz'
     output:
-        tsv_all='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_insdel.{ext}.gz'
+        tsv_all='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_insdel.{ext}.gz'
     wildcard_constraints:
         ext='tsv|bed',
         vartype='sv|indel'
@@ -139,11 +139,11 @@ rule variant_global_concat_insdel_anno:
 # Concatenate insertion and deletion records into one FASTA.
 rule variant_global_concat_insdel_fa:
     input:
-        fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_ins.fa.gz',
-        fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_del.fa.gz'
+        fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_ins.fa.gz',
+        fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_del.fa.gz'
     output:
-        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdel.fa.gz',
-        fai='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_insdel.fa.gz.fai'
+        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_insdel.fa.gz',
+        fai='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_insdel.fa.gz.fai'
     wildcard_constraints:
         vartype='sv|indel'
     run:
@@ -169,11 +169,11 @@ rule variant_global_concat_insdel_fa:
 # Concatenate SV types: ins, del, and inv.
 rule variant_global_concat_insdelinv:
     input:
-        sv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_ins.bed.gz',
-        sv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_del.bed.gz',
-        sv_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_inv.bed.gz'
+        sv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_ins.bed.gz',
+        sv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_del.bed.gz',
+        sv_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_inv.bed.gz'
     output:
-        all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/sv_insdelinv.bed.gz'
+        all_bed='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/sv_insdelinv.bed.gz'
     wildcard_constraints:
         vartype='sv|indel'
     run:
@@ -191,11 +191,11 @@ rule variant_global_concat_insdelinv:
 # Concatenate annotations for SV types: ins, del, and inv.
 rule variant_global_concat_insdelinv_anno:
     input:
-        tsv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_ins.{ext}.gz',
-        tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_del.{ext}.gz',
-        tsv_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_inv.{ext}.gz'
+        tsv_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_sv_ins.{ext}.gz',
+        tsv_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_sv_del.{ext}.gz',
+        tsv_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_sv_inv.{ext}.gz'
     output:
-        tsv_insdelinv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_sv_insdelinv.{ext,tsv|bed}.gz'
+        tsv_insdelinv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_sv_insdelinv.{ext,tsv|bed}.gz'
     run:
 
         # Concat
@@ -217,12 +217,12 @@ rule variant_global_concat_insdelinv_anno:
 # Concatenate insertion, deletion, and inversion records into one FASTA.
 rule variant_global_concat_insdelinv_fa:
     input:
-        fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/sv_ins.fa.gz',
-        fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/sv_del.fa.gz',
-        fa_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/sv_inv.fa.gz'
+        fa_ins='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/sv_ins.fa.gz',
+        fa_del='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/sv_del.fa.gz',
+        fa_inv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/sv_inv.fa.gz'
     output:
-        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/sv_insdelinv.fa.gz',
-        fai='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/sv_insdelinv.fa.gz.fai'
+        fa='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/sv_insdelinv.fa.gz',
+        fai='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/sv_insdelinv.fa.gz.fai'
     run:
 
         def get_fa_iter():

@@ -22,12 +22,26 @@ def _variant_pavbedhap_get_var_bed(wildcards):
     else:
         vartype = wildcards.vartype
 
+    # Get entry from sample table
+    sample_entry = svpoplib.rules.sample_table_entry(
+        wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='pavbedhap'
+    )
+
+    # Set path
+    if 'sample_pattern' in sample_entry['PARAMS']:
+        sample_pattern = sample_entry['PARAMS']['sample_pattern']
+
+        if '{sample}' not in sample_pattern:
+            raise RuntimeError(f'Sample entry has a "sample_pattern" without a "{{sample}}" wildcard: {sample_pattern}')
+
+        sample_fmt = sample_pattern.format(sample=sample)
+    else:
+        sample_fmt = sample
+
     return os.path.join(
-        svpoplib.rules.sample_table_entry(
-            wildcards.sourcename,SAMPLE_TABLE,wildcards=wildcards,caller_type='pavbedhap'
-        )['DATA'],
+        sample_entry['DATA'],
         'results',
-        sample,
+        sample_fmt,
         'bed', 'pre_merge',
         hap,
         '{vartype}_{svtype}.bed.gz'.format(vartype=vartype, svtype=wildcards.svtype)
