@@ -58,7 +58,7 @@ rule variant_caller_extern_get_bed:
         na_cols = [col for col in required_cols if np.any(pd.isnull(df[col]))]
 
         if na_cols:
-            raise RuntimeError('Found {} requried column(s) with NA values from input BED "{}": {}'.format(
+            raise RuntimeError('Found {} required column(s) with NA values from input BED "{}": {}'.format(
                 len(na_cols), input.bed, ', '.join(na_cols))
             )
 
