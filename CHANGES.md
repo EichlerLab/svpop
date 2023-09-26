@@ -1,6 +1,22 @@
 # Changes
 
-# 3.3.6
+## 3.4.1
+* Added dvpepper (PEPPER-Margin-DeepVariant) and SVIM input VCF parsers.
+* Added min_svlen and max_svlen options for VCF input parsers.
+
+## 3.4.0
+* Merging and intersects bring SVs and indels together for the intersect and separate back out after.
+  * Avoids mis-merging at SV/indel boundaries.
+* Added flag rules to run many related operations at once (for each sample in a sample list).
+* Subset chromosome option supports multiple chromosomes.
+
+## 3.3.7
+* Added "pavbedhap" variant source for PAV input from each haplotype (not merged at the sample level).
+* Added filter pass option for parsing VCFs and controlling which variants are accepted based on the FILTER column.
+* Delly input VCF parser.
+* Fixed bug with upstream deletions (ALT=* was not ignored)
+
+## 3.3.6
 * SNV format changed to "CHROM-POS-SVTYPE-REFALT" (eliminated dash between REF and ALT). All variant IDs can be
   split on "-" to obtain 4 fields (note that a ".n" may also be appended to distinguish multiple calls of the same
   type and at the same location).
@@ -8,7 +24,7 @@
   record was retrieved from. Each alternate allele will be separated into a separate record and assigned to samples
   where VCF_ALT_IDX is in GT.
 
-# 3.3.5
+## 3.3.5
 * Added threads to rules (supports --cores)
 * Fixed output format in rule hpref_merge_bed (was not gzipped)
 * Moved VCF parsing code to svpoplib (supports svpoplib use as an external library)
@@ -17,23 +33,23 @@
 * Better support for writing VCF files with no variants (was causing crashes)
 * Can input dataframes to merging/intersect svpoplib routines (supports svpoplib use as an external library)
 
-# 3.3.4
+## 3.3.4
 * Fixed parsing Sniffles2 VCFs that are incorrectly formatted with "N" and SEQ in REF/ALT instead of symbolic ALTs 
 
-# 3.3.3
+## 3.3.3
 * Bug in ID de-duplication code
 * Sorting RMSK annotations
 
-# 3.3.2
+## 3.3.2
 * Fixed bugs processing chromosome names containing a "." when de-duplicating variant IDs
 
-# 3.3.1
+## 3.3.1
 * Removed verbose output from merging (now optional)
 
-# 3.3.0
+## 3.3.0
 * Fixed pavlib functions PAV uses that cause numeric chromosome problems.
 
-# 3.2.0
+## 3.2.0
 * Set ply submodule version to 3.10
 * Alt-map retains CIGAR operations
 * Alt-DUP calls inner-variants (SV/indel INS/DEL & SNVs) from duplications using the alt-map CIGAR

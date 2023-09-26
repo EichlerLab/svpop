@@ -1072,6 +1072,13 @@ def vcf_tsv_to_bed(
         df['VCF_REF'] = df['VCF_REF'].fillna('').astype(str)
         df['VCF_ALT'] = df['VCF_ALT'].fillna('').astype(str)
 
+        # Ignore records that report the reference allele (dipcall does this)
+        df = df.loc[df['VCF_REF'] != df['VCF_ALT']]
+
+        if df.shape[0] == 0:
+            continue
+
+        # Get fields
         df_var_fields = svpoplib.pd.apply_parallel(
             df, vcf_fields_to_seq,
             n_part=500, n_core=threads,

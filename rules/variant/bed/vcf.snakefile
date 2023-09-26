@@ -15,6 +15,10 @@ CALLER_VCF_STD_FIELDS = {
         'info': [],
         'format': ['GT', 'GQ', 'DP', 'AD', 'VAF', 'PL']
     },
+    'dvpepper': {
+        'info': [],
+        'format': ['GT', 'DP', 'AD', 'VAF', 'GQ', 'C']
+    },
     'sniffles': {
         'info': ['SVTYPE', 'SVLEN', 'END'],
         'format': ['GT', 'GQ', 'DR', 'DV']
@@ -26,6 +30,10 @@ CALLER_VCF_STD_FIELDS = {
     'svimasm': {
         'info': ['SVTYPE', 'END', 'SVLEN'],
         'format': ['GT']
+    },
+    'svim': {
+        'info': ['SVTYPE', 'END', 'SVLEN'],
+        'format': ['GT', 'DP', 'AD']
     },
     'clair3': {
         'info': ['P', 'F'],
@@ -43,6 +51,10 @@ CALLER_VCF_STD_FIELDS = {
         'info': ['END', 'SVLEN', 'SVTYPE', 'LARGEINS'],
         'format': ['GT']
     }
+    # 'dipcall': {
+    #     'info': [],
+    #     'format': ['GT', 'AD']
+    # }
 }
 
 VARIANT_BED_VCF_TYPE_PATTERN = '(vcf|{})'.format('|'.join(CALLER_VCF_STD_FIELDS.keys()))
@@ -71,13 +83,13 @@ def variant_bed_vcf_get_param_dict(wildcards):
 
     # Initialize INFO and FORMAT field lists
     param_dict = {
-        'info_list': list(),    # List of INFO fields to include
-        'format_list': list(),  # List of FORMAT fields to gather
-        'pass': None,           # Set of passing FILTER values. Set to default value if None
-        'fill_del': False,      # Fill missing deletion sequences (will consume large amounts of memory for large erroneous deletions)
-        'filter_gt': True,      # Filter the GT column for present haplotypes. Turn off if the GT column is not filled in (some callers write "./." for all records).
-        'cnv_deldup': True,     # Translate CNVs to deletions (DEL) and duplications (DUP).
-        'strict_sample': False  # Require sample name to match the sample column even if there is a single sample.
+        'info_list': list(),           # List of INFO fields to include
+        'format_list': list(),         # List of FORMAT fields to gather
+        'pass': None,                  # Set of passing FILTER values. Set to default value if None
+        'fill_del': False,             # Fill missing deletion sequences (will consume large amounts of memory for large erroneous deletions)
+        'filter_gt': True,             # Filter the GT column for present haplotypes. Turn off if the GT column is not filled in (some callers write "./." for all records).
+        'cnv_deldup': True,            # Translate CNVs to deletions (DEL) and duplications (DUP).
+        'strict_sample': False         # Require sample name to match the sample column even if there is a single sample.
     }
 
     keyword_set = list()  # Keywords already processed
@@ -99,7 +111,7 @@ def variant_bed_vcf_get_param_dict(wildcards):
         if 'pass' in CALLER_VCF_STD_FIELDS[wildcards.callertype]:
             param_dict['pass'] = CALLER_VCF_STD_FIELDS[wildcards.callertype]['pass']
 
-    # Process options
+    # Get set parameters
     param_string = sample_entry['PARAM_STRING']
 
     if not (param_string is None or pd.isnull(param_string)):
@@ -107,6 +119,14 @@ def variant_bed_vcf_get_param_dict(wildcards):
     else:
         param_string = ''
 
+    # Prepend preset parameters
+    if 'params' in CALLER_VCF_STD_FIELDS[wildcards.callertype].keys():
+        if param_string:
+            param_string = CALLER_VCF_STD_FIELDS[wildcards.callertype]['params'] + ';' + param_string
+        else:
+            param_string = CALLER_VCF_STD_FIELDS[wildcards.callertype]
+
+    # Process parameters
     if param_string:
         for avp in param_string.split(';'):
 
@@ -231,6 +251,47 @@ def variant_bed_vcf_get_bcftools_query(wildcards):
     # Return formatted query string
     return query_string
 
+def variant_bed_vcf_get_bcftools_query(wildcards):
+    """
+    Get the bcftools query string for this entry.
+
+    :param wildcards: Rule wildcards.
+
+    :return: bcftools format string.
+    """
+
+    param_dict = variant_bed_vcf_get_param_dict(wildcards)
+
+    # Construct query string for bcftools
+    query_string = r'"%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%FILTER'
+
+    for element in param_dict['info_list']:
+        query_string += f'\\t%INFO/{element}'
+
+    for element in param_dict['format_list']:
+        query_string += f'[\\t%{element}]'
+
+    query_string += '\\n"'
+
+    # Return formatted query string
+    return query_string
+
+def variant_bed_vcf_bcftools_preprocess(wildcards):
+    """
+    Get additional lines (steps) to add to the bcftools command.
+
+    :param wildcards: Rule wildcards.
+
+    :return: String, VCF preprocessing command(s) ar a simple bcftools view command if no pre-processing needs to be
+        done. This is the first command that reads the input VCF, and output should be piped into bcftools query.
+    """
+
+    #param_dict = variant_bed_vcf_get_param_dict(wildcards)
+
+    shell_cmd = 'bcftools view {input.vcf}'
+
+    return shell_cmd
+
 # NOTE: Integrated into svpoplib.variant.vcf_fields_to_seq()
 # def variant_bed_vcf_fix_sniffles2(df):
 #     """
@@ -283,10 +344,39 @@ rule variant_vcf_bed_fa:
         callertype=VARIANT_BED_VCF_TYPE_PATTERN
     run:
 
+        # Get sample entry parameters
+        sample_entry = svpoplib.rules.sample_table_entry(
+            wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type=wildcards.callertype
+        )
+
+        # Get min/max SVLEN
+        min_svlen = sample_entry['PARAMS'].get('min_svlen', None)
+        max_svlen = sample_entry['PARAMS'].get('max_svlen', None)
+
+        if min_svlen is not None:
+            try:
+                min_svlen = int(min_svlen)
+            except ValueError:
+                raise RuntimeError(f'Minimum SVLEN parameter ("min_svlen") is not a number: {min_svlen}')
+
+        if max_svlen is not None:
+            try:
+                max_svlen = int(max_svlen)
+            except ValueError:
+                raise RuntimeError(f'Maximum SVLEN parameter ("max_svlen") is not a number: {max_svlen}')
+
         # Read
         df = pd.read_csv(input.bed, sep='\t', header=0)
 
         df = df.loc[(df['VARTYPE'] == wildcards.vartype.upper()) & (df['SVTYPE'] == wildcards.svtype.upper())]
+
+        # Filter by size
+        if wildcards.vartype in ('sv', 'indel'):
+            if min_svlen is not None:
+                df = df.loc[df['SVLEN'] >= min_svlen]
+
+            if max_svlen is not None:
+                df = df.loc[df['SVLEN'] <= min_svlen]
 
         # Sort
         df.sort_values(['#CHROM', 'POS'], inplace=True)
@@ -414,7 +504,12 @@ rule variant_bed_vcf_to_tsv:
         query_string=variant_bed_vcf_get_bcftools_query
     wildcard_constraints:
         callertype=VARIANT_BED_VCF_TYPE_PATTERN
-    shell:
-        """bcftools query -H -f{params.query_string} {input.vcf} | """
-        """gzip """
-        """> {output.tsv}"""
+    run:
+
+        shell(
+            variant_bed_vcf_bcftools_preprocess(wildcards) + (
+                """ | bcftools query -H -f{params.query_string} | """
+                """gzip """
+                """> {output.tsv}"""
+            )
+        )

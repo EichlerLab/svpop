@@ -269,7 +269,7 @@ def get_sample_list(sample_list_name, config):
                 raise RuntimeError(f'Unrecognized attribute "{attr}" in sample list name {sample_list_name}')
 
     else:
-        list_name = sample_list_name
+            list_name = sample_list_name
 
     # Check attributes
     if hap_expand and expand_match:

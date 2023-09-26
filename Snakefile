@@ -141,7 +141,7 @@ include: 'rules/variant/bed/pavbed.snakefile'
 include: 'rules/variant/bed/pavbedhap.snakefile'
 include: 'rules/variant/bed/pbsv.snakefile'
 #include: 'rules/variant/bed/sniffles.snakefile'  # Moved to VCF parser
-include: 'rules/variant/bed/svim.snakefile'
+#include: 'rules/variant/bed/svim.snakefile' # Moved to VCF parser
 #include: 'rules/variant/bed/svimasm.snakefile'  # Moved to VCF parser
 include: 'rules/variant/bed/vcf.snakefile'
 

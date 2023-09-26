@@ -126,6 +126,7 @@ Supported types are:
 1. bed: DATA paths for pre-formatted BED file (BED 6+, #CHROM, POS, END, ID, SVTYPE, SVLEN, + other optional fields).
    IDs must be unique.
 1. deepvariant: DATA is a path to a DeepVariant VCF.
+1. dvpepper: DATA is a path to a PEPPER-Margin-DeepVariant VCF.  
 1. clair3: DATA is a path to a Clair3 VCF.
 1. cutesv: DATA is a path to a CuteSV VCF.
 1. delly: DATA is a path to a Delly2 VCF.
@@ -177,6 +178,8 @@ PARAMS: Additional parameters:
    to DEL and DUP, set "cnv_deldup=False".
 1. strict_sample [default False]: Require the VCF sample name to match the sample name being processed by SV-Pop even
    if there is only one sample column in the VCF.
+1. min_svlen: Minimum variant size for indels and SVs (supported by pavbedhap and VCF parsers). Value is inclusive.
+1. max_svlen: Maximum variant size for indels and SVs (supported by pavbedhap and VCF parsers). Value is inclusive.
 
 
 ## Running SV-Pop

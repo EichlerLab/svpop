@@ -85,7 +85,12 @@ def get_merge_config(merge_params):
     :return: Merge configuration object.
     """
     merge_parser = parser.MergeParser()
-    parser_ast = merge_parser.parse(merge_params)
+
+    try:
+        parser_ast = merge_parser.parse(merge_params)
+    except RuntimeError as e:
+        raise RuntimeError(f'Error parsing merge parameters "{merge_params}": {e}')
+
     return MergeConfig(parser_ast)
 
 
