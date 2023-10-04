@@ -697,7 +697,7 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
 
         # Read variants from sample
         if type(bed_file_name) != pd.DataFrame:
-            df_sample = pd.read_csv(bed_file_name, sep='\t', header=0)  # TODO: low_memory=False
+            df_sample = pd.read_csv(bed_file_name, sep='\t', header=0, low_memory=False, dtype={'#CHROM': str})
         else:
             df_sample = bed_file_name.copy()
 
@@ -809,7 +809,7 @@ def read_variant_table(
             bed_file_name, chrom=subset_chrom,
             sep='\t', header=0,
             usecols=lambda col: col in col_set,
-            dtype={'#CHROM': str}
+            dtype={'#CHROM': str}, low_memory=False
         )
 
     else:
