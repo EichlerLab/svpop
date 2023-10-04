@@ -12,6 +12,7 @@ rule variant_anno_reg_oreganno_intersect:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/oreganno/oreganno_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""
@@ -42,6 +43,7 @@ rule variant_anno_reg_encode_histone:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/encode/encode-{mark}-{threshold}-{overlap}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     run:
 
@@ -75,6 +77,7 @@ rule variant_anno_reg_ccre2020:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/ccre/ccre2020-{score}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """\n{{\n"""
@@ -104,6 +107,7 @@ rule variant_anno_reg_dnase2020:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/dhs/dhs2020-{score}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """\n{{\n"""
@@ -133,6 +137,7 @@ rule variant_anno_reg_dnase_cluster:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/dhs/dhs-{score}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""
@@ -163,6 +168,7 @@ rule variant_anno_reg_cpgisland:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/cpgisland/cpgisland-{mask}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""
@@ -197,6 +203,7 @@ rule variant_anno_reg_all_reg:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/allreg/allreg_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     run:
 

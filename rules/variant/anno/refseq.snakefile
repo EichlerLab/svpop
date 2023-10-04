@@ -51,6 +51,7 @@ rule variant_anno_refseq_intersect_count:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/refseq/refseq-count_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     run:
 
@@ -113,6 +114,7 @@ rule variant_anno_refseq_proximal_table:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/refseq-prox/refseq-prox-{direction}-{flank}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
         direction='up|dn',
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     run:
 

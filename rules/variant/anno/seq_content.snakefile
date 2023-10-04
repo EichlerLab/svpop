@@ -26,6 +26,7 @@ rule variant_anno_seqcontent_gc:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/gc/gc_content_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|rgn|sub'
     run:
 
@@ -73,6 +74,7 @@ rule variant_anno_seqcontent_ambig:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/ambiguous/ambiguous_content_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|rgn|sub'
     run:
 

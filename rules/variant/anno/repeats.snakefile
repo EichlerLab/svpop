@@ -26,6 +26,7 @@ rule variant_anno_repeat_rmsk_table:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/rmsk-table_{vartype}_{svtype,ins|del|inv|dup}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|rgn|sub'
     run:
 
@@ -133,6 +134,7 @@ rule variant_anno_repeat_rmsk_run:
     output:
         out='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/rmsk/data/rmsk-table_{vartype}_{svtype}/rmsk.out.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|rgn|sub'
     shadow:
         'shallow'
@@ -174,6 +176,7 @@ rule variant_anno_repeat_trf_table:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/trf-table_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup'
     run:
 
@@ -301,6 +304,7 @@ rule variant_anno_repeat_trf_run:
     output:
         out='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/data/trf-table_{vartype}_{svtype}/trf.out'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|rgn|sub'
     run:
 

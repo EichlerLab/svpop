@@ -63,6 +63,7 @@ rule variant_anno_caller_region_intersect_basecount:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/{annotype}/{annoname}_basecount_{distance}_{flank}_{overlap}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     run:
 
@@ -105,6 +106,7 @@ rule variant_anno_caller_region_band:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/bands/bands_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     run:
 
@@ -138,6 +140,7 @@ rule variant_anno_caller_region_band_intersect:
     output:
         bed=temp('temp/variant/caller/{sourcename}/{sample}/{filter}/all/anno/bands/bands_{vartype}_{svtype}.bed.gz')
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""
@@ -217,6 +220,7 @@ rule variant_anno_caller_sd_max:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/sd/sd-max-{match_type}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""

@@ -41,7 +41,8 @@ CALLER_VCF_STD_FIELDS = {
     },
     'cutesv': {
         'info': ['PRECISE', 'IMPRECISE', 'SVTYPE', 'SVLEN', 'END', 'CIPOS', 'CILEN'],
-        'format': ['GT', 'DR', 'DV', 'PL', 'GQ']
+        'format': ['GT', 'DR', 'DV', 'PL', 'GQ'],
+        'params': 'filter_gt=False'
     },
     'delly': {
         'info': ['END', 'PE', 'SR', 'SVLEN', 'SVTYPE', 'SVMETHOD', 'HOMLEN'],
@@ -124,7 +125,7 @@ def variant_bed_vcf_get_param_dict(wildcards):
         if param_string:
             param_string = CALLER_VCF_STD_FIELDS[wildcards.callertype]['params'] + ';' + param_string
         else:
-            param_string = CALLER_VCF_STD_FIELDS[wildcards.callertype]
+            param_string = CALLER_VCF_STD_FIELDS[wildcards.callertype]['params']
 
     # Process parameters
     if param_string:

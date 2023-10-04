@@ -14,6 +14,7 @@ rule variant_anno_homopoly_intersect:
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/homopolymer/{rep_len}_intersect_all_any_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""
@@ -34,6 +35,7 @@ rule variant_anno_homopolymer_nearest:
     output:
         tab='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/homopolymer/{rep_len}_nearest_all_{flank}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
+        vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub',
         flank='up|dn'
     run:
