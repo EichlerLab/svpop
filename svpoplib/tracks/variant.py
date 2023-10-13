@@ -78,6 +78,10 @@ def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_des
     if reset_index:
         df.reset_index(inplace=True, drop=True)
 
+    # Set #CHROM to string and sort
+    df['#CHROM'] = df['#CHROM'].astype(str)
+    df.sort_values(['#CHROM', 'POS', 'END'], inplace=True)
+
     # Trim large INS records that extend past chromosome end
     df['END'] = df['POS'] + df['SVLEN']
     df['END'] = df.apply(lambda row: np.min([row['END'], df_fai[row['#CHROM']]]), axis=1)

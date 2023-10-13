@@ -180,6 +180,9 @@ PARAMS: Additional parameters:
    if there is only one sample column in the VCF.
 1. min_svlen: Minimum variant size for indels and SVs (supported by pavbedhap and VCF parsers). Value is inclusive.
 1. max_svlen: Maximum variant size for indels and SVs (supported by pavbedhap and VCF parsers). Value is inclusive.
+1. fill_ref [default False]: If the input VCF has N's in the REF column and variant calls are not resolved by symbolic
+   ALTs (i.e. ALT="<SVTYPE>" with INFO columns describing the variant), then the reference alleles must be filled in.
+   Set this parameter to "True" to tell SV-Pop to fill in N's in the REF column before resolving variants. 
 
 
 ## Running SV-Pop
@@ -287,6 +290,9 @@ The "{filter}" wildcard is typically "all" or "lc" (an hg38 filter).
     1. lc: Drops low-confidence regions determined by Audano 2019 (PMID 30661756) on CLR data. May be outdated for modern
        technology.
     1. lcy: lc and drops chrY.
+
+### Custom filters
+
 
 
 ## Annotations
