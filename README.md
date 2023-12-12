@@ -126,6 +126,7 @@ Supported types are:
 1. bed: DATA paths for pre-formatted BED file (BED 6+, #CHROM, POS, END, ID, SVTYPE, SVLEN, + other optional fields).
    IDs must be unique.
 1. deepvariant: DATA is a path to a DeepVariant VCF.
+1. dipcall: DATA is a path to a DipCall VCF.
 1. dvpepper: DATA is a path to a PEPPER-Margin-DeepVariant VCF.  
 1. clair3: DATA is a path to a Clair3 VCF.
 1. cutesv: DATA is a path to a CuteSV VCF.

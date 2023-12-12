@@ -55,7 +55,7 @@ CALLER_VCF_STD_FIELDS = {
     'dipcall': {
         'info': [],
         'format': ['GT', 'AD'],
-        'params': 'fill_ref=True'
+        'params': 'fill_ref=True;batches=25'
     }
 }
 
@@ -85,15 +85,16 @@ def variant_bed_vcf_get_param_dict(wildcards):
 
     # Initialize INFO and FORMAT field lists
     param_dict = {
+        'batches': 1,                  # Split variant-table-to-bed into this many partitions and batch each in its own job.
         'cnv_deldup': True,            # Translate CNVs to deletions (DEL) and duplications (DUP).
         'fill_del': False,             # Fill missing deletion sequences (will consume large amounts of memory for large erroneous deletions)
         'fill_ref': False,             # Fill missing REF values. Needed if variant calls resolved by REF/ALT (not INFO fields) and REF is missing (Ns)
         'filter_gt': True,             # Filter the GT column for present haplotypes. Turn off if the GT column is not filled in (some callers write "./." for all records).
-        'format_list': list(),         # List of FORMAT fields to gather
-        'info_list': list(),           # List of INFO fields to include
-        'min_svlen': None,             # Minimum variant length
-        'max_svlen': None,             # Maximum variant length
-        'pass': None,                  # Set of passing FILTER values. Set to default value if None
+        'format_list': list(),         # List of FORMAT fields to gather.
+        'info_list': list(),           # List of INFO fields to include.
+        'min_svlen': None,             # Minimum variant length.
+        'max_svlen': None,             # Maximum variant length.
+        'pass': None,                  # Set of passing FILTER values. Set to default value if None.
         'strict_sample': False         # Require sample name to match the sample column even if there is a single sample.
     }
 
@@ -125,7 +126,7 @@ def variant_bed_vcf_get_param_dict(wildcards):
         param_string = ''
 
     # Prepend preset parameters
-    if 'params' in CALLER_VCF_STD_FIELDS[wildcards.callertype].keys():
+    if 'params' in CALLER_VCF_STD_FIELDS.get(wildcards.callertype, dict()).keys():
         if param_string:
             param_string = CALLER_VCF_STD_FIELDS[wildcards.callertype]['params'] + ';' + param_string
         else:
@@ -162,6 +163,15 @@ def variant_bed_vcf_get_param_dict(wildcards):
                 # Ignore empty entries
                 if value is not None and value != '':
                     raise RuntimeError(f'Found value with an empty attribute (blank before "=": {avp}')
+
+            elif attrib == 'batches':
+                try:
+                    param_dict['batches'] = int(value)
+                except ValueError:
+                    raise RuntimeError(f'Error processing int value for parameter "batches": {value}')
+
+                if param_dict['batches'] < 0:
+                    param_dict['batches'] = 1
 
             elif attrib == 'cnv_deldup':
                 if value is not None:
@@ -319,6 +329,20 @@ def variant_bed_vcf_bcftools_preprocess(wildcards):
 
     return shell_cmd
 
+def variant_bed_vcf_file_per_batch(wildcards, file_pattern):
+    """
+    Get a list of BED files to merge for this call source.
+
+    :param wildcards: Rule wildcards.
+
+    :return: List of input files.
+    """
+
+    return [
+        file_pattern.format(callertype=wildcards.callertype, sourcename=wildcards.sourcename, sample=wildcards.sample, batch=batch)
+            for batch in range(variant_bed_vcf_get_param_dict(wildcards)['batches'])
+    ]
+
 # NOTE: Integrated into svpoplib.variant.vcf_fields_to_seq()
 # def variant_bed_vcf_fix_sniffles2(df):
 #     """
@@ -430,6 +454,48 @@ rule variant_vcf_bed_fa:
         # Write
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
+rule variant_bed_vcf_tsv_to_bed_merge:
+    input:
+        bed=lambda wildcards: variant_bed_vcf_file_per_batch(wildcards,
+            'temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/batches/variants_{batch}.bed.gz'
+        ),
+        tsv_filt=lambda wildcards: variant_bed_vcf_file_per_batch(wildcards,
+            'temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/batches/variants_{batch}.bed.gz'
+        )
+    output:
+        bed=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/variants.bed.gz'),
+        tsv_filt='results/variant/caller/{sourcename}/{sample}/all/all/bed/filtered/vcf_fail_{callertype}.tsv.gz'
+    run:
+
+        assert len(input.bed) == len(input.tsv_filt)
+
+        if len(input.bed) > 1:
+
+            pd.concat(
+                [
+                    pd.read_csv(bed_file, sep='\t', dtype={'#CHROM', str}, low_memory=False)
+                        for bed_file in input.bed
+                ]
+            ).sort_values(
+                ['#CHROM', 'POS']
+            ).to_csv(
+                output.bed, sep='\t', index=False, compression='gzip'
+            )
+
+            pd.concat(
+                [
+                    pd.read_csv(tsv_filt_file, sep='\t', low_memory=False)
+                        for tsv_filt_file in input.tsv_filt
+                ]
+            ).to_csv(
+                output.bed, sep='\t', index=False, compression='gzip'
+            )
+
+        else:
+            shutil.copyfile(input.bed[0], output.bed)
+            shutil.copyfile(input.tsv_filt[0], output.tsv_filt)
+
+
 # variant_dv_tsv_to_bed
 #
 # TSV to BED.
@@ -437,10 +503,11 @@ rule variant_bed_vcf_tsv_to_bed:
     input:
         tsv='temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/bcftools_table.tsv.gz'
     output:
-        bed=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/variants.bed.gz'),
-        tsv_filt='results/variant/caller/{sourcename}/{sample}/all/all/bed/filtered/vcf_fail_{callertype}.tsv.gz'
+        bed=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/batches/variants_{batch}.bed.gz'),
+        tsv_filt=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/batches/vcf_fail_{batch}.tsv.gz')
     wildcard_constraints:
-        callertype=VARIANT_BED_VCF_TYPE_PATTERN
+        callertype=VARIANT_BED_VCF_TYPE_PATTERN,
+        batch=r'\d+'
     params:
         mem='6000',
         chunk_size=5000  # DataFrame chunk size
@@ -454,6 +521,21 @@ rule variant_bed_vcf_tsv_to_bed:
         ref_fa = None
 
         chrom_set = set(svpoplib.ref.get_df_fai(config['reference_fai']).index)
+
+        if param_dict['batches'] > 1:
+            batch = int(wildcards.batch)
+            batch_count = param_dict['batches']
+
+            if batch >= batch_count:
+                raise RuntimeError(f'Wildcard "batch" {wildcards.batch} must be less than the number of batches ({param_dict["batches"]})')
+
+        else:
+
+            if int(wildcards.batch) != 0:
+                raise RuntimeError(f'Wildcard "batch" {wildcards.batch} is non-zero for a callset not processed in batches (param "batches" == {param_dict["batches"]}')
+
+            batch = None
+            batch_count = None
 
         try:
 
@@ -471,7 +553,9 @@ rule variant_bed_vcf_tsv_to_bed:
                         filter_gt=param_dict['filter_gt'],
                         cnv_deldup=param_dict['cnv_deldup'],
                         strict_sample=param_dict['strict_sample'],
-                        ref_fa_name=config['reference'] if param_dict['fill_ref'] else None
+                        ref_fa_name=config['reference'] if param_dict['fill_ref'] else None,
+                        batch=batch,
+                        batch_count=batch_count
                     ):
 
                         # Drop chromosomes not in this reference (e.g. Called against and ALT reference with SV-Pop using a no-ALT reference)

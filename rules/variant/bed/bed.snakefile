@@ -43,7 +43,7 @@ rule variant_caller_extern_get_bed:
         df = pd.read_csv(input.bed, sep='\t')
 
         # Check for required fields
-        required_cols = ['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN']
+        required_cols = ['#CHROM', 'POS', 'END', 'SVTYPE', 'SVLEN']
 
         if wildcards.vartype == 'snv':
             required_cols += ['REF', 'ALT']
@@ -55,7 +55,11 @@ rule variant_caller_extern_get_bed:
                 len(missing_cols), input.bed, ', '.join(missing_cols))
             )
 
-        na_cols = [col for col in required_cols if np.any(pd.isnull(df[col]))]
+        # Set missing IDs
+        if 'ID' not in df.columns or np.all(pd.isnull(df['ID'])):
+            df['ID'] = svpoplib.variant.get_variant_id(df)
+
+        na_cols = [col for col in required_cols + ['ID'] if np.any(pd.isnull(df[col]))]
 
         if na_cols:
             raise RuntimeError('Found {} required column(s) with NA values from input BED "{}": {}'.format(
