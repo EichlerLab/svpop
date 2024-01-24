@@ -2,6 +2,7 @@
 Functions designed to directly support rules, such as input functions for Snakemake rules.
 """
 
+import numpy as np
 import os
 import pandas as pd
 import re

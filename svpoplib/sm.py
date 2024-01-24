@@ -38,9 +38,13 @@ def nlset(named_list, key, value=None, wildcards=None):
     else:
         # Format
         if wildcards is not None:
-            value = re.sub('\{([^,\}]+),[^\}]+\}', '{\\1}', value)  # Remove regex qualifiers from wildcards
-            value = value.format(**wildcards)  # Format wildcards into value
-
+            if type(value) == str:
+                value = re.sub('\{([^,\}]+),[^\}]+\}', '{\\1}', value)  # Remove regex qualifiers from wildcards
+                value = value.format(**wildcards)  # Format wildcards into value
+            elif type(value) == list:
+                value = [
+                    re.sub('\{([^,\}]+),[^\}]+\}', '{\\1}', item).format(**wildcards) for item in value
+                ]
 
     # Set value
     snake_version_tok = [int(val) for val in snakemake.__version__.split('.')]

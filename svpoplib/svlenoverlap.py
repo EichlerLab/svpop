@@ -194,11 +194,11 @@ def nearest_by_svlen_overlap(
 
     # Set column types
     col_types = {
-        '#CHROM': np.object,
-        'POS': np.int32,
-        'END': np.int32,
-        'SVLEN': np.int32,
-        'ID': np.object
+        '#CHROM': str,
+        'POS': int,
+        'END': int,
+        'SVLEN': int,
+        'ID': str
     }
 
     if restrict_samples:
