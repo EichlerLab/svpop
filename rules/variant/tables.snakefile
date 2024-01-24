@@ -44,7 +44,7 @@ rule variant_tables_caller_summary_insdel:
                             index=['SOURCETYPE', 'SOURCENAME', 'SAMPLE', 'N', 'MEAN', 'BP']
                         )
                     ).T.astype(
-                        {'SOURCETYPE': str, 'SOURCENAME': str, 'SAMPLE': str, 'N': np.int, 'MEAN': np.float, 'BP': np.int}
+                        {'SOURCETYPE': str, 'SOURCENAME': str, 'SAMPLE': str, 'N': int, 'MEAN': float, 'BP': int}
                     )
             )
 
@@ -149,8 +149,8 @@ rule variant_tables_caller_summary_snv:
 
             df_stats = pd.DataFrame(df_stats).T
 
-            df_stats['N'] = df_stats['N'].astype(np.int32)
-            df_stats['NON_ACGT'] = df_stats['NON_ACGT'].astype(np.int32)
+            df_stats['N'] = df_stats['N'].astype(int)
+            df_stats['NON_ACGT'] = df_stats['NON_ACGT'].astype(int)
 
             df_stats.to_csv(output.tsv, sep='\t', index=False)
 

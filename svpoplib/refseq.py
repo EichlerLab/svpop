@@ -173,7 +173,7 @@ def get_refgene_counts(bed_row):
             'NCRNA': 0,
             'INTERGEN': 0
         },
-        dtype=np.int
+        dtype=int
     )
 
     # Get refgene regions

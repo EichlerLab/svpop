@@ -219,27 +219,27 @@ def nearest_by_svlen_overlap(
     # Check ro_min
     if ro_min is not None:
         try:
-            ro_min = np.float16(ro_min)
+            ro_min = float(ro_min)
         except ValueError:
             raise RuntimeError(f'Reciprocal-overlap parameter (ro_min) is not a floating point number: {ro_min}')
 
-        if ro_min <= np.float16(0.0) or ro_min > np.float16(1.0):
+        if ro_min <= 0.0 or ro_min > 1.0:
             raise RuntimeError(f'Reciprocal-overlap parameter (ro_min) must be between 0 (exclusive) and 1 (inclusive): {ro_min}')
 
     # Check szro_min
     if szro_min is not None:
         try:
-            szro_min = np.float16(szro_min)
+            szro_min = float(szro_min)
         except ValueError:
             raise RuntimeError(f'Size-reciprocal-overlap parameter (szro_min) is not a floating point number: {szro_min}')
 
-        if szro_min <= np.float16(0.0) or szro_min > np.float16(1.0):
+        if szro_min <= 0.0 or szro_min > 1.0:
             raise RuntimeError(f'Size-reciprocal-overlap parameter (szro_min) must be between 0 (exclusive) and 1 (inclusive): {szro_min}')
 
     # Check offset_max
     if offset_max is not None:
         try:
-            offset_max = np.int32(offset_max)
+            offset_max = int(offset_max)
         except ValueError:
             raise RuntimeError(f'Offset-max parameter (offset_max) is not an integer: {offset_max}')
         except OverflowError:
@@ -251,11 +251,11 @@ def nearest_by_svlen_overlap(
     # Check offsz_max
     if offsz_max is not None:
         try:
-            offsz_max = np.float16(offsz_max)
+            offsz_max = float(offsz_max)
         except ValueError:
             raise RuntimeError(f'Size-offset-max parameter (offsz_max) is not a floating point number: {offsz_max}')
 
-        if offsz_max < np.float16(0.0):
+        if offsz_max < float(0.0):
             raise RuntimeError(f'Size-offset-max parameter (offsz_max) must not be negative: {offsz_max}')
 
     # Make set of sample names

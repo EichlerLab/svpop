@@ -371,10 +371,10 @@ class SVLenFilterRunner(FilterRunner):
         max = None
 
         if 'min' in self.args:
-            min = np.int32(self.args['min'])
+            min = int(self.args['min'])
 
         if 'max' in self.args:
-            max = np.int32(self.args['max'])
+            max = int(self.args['max'])
 
         if 'range' in self.args:
 
@@ -392,8 +392,8 @@ class SVLenFilterRunner(FilterRunner):
                     )
                 )
 
-            min = np.int32(tok[0])
-            max = np.int32(tok[1])
+            min = int(tok[0])
+            max = int(tok[1])
 
         if min is None and max is None:
             raise RuntimeError(

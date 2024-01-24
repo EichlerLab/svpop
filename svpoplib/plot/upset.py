@@ -61,7 +61,7 @@ def get_upset_fig(
                 set_counts.index
             ).fillna(
                 0
-            ).astype(np.int32).values
+            ).astype(int).values
             for color_val in color_order
         }
 
@@ -70,7 +70,7 @@ def get_upset_fig(
         #         data_table[color_column] == color_val
         #     ].groupby(list_column)[list_column].count()[
         #         set_counts.index
-        #     ].fillna(0).astype(np.int32).values
+        #     ].fillna(0).astype(int).values
         #         for color_val in color_order
         # }
 
@@ -166,7 +166,7 @@ def get_upset_fig(
     ax1 = plt.subplot(gs[0])
 
     # Make bars
-    bar_bottom = np.zeros(bar_labels.shape[0]).astype(np.int32)  # Bottom of next stacked bar
+    bar_bottom = np.zeros(bar_labels.shape[0]).astype(int)  # Bottom of next stacked bar
 
     for val in color_order:
         ax1.bar(

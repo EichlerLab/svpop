@@ -31,13 +31,13 @@ def fst_wc(row):
         return np.nan
 
     # No calculation if AF is 1 for both populations
-    if all(((1 - val) < np.float64(0.0000001) for val in list_freqs)):
-        return np.float64(0.0)
+    if all(((1 - val) < 0.0000001 for val in list_freqs)):
+        return 0.0
 
     # calcuate Ht = 2 * p_bar * q_bar; p refer to the sum of ingroup allele freqs. q is for the same quality for outgroup.
     # calculate Hs = (1/n) * sum of 2 * pi * qi, for i  in range(1,n+1) and n =numPop
-    list_popsizes = [np.float64(x) for x in list_popsizes]
-    list_freqs = [np.float64(x) for x in list_freqs]
+    list_popsizes = [float(x) for x in list_popsizes]
+    list_freqs = [float(x) for x in list_freqs]
 
     # Get number of unique alleles (r) and total number of alleles (n)
     r = float(len(list_popsizes))
@@ -80,12 +80,12 @@ def fst_wc(row):
     locus_fst = T1 / T2
 
     # Return value
-    locus_fst = np.float64(locus_fst)
+    locus_fst = float(locus_fst)
 
     if locus_fst >= 0.0:
         return locus_fst
     else:
-        return np.float64(0.0)
+        return float(0.0)
 
 
 def get_gt_summary_table(ins_bed, del_bed):
@@ -118,7 +118,7 @@ def get_gt_summary_table(ins_bed, del_bed):
                           'DEL_N', 'DEL_SUM', 'DEL_MED',
                           'ALL_N', 'ALL_SUM', 'ALL_MED'
                       ),
-                      index=('HOM-REF', 'HOM-ALT', 'HET', 'NO-CALL'), dtype=np.int
+                      index=('HOM-REF', 'HOM-ALT', 'HET', 'NO-CALL'), dtype=int
                       )
 
 
@@ -127,14 +127,14 @@ def get_gt_summary_table(ins_bed, del_bed):
 
     df['INS_N'] = group.count()['SVLEN']
     df['INS_SUM'] = group.sum()['SVLEN']
-    df['INS_MED'] = group.median()['SVLEN'].astype(np.int)
+    df['INS_MED'] = group.median()['SVLEN'].astype(int)
 
     # Summarize deletions
     group = df_del.groupby('GT')
 
     df['DEL_N'] = group.count()['SVLEN']
     df['DEL_SUM'] = group.sum()['SVLEN']
-    df['DEL_MED'] = group.median()['SVLEN'].astype(np.int)
+    df['DEL_MED'] = group.median()['SVLEN'].astype(int)
 
     # Summarize merged ins & del
     df_all = pd.concat([df_ins, df_del], axis=0)
@@ -143,7 +143,7 @@ def get_gt_summary_table(ins_bed, del_bed):
 
     df['ALL_N'] = group.count()['SVLEN']
     df['ALL_SUM'] = group.sum()['SVLEN']
-    df['ALL_MED'] = group.median()['SVLEN'].astype(np.int)
+    df['ALL_MED'] = group.median()['SVLEN'].astype(int)
 
     # Return
     return df

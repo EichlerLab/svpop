@@ -220,7 +220,7 @@ def apply_parallel(df, func, n_part, n_core=None, kwds=None, verbose=False):
     """
 
     # Check arguments
-    n_part = np.int32(n_part)
+    n_part = int(n_part)
 
     if n_part > df.shape[0]:
         n_part = df.shape[0]
@@ -228,7 +228,7 @@ def apply_parallel(df, func, n_part, n_core=None, kwds=None, verbose=False):
     if n_core is None:
         n_core = n_part
     else:
-        n_core = np.int32(n_core)
+        n_core = int(n_core)
 
     if not isinstance(df, pd.DataFrame):
         raise RuntimeError('df is not a DataFrame')

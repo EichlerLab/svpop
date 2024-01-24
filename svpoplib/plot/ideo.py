@@ -205,7 +205,7 @@ def ideo_hist(
                     ],
                     histtype='bar',
                     stacked=True,
-                    bins=np.int32(matrix_chr_len[i, j] // 1e6),
+                    bins=int(matrix_chr_len[i, j] // 1e6),
                     color=label_color,
                     label=label_order
                 )

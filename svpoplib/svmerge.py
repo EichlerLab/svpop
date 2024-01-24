@@ -645,8 +645,8 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
     OPT_COL = ['MERGE_RO', 'MERGE_OFFSET', 'MERGE_SZRO', 'MERGE_OFFSZ', 'MERGE_MATCH', 'MERGE_SRC', 'MERGE_SRC_ID']
 
     OPT_COL_DTYPE = {
-        'MERGE_AC': np.int32,
-        'MERGE_AF': np.float32
+        'MERGE_AC': int,
+        'MERGE_AF': float
     }
 
     # Check values

@@ -166,7 +166,7 @@ rule variant_caller_anno_altmap_bed:
             else:
                 return 0
 
-        df['DISTANCE'] = df.apply(sv_align_distance, axis=1).astype(np.float32)
+        df['DISTANCE'] = df.apply(sv_align_distance, axis=1).astype(float)
 
         df['DISTANCE_PROP'] = df['DISTANCE'] / df_sv['SVLEN']
 

@@ -98,16 +98,16 @@ rule variant_anno_repeat_rmsk_table:
         # Fix fields
         #df['BETTER_OVERLAP_HIT'] = df['BETTER_OVERLAP_HIT'].apply(lambda val: val == '*')
 
-        df['ALIGN_SCORE'] = df['ALIGN_SCORE'].astype(np.int32)
-        df['DIFF_PROP'] = df['DIFF_PROP'].astype(np.float32)
-        df['DEL_PROP'] = df['DEL_PROP'].astype(np.float32)
-        df['INS_PROP'] = df['INS_PROP'].astype(np.float32)
-        df['SV_MATCH_START'] = df['SV_MATCH_START'].astype(np.int32)
-        df['SV_MATCH_END'] = df['SV_MATCH_END'].astype(np.int32)
-        df['SV_MATCH_LEFT'] = df['SV_MATCH_LEFT'].astype(np.int32)
-        df['REP_START'] = df['REP_START'].astype(np.int32)
-        df['REP_END'] = df['REP_END'].astype(np.int32)
-        df['REP_LEFT'] = df['REP_LEFT'].astype(np.int32)
+        df['ALIGN_SCORE'] = df['ALIGN_SCORE'].astype(int)
+        df['DIFF_PROP'] = df['DIFF_PROP'].astype(float)
+        df['DEL_PROP'] = df['DEL_PROP'].astype(float)
+        df['INS_PROP'] = df['INS_PROP'].astype(float)
+        df['SV_MATCH_START'] = df['SV_MATCH_START'].astype(int)
+        df['SV_MATCH_END'] = df['SV_MATCH_END'].astype(int)
+        df['SV_MATCH_LEFT'] = df['SV_MATCH_LEFT'].astype(int)
+        df['REP_START'] = df['REP_START'].astype(int)
+        df['REP_END'] = df['REP_END'].astype(int)
+        df['REP_LEFT'] = df['REP_LEFT'].astype(int)
 
         # Add proportions
         df['SVLEN'] = pd.read_csv(input.bed, sep='\t', header=0, usecols=('ID', 'SVLEN'), index_col='ID', squeeze=True)
@@ -247,7 +247,7 @@ rule variant_anno_repeat_trf_table:
         # Merge dataframe
         df = pd.concat(record_list, axis=1).T
 
-        df['PERIOD'] = df['PERIOD'].astype(np.int64)
+        df['PERIOD'] = df['PERIOD'].astype(int)
 
         # Define: Function to find longest perfect match. Start with lowest position index of the consensus repeat in
         # the string, then find all other sequential positions.

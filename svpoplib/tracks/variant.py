@@ -30,16 +30,16 @@ TRACKS_SVTYPE_COLOR_DICT = {
 
 
 COL_DTYPE = {
-    'POS': np.int32,
-    'END': np.int32,
-    'POS_THICK': np.int32,
-    'END_THICK': np.int32,
-    'SVLEN': np.int32,
-    'DP': np.int32,
-    'GQ': np.int32,
-    'QA': np.int32,
-    'CALLERSET_N': np.int32,
-    'MERGE_AC': np.int32
+    'POS': int,
+    'END': int,
+    'POS_THICK': int,
+    'END_THICK': int,
+    'SVLEN': int,
+    'DP': int,
+    'GQ': int,
+    'QA': int,
+    'CALLERSET_N': int,
+    'MERGE_AC': int
 }
 
 COL_NA_FILL = {
