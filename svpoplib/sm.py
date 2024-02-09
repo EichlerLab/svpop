@@ -23,6 +23,10 @@ def nlset(named_list, key, value=None, wildcards=None):
 
         value = value.strip()
 
+        # Remove commas from the end
+        while value.endswith(','):
+            value = value[:-1]
+
         # Remove quotes around the value (parsing key="value" or key='value')
         if len(value) > 2:
             if (value[0] == value[-1]) and (value[0] in {'"', '\''}):
