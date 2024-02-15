@@ -50,7 +50,7 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
     """
     Merge variants from multiple samples.
 
-    :param bed_list: List of BED files to merge where each BED file is from one samples.
+    :param bed_list: List of BED files to merge where each BED file is from one sample.
     :param sample_names: List of samples names. Each element matches an element at the same location in
         `bed_list`.
     :param strategy: Describes how to merge variants.
