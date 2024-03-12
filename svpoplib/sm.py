@@ -23,6 +23,10 @@ def nlset(named_list, key, value=None, wildcards=None):
 
         value = value.strip()
 
+        # Remove commas from the end
+        while value.endswith(','):
+            value = value[:-1]
+
         # Remove quotes around the value (parsing key="value" or key='value')
         if len(value) > 2:
             if (value[0] == value[-1]) and (value[0] in {'"', '\''}):
@@ -38,9 +42,13 @@ def nlset(named_list, key, value=None, wildcards=None):
     else:
         # Format
         if wildcards is not None:
-            value = re.sub('\{([^,\}]+),[^\}]+\}', '{\\1}', value)  # Remove regex qualifiers from wildcards
-            value = value.format(**wildcards)  # Format wildcards into value
-
+            if type(value) == str:
+                value = re.sub('\{([^,\}]+),[^\}]+\}', '{\\1}', value)  # Remove regex qualifiers from wildcards
+                value = value.format(**wildcards)  # Format wildcards into value
+            elif type(value) == list:
+                value = [
+                    re.sub('\{([^,\}]+),[^\}]+\}', '{\\1}', item).format(**wildcards) for item in value
+                ]
 
     # Set value
     snake_version_tok = [int(val) for val in snakemake.__version__.split('.')]

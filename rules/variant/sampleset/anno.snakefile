@@ -30,6 +30,7 @@ rule variant_sampleset_anno_merge:
         mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config)
     wildcard_constraints:
         svtype='ins|del|inv|dup|sub|rgn|snv',
+        vartype='sv|indel|snv|sub|rgn',
         ext='tsv|bed'
     run:
 

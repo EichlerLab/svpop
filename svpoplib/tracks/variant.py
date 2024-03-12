@@ -30,16 +30,16 @@ TRACKS_SVTYPE_COLOR_DICT = {
 
 
 COL_DTYPE = {
-    'POS': np.int32,
-    'END': np.int32,
-    'POS_THICK': np.int32,
-    'END_THICK': np.int32,
-    'SVLEN': np.int32,
-    'DP': np.int32,
-    'GQ': np.int32,
-    'QA': np.int32,
-    'CALLERSET_N': np.int32,
-    'MERGE_AC': np.int32
+    'POS': int,
+    'END': int,
+    'POS_THICK': int,
+    'END_THICK': int,
+    'SVLEN': int,
+    'DP': int,
+    'GQ': int,
+    'QA': int,
+    'CALLERSET_N': int,
+    'MERGE_AC': int
 }
 
 COL_NA_FILL = {
@@ -77,6 +77,14 @@ def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_des
     # Reset index
     if reset_index:
         df.reset_index(inplace=True, drop=True)
+
+    # Rename CHROM to #CHROM
+    if '#CHROM' not in df.columns and 'CHROM' in df.columns:
+        df.columns = [col if col != 'CHROM' else '#CHROM' for col in df.columns]
+
+    # Set #CHROM to string and sort
+    df['#CHROM'] = df['#CHROM'].astype(str)
+    df.sort_values(['#CHROM', 'POS', 'END'], inplace=True)
 
     # Trim large INS records that extend past chromosome end
     df['END'] = df['POS'] + df['SVLEN']
@@ -139,6 +147,8 @@ def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_des
         else:
             default_val = '.'
 
+        format_type = TYPE_DICT.get(df_as.loc[col, 'TYPE'], str)
+
         try:
             df[col] = format_column(df[col], TYPE_DICT.get(df_as.loc[col, 'TYPE'], str), default_val=default_val)
         except Exception as ex:
@@ -182,7 +192,7 @@ def format_column(row, type, default_val='.'):
     # Process nan as empty strings
     nan_vals = row.loc[~ non_missing]
 
-    row_nan = pd.Series([default_val] * nan_vals.shape[0], index=nan_vals.index)
+    row_nan = pd.Series([default_val] * nan_vals.shape[0], index=nan_vals.index, dtype=str)
 
     # Concat, order, return
     return pd.concat([row_nonan, row_nan]).loc[row.index]

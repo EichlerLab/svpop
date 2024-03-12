@@ -144,7 +144,7 @@ def fa_to_record_iter(fa_file_name, record_set=None, require_all=True, input_for
             record_id_org = record.id
 
             # Translate record names or skip if not an expected record
-            if record_dict:
+            if record_dict is not None:
                 record_id = record_dict.get(record.id, None)
 
                 # Skip if
@@ -240,7 +240,7 @@ def gfa_to_record_iter(gfa_file_name, record_set=None, require_all=True):
             found_set.add(record_id)
 
             # Translate record names
-            if record_dict:
+            if record_dict is not None:
                 record_id = record_dict.get(record_id, record_id)
 
             # Yield record

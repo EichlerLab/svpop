@@ -106,7 +106,7 @@ def hg_chr_scaffold(chroms):
         return [bool(re.match('^chr[1-9XY][0-9]?$', val)) for val in chroms]
 
 
-def get_df_fai(fai_file_name, usecols=('CHROM', 'LEN'), index_col='CHROM', squeeze=True):
+def get_df_fai(fai_file_name, usecols=('CHROM', 'LEN'), index_col='CHROM', squeeze=True, index_type=str):
     """
     Read an FAI File name. By default, return a Series of chromosome lengths keyed by the chromosome (or contig) name.
 
@@ -114,6 +114,7 @@ def get_df_fai(fai_file_name, usecols=('CHROM', 'LEN'), index_col='CHROM', squee
     :param usecols: Use these columns. Must include index column if set.
     :param index_col: Index column name.
     :param squeeze: Squeeze to Series if only one column is selected (not counting the index column).
+    :param index_type: Set index data type (dtype) to this type if not None.
 
     :return: A DataFrame or Series of the FAI file.
     """
@@ -131,6 +132,9 @@ def get_df_fai(fai_file_name, usecols=('CHROM', 'LEN'), index_col='CHROM', squee
 
     if squeeze:
         df = df.squeeze(axis=1)
+
+    if index_type is not None:
+        df.index = df.index.astype(index_type)
 
     return df
 

@@ -1,5 +1,17 @@
 # Changes
 
+## 3.4.3
+* Removed references to numpy primitives (np.int, np.float, etc.)
+* Updated submodules (pulled in fixes)
+* Index (#CHROM) type for svpoplib.ref.get_df_fai is str.
+
+## 3.4.2
+* Documented flag rules
+* Automatically set missing IDs in input BED files for missing IDs
+* DipCall VCF parsing parameters
+* Split VCF parsing into batches for input that takes a long time to process in one job
+* Minor updates to support variant track output
+
 ## 3.4.1
 * Added dvpepper (PEPPER-Margin-DeepVariant) and SVIM input VCF parsers.
 * Added min_svlen and max_svlen options for VCF input parsers.

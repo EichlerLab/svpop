@@ -20,6 +20,7 @@ import datetime
 import gzip
 import os
 import re
+import shutil
 import subprocess
 import intervaltree
 import itertools

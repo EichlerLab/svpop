@@ -2,6 +2,7 @@
 Functions designed to directly support rules, such as input functions for Snakemake rules.
 """
 
+import numpy as np
 import os
 import pandas as pd
 import re
@@ -9,12 +10,12 @@ import re
 import svpoplib
 
 SAMPLE_TABLE_COL_TYPES = {
-    'NAME': object,
-    'SAMPLE': object,
-    'TYPE': object,
-    'DATA': object,
-    'VERSION': object,
-    'PARAMS': object
+    'NAME': str,
+    'SAMPLE': str,
+    'TYPE': str,
+    'DATA': str,
+    'VERSION': str,
+    'PARAMS': str
 }
 
 
@@ -42,6 +43,8 @@ def get_sample_table(sample_table_file_name):
 
         if 'VERSION' not in sample_table.columns:
             sample_table['VERSION'] = np.nan
+        else:
+            sample_table['VERSION'] = sample_table['VERSION'].apply(lambda val : val.strip('"') if not pd.isnull(val) else val)
 
         if 'PARAMS' not in sample_table.columns:
             sample_table['PARAMS'] = np.nan
@@ -246,7 +249,10 @@ def get_sample_list(sample_list_name, config):
 
     # Get attributes
     hap_expand = False
+    hap_list = list()
+
     expand_match = False
+    expand_match_n = 0
 
     if ':' in sample_list_name:
         tok = sample_list_name.split(':')
@@ -261,9 +267,19 @@ def get_sample_list(sample_list_name, config):
 
             if attr == 'hap':
                 hap_expand = True
+                hap_list = ['h1', 'h2']
+
+            elif attr == 'hap3':
+                hap_expand = True
+                hap_list = ['h1', 'h2', 'un']
 
             elif attr == 'hapmatch':
                 expand_match = True
+                expand_match_n = 2
+
+            elif attr == 'hapmatch3':
+                expand_match = True
+                expand_match_n = 3
 
             else:
                 raise RuntimeError(f'Unrecognized attribute "{attr}" in sample list name {sample_list_name}')
@@ -283,8 +299,8 @@ def get_sample_list(sample_list_name, config):
         exp_sample_list = list()
 
         for sample_name in sample_list:
-            exp_sample_list.append(f'{sample_name}-h1')
-            exp_sample_list.append(f'{sample_name}-h2')
+            for hap in hap_list:
+                exp_sample_list.append(f'{sample_name}-{hap}')
 
         sample_list = exp_sample_list
 
@@ -292,8 +308,8 @@ def get_sample_list(sample_list_name, config):
         exp_sample_list = list()
 
         for sample_name in sample_list:
-            exp_sample_list.append(f'{sample_name}')
-            exp_sample_list.append(f'{sample_name}')
+            for i in range(expand_match_n):
+                exp_sample_list.append(f'{sample_name}')
 
         sample_list = exp_sample_list
 

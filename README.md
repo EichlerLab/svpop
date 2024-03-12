@@ -126,6 +126,7 @@ Supported types are:
 1. bed: DATA paths for pre-formatted BED file (BED 6+, #CHROM, POS, END, ID, SVTYPE, SVLEN, + other optional fields).
    IDs must be unique.
 1. deepvariant: DATA is a path to a DeepVariant VCF.
+1. dipcall: DATA is a path to a DipCall VCF.
 1. dvpepper: DATA is a path to a PEPPER-Margin-DeepVariant VCF.  
 1. clair3: DATA is a path to a Clair3 VCF.
 1. cutesv: DATA is a path to a CuteSV VCF.
@@ -156,7 +157,10 @@ Supported types are:
 
 DATA: Path to input. See supported types for a description of what DATA should point to.
 
-VERSION: Can be used by parsers to modify how variants are parsed. Currently only used for documentation purposes.
+VERSION: Can be used by parsers to modify how variants are parsed. May be set for any input for documentation purposes.
+some input types, like pavbedhap, will alter where it looks in the variant call output for input files. This string may
+be enclosed with double-quotes to prevent Excel from interpreting it like an integer (i.e. Excel likes to change 3.0.0
+to 3, but "3.0.0" would be left as is and SV-Pop will strip the quotes).
 
 PARAMS: Additional parameters:
 
@@ -180,6 +184,9 @@ PARAMS: Additional parameters:
    if there is only one sample column in the VCF.
 1. min_svlen: Minimum variant size for indels and SVs (supported by pavbedhap and VCF parsers). Value is inclusive.
 1. max_svlen: Maximum variant size for indels and SVs (supported by pavbedhap and VCF parsers). Value is inclusive.
+1. fill_ref [default False]: If the input VCF has N's in the REF column and variant calls are not resolved by symbolic
+   ALTs (i.e. ALT="<SVTYPE>" with INFO columns describing the variant), then the reference alleles must be filled in.
+   Set this parameter to "True" to tell SV-Pop to fill in N's in the REF column before resolving variants. 
 
 
 ## Running SV-Pop
@@ -287,6 +294,9 @@ The "{filter}" wildcard is typically "all" or "lc" (an hg38 filter).
     1. lc: Drops low-confidence regions determined by Audano 2019 (PMID 30661756) on CLR data. May be outdated for modern
        technology.
     1. lcy: lc and drops chrY.
+
+### Custom filters
+
 
 
 ## Annotations

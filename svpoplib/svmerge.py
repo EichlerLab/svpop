@@ -50,7 +50,7 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
     """
     Merge variants from multiple samples.
 
-    :param bed_list: List of BED files to merge where each BED file is from one samples.
+    :param bed_list: List of BED files to merge where each BED file is from one sample.
     :param sample_names: List of samples names. Each element matches an element at the same location in
         `bed_list`.
     :param strategy: Describes how to merge variants.
@@ -645,8 +645,8 @@ def merge_sample_by_support(df_support, bed_list, sample_names):
     OPT_COL = ['MERGE_RO', 'MERGE_OFFSET', 'MERGE_SZRO', 'MERGE_OFFSZ', 'MERGE_MATCH', 'MERGE_SRC', 'MERGE_SRC_ID']
 
     OPT_COL_DTYPE = {
-        'MERGE_AC': np.int32,
-        'MERGE_AF': np.float32
+        'MERGE_AC': int,
+        'MERGE_AF': float
     }
 
     # Check values

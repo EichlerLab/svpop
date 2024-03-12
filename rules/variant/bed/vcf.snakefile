@@ -51,11 +51,12 @@ CALLER_VCF_STD_FIELDS = {
     'debreak': {
         'info': ['END', 'SVLEN', 'SVTYPE', 'LARGEINS'],
         'format': ['GT']
+    },
+    'dipcall': {
+        'info': [],
+        'format': ['GT', 'AD'],
+        'params': 'fill_ref=True;batches=25'
     }
-    # 'dipcall': {
-    #     'info': [],
-    #     'format': ['GT', 'AD']
-    # }
 }
 
 VARIANT_BED_VCF_TYPE_PATTERN = '(vcf|{})'.format('|'.join(CALLER_VCF_STD_FIELDS.keys()))
@@ -84,12 +85,16 @@ def variant_bed_vcf_get_param_dict(wildcards):
 
     # Initialize INFO and FORMAT field lists
     param_dict = {
-        'info_list': list(),           # List of INFO fields to include
-        'format_list': list(),         # List of FORMAT fields to gather
-        'pass': None,                  # Set of passing FILTER values. Set to default value if None
-        'fill_del': False,             # Fill missing deletion sequences (will consume large amounts of memory for large erroneous deletions)
-        'filter_gt': True,             # Filter the GT column for present haplotypes. Turn off if the GT column is not filled in (some callers write "./." for all records).
+        'batches': 1,                  # Split variant-table-to-bed into this many partitions and batch each in its own job.
         'cnv_deldup': True,            # Translate CNVs to deletions (DEL) and duplications (DUP).
+        'fill_del': False,             # Fill missing deletion sequences (will consume large amounts of memory for large erroneous deletions)
+        'fill_ref': False,             # Fill missing REF values. Needed if variant calls resolved by REF/ALT (not INFO fields) and REF is missing (Ns)
+        'filter_gt': True,             # Filter the GT column for present haplotypes. Turn off if the GT column is not filled in (some callers write "./." for all records).
+        'format_list': list(),         # List of FORMAT fields to gather.
+        'info_list': list(),           # List of INFO fields to include.
+        'min_svlen': None,             # Minimum variant length.
+        'max_svlen': None,             # Maximum variant length.
+        'pass': None,                  # Set of passing FILTER values. Set to default value if None.
         'strict_sample': False         # Require sample name to match the sample column even if there is a single sample.
     }
 
@@ -121,7 +126,7 @@ def variant_bed_vcf_get_param_dict(wildcards):
         param_string = ''
 
     # Prepend preset parameters
-    if 'params' in CALLER_VCF_STD_FIELDS[wildcards.callertype].keys():
+    if 'params' in CALLER_VCF_STD_FIELDS.get(wildcards.callertype, dict()).keys():
         if param_string:
             param_string = CALLER_VCF_STD_FIELDS[wildcards.callertype]['params'] + ';' + param_string
         else:
@@ -159,17 +164,74 @@ def variant_bed_vcf_get_param_dict(wildcards):
                 if value is not None and value != '':
                     raise RuntimeError(f'Found value with an empty attribute (blank before "=": {avp}')
 
-            elif attrib == 'info':
-                if value is None:
-                    raise RuntimeError(f'Missing value for "info" in callset configuration: {avp}')
+            elif attrib == 'batches':
+                try:
+                    param_dict['batches'] = int(value)
+                except ValueError:
+                    raise RuntimeError(f'Error processing int value for parameter "batches": {value}')
 
-                param_dict['info_list'] += [val for val in value.split(',') if val not in param_dict['info_list']]
+                if param_dict['batches'] < 0:
+                    param_dict['batches'] = 1
+
+            elif attrib == 'cnv_deldup':
+                if value is not None:
+                    try:
+                        param_dict['cnv_deldup'] = svpoplib.util.as_bool(value)
+                    except ValueError as e:
+                        raise RuntimeError(f'Error processing boolean value for parameter "cnv_deldup": {e}')
+                else:
+                    param_dict['cnv_deldup'] = True
+
+            elif attrib == 'fill_del':
+                if value is not None:
+                    try:
+                        param_dict['fill_del'] = svpoplib.util.as_bool(value)
+                    except ValueError as e:
+                        raise RuntimeError(f'Error processing boolean value for parameter "fill_del": {e}')
+                else:
+                    param_dict['fill_del'] = True
+
+            elif attrib == 'fill_ref':
+                if value is not None:
+                    try:
+                        param_dict['fill_ref'] = svpoplib.util.as_bool(value)
+                    except ValueError as e:
+                        raise RuntimeError(f'Error processing boolean value for parameter "fill_ref": {e}')
+                else:
+                    param_dict['fill_ref'] = True
+
+            elif attrib == 'filter_gt':
+                if value is not None:
+                    try:
+                        param_dict['filter_gt'] = svpoplib.util.as_bool(value)
+                    except ValueError as e:
+                        raise RuntimeError(f'Error processing boolean value for parameter "filter_gt": {e}')
+                else:
+                    param_dict['filter_gt'] = True
 
             elif attrib == 'format':
                 if value is None:
                     raise RuntimeError(f'Missing value for "format" in callset configuration: {avp}')
 
                 param_dict['format_list'] += [val for val in value.split(',') if val not in param_dict['format_list']]
+
+            elif attrib == 'info':
+                if value is None:
+                    raise RuntimeError(f'Missing value for "info" in callset configuration: {avp}')
+
+                param_dict['info_list'] += [val for val in value.split(',') if val not in param_dict['info_list']]
+
+            elif attrib == 'max_svlen':
+                try:
+                    param_dict['max_svlen'] = int(value)
+                except ValueError:
+                    raise RuntimeError(f'Error processing int value for parameter "max_svlen": {value}')
+
+            elif attrib == 'min_svlen':
+                try:
+                    param_dict['min_svlen'] = int(value)
+                except ValueError:
+                    raise RuntimeError(f'Error processing int value for parameter "min_svlen": {value}')
 
             elif attrib == 'pass':
                 # Append to pass filters if "=" is in the avp
@@ -185,40 +247,14 @@ def variant_bed_vcf_get_param_dict(wildcards):
                 else:
                     param_dict['pass'] = set()
 
-            elif attrib == 'fill_del':
-                if value is not None:
-                    try:
-                        param_dict['fill_del'] = svpoplib.util.as_bool(value)
-                    except ValueError as e:
-                        raise RuntimeError(f'Error processing boolean value for parameter "fill_del": {e}')
-                else:
-                    param_dict['fill_del'] = True
-
-            elif attrib == 'filter_gt':
-                if value is not None:
-                    try:
-                        param_dict['filter_gt'] = svpoplib.util.as_bool(value)
-                    except ValueError as e:
-                        raise RuntimeError(f'Error processing boolean value for parameter "filter_gt": {e}')
-                else:
-                    param_dict['filter_gt'] = True
-
-            elif attrib == 'cnv_deldup':
-                if value is not None:
-                    try:
-                        param_dict['cnv_deldup'] = svpoplib.util.as_bool(value)
-                    except ValueError as e:
-                        raise RuntimeError(f'Error processing boolean value for parameter "cnv_deldup": {e}')
-                else:
-                    param_dict['cnv_deldup'] = True
-
             else:
+                raise RuntimeError(f'Unrecognized attribute name "{attrib}" in "{avp}" parameter')
                 # Add as a list of values, one for each attribute appearance.
-
-                if 'attrib' not in param_dict:
-                    param_dict['attrib'] = list()
-
-                param_dict['attrib'].append(value)
+                #
+                # if 'attrib' not in param_dict:
+                #     param_dict['attrib'] = list()
+                #
+                # param_dict['attrib'].append(value)
 
     # Set default values
     if param_dict['pass'] is None:
@@ -293,6 +329,20 @@ def variant_bed_vcf_bcftools_preprocess(wildcards):
 
     return shell_cmd
 
+def variant_bed_vcf_file_per_batch(wildcards, file_pattern):
+    """
+    Get a list of BED files to merge for this call source.
+
+    :param wildcards: Rule wildcards.
+
+    :return: List of input files.
+    """
+
+    return [
+        file_pattern.format(callertype=wildcards.callertype, sourcename=wildcards.sourcename, sample=wildcards.sample, batch=batch)
+            for batch in range(variant_bed_vcf_get_param_dict(wildcards)['batches'])
+    ]
+
 # NOTE: Integrated into svpoplib.variant.vcf_fields_to_seq()
 # def variant_bed_vcf_fix_sniffles2(df):
 #     """
@@ -346,25 +396,15 @@ rule variant_vcf_bed_fa:
     run:
 
         # Get sample entry parameters
-        sample_entry = svpoplib.rules.sample_table_entry(
-            wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type=wildcards.callertype
-        )
+        param_dict = variant_bed_vcf_get_param_dict(wildcards)
+
+        # sample_entry = svpoplib.rules.sample_table_entry(
+        #     wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type=wildcards.callertype
+        # )
 
         # Get min/max SVLEN
-        min_svlen = sample_entry['PARAMS'].get('min_svlen', None)
-        max_svlen = sample_entry['PARAMS'].get('max_svlen', None)
-
-        if min_svlen is not None:
-            try:
-                min_svlen = int(min_svlen)
-            except ValueError:
-                raise RuntimeError(f'Minimum SVLEN parameter ("min_svlen") is not a number: {min_svlen}')
-
-        if max_svlen is not None:
-            try:
-                max_svlen = int(max_svlen)
-            except ValueError:
-                raise RuntimeError(f'Maximum SVLEN parameter ("max_svlen") is not a number: {max_svlen}')
+        min_svlen = param_dict['min_svlen']
+        max_svlen = param_dict['max_svlen']
 
         # Read
         df = pd.read_csv(input.bed, sep='\t', header=0)
@@ -414,6 +454,48 @@ rule variant_vcf_bed_fa:
         # Write
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
+rule variant_bed_vcf_tsv_to_bed_merge:
+    input:
+        bed=lambda wildcards: variant_bed_vcf_file_per_batch(wildcards,
+            'temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/batches/variants_{batch}.bed.gz'
+        ),
+        tsv_filt=lambda wildcards: variant_bed_vcf_file_per_batch(wildcards,
+            'temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/batches/variants_{batch}.bed.gz'
+        )
+    output:
+        bed=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/variants.bed.gz'),
+        tsv_filt='results/variant/caller/{sourcename}/{sample}/all/all/bed/filtered/vcf_fail_{callertype}.tsv.gz'
+    run:
+
+        assert len(input.bed) == len(input.tsv_filt)
+
+        if len(input.bed) > 1:
+
+            pd.concat(
+                [
+                    pd.read_csv(bed_file, sep='\t', dtype={'#CHROM', str}, low_memory=False)
+                        for bed_file in input.bed
+                ]
+            ).sort_values(
+                ['#CHROM', 'POS']
+            ).to_csv(
+                output.bed, sep='\t', index=False, compression='gzip'
+            )
+
+            pd.concat(
+                [
+                    pd.read_csv(tsv_filt_file, sep='\t', low_memory=False)
+                        for tsv_filt_file in input.tsv_filt
+                ]
+            ).to_csv(
+                output.bed, sep='\t', index=False, compression='gzip'
+            )
+
+        else:
+            shutil.copyfile(input.bed[0], output.bed)
+            shutil.copyfile(input.tsv_filt[0], output.tsv_filt)
+
+
 # variant_dv_tsv_to_bed
 #
 # TSV to BED.
@@ -421,10 +503,11 @@ rule variant_bed_vcf_tsv_to_bed:
     input:
         tsv='temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/bcftools_table.tsv.gz'
     output:
-        bed=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/variants.bed.gz'),
-        tsv_filt='results/variant/caller/{sourcename}/{sample}/all/all/bed/filtered/vcf_fail_{callertype}.tsv.gz'
+        bed=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/batches/variants_{batch}.bed.gz'),
+        tsv_filt=temp('temp/variant/caller/{callertype}/{sourcename}/{sample}/tsv/batches/vcf_fail_{batch}.tsv.gz')
     wildcard_constraints:
-        callertype=VARIANT_BED_VCF_TYPE_PATTERN
+        callertype=VARIANT_BED_VCF_TYPE_PATTERN,
+        batch=r'\d+'
     params:
         mem='6000',
         chunk_size=5000  # DataFrame chunk size
@@ -438,6 +521,21 @@ rule variant_bed_vcf_tsv_to_bed:
         ref_fa = None
 
         chrom_set = set(svpoplib.ref.get_df_fai(config['reference_fai']).index)
+
+        if param_dict['batches'] > 1:
+            batch = int(wildcards.batch)
+            batch_count = param_dict['batches']
+
+            if batch >= batch_count:
+                raise RuntimeError(f'Wildcard "batch" {wildcards.batch} must be less than the number of batches ({param_dict["batches"]})')
+
+        else:
+
+            if int(wildcards.batch) != 0:
+                raise RuntimeError(f'Wildcard "batch" {wildcards.batch} is non-zero for a callset not processed in batches (param "batches" == {param_dict["batches"]}')
+
+            batch = None
+            batch_count = None
 
         try:
 
@@ -454,7 +552,10 @@ rule variant_bed_vcf_tsv_to_bed:
                         filter_pass_set=param_dict['pass'],
                         filter_gt=param_dict['filter_gt'],
                         cnv_deldup=param_dict['cnv_deldup'],
-                        strict_sample=param_dict['strict_sample']
+                        strict_sample=param_dict['strict_sample'],
+                        ref_fa_name=config['reference'] if param_dict['fill_ref'] else None,
+                        batch=batch,
+                        batch_count=batch_count
                     ):
 
                         # Drop chromosomes not in this reference (e.g. Called against and ALT reference with SV-Pop using a no-ALT reference)

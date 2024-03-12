@@ -241,3 +241,59 @@ Table of variant IDs and a SEQ column with the variant sequence. Used to pull se
 sequence-resolved variant input.
 
     results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/seq/seq_{vartype}_{svtype}.tsv.gz
+
+## Flag rules
+
+Flag rules use lists of sample names (`samplelist` section of `config.json`) to run a collection of targets for multiple
+samples. Unlike other targets, the output file of a flag rule is an empty flag file once all the targets are run, and
+this flag file can be immediately removed if desired. Running a flag rule will check all the target files and re-run
+them if any are missing or data they used has changed. These flag targets are a convenience, all the targets they run
+can be executed without them, but the command-line process is greatly simplified when there are many samples to be run.
+
+Two types of flag targets exist:
+1) Callset flag rules: Retrieve and prepare callset variants and annotations across samples.
+1) Merge flag rules: Run an intersect across multiple samples. May run sample-to-sample or sample combinations.
+
+### Callset flag rules
+
+Variant calls, annotations, and variant sequence FASTA files:
+
+```
+flag/variant/caller/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz
+flag/variant/caller/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz
+flag/variant/caller/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz
+```
+
+The sample wildcard is the name of a sample list. The rest of the wildcards are consistent with the per-sample variant
+callest and annotation wildcards.
+
+### Intersect flag rules
+
+```
+flag/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/{policy}
+```
+
+The two samples, `sample_a` and `sample_b`, can be defined sample lists, but may be individual sample names (e.g.
+compare many samples to one).
+
+The `policy` wildcard has three options:
+1) match: One-to-one match for the `sample_a` list and the `sample_b` list. For example, if one list contains "a", "b",
+  and "c", and the other list list is "x", "y", "z", then "a" is compared to "x", "b" is compared to "y", and "c" is
+  compared to "z".
+1) comb: Run all combinations of the sample lists except where the sample names match.
+1) fullcomb: Run all combinations of the sample lists including where the sample names match.
+
+The sample list may have ":hap" or ":hapmatch" appended to it to accomodate callsets with and without haplotype
+assignments.
+
+When ":hap" is appended to a sample list, it expands the list by adding "_h1" and "_h2" to each sample
+name. For example, if list "s1" is ["a", "b"], then setting a sample wildcard to "s1:hap" expands it to ["a_h1", "a_h2",
+"b_h1", "b_h2"]. Note the order of the original list is preserved (i.e. "a" still comes before "b"), so the list with
+haplotypes is predictable. If both `sample_a` and `sample_b` are "s1:hap", then "a_h1" is compared with "a_h1",
+"b_h1" is compared with "b_h1", and so on. This mode accomodates PAV callsets imported as "pavbedhap" in the sample
+table.
+
+When ":hapmatch" is appended, the list is expanded, but the haplotype assignments are not made. For example, if list
+"s1" is ["a", "b"], then setting a sample wildcard to "s1:hapmatch" expands it to ["a", "a", "b", "b"]. This is
+meant to accommodate cases where phased callsets are compared with unphased callsets (e.g. PAV imported as "pavbedhap"
+with PBSV calls for the same sample).

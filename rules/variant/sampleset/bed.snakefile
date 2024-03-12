@@ -189,6 +189,7 @@ rule variant_sampleset_fa_merge:
         fa='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
         fai='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz.fai'
     wildcard_constraints:
+        vartype='sv|indel',
         svtype='ins|del|inv|sub|rgn'
     run:
 
