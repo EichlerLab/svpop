@@ -172,7 +172,8 @@ rule variant_anno_repeat_rmsk_run:
 # Make table of repeat annotations.
 rule variant_anno_repeat_trf_table:
     input:
-        out='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/data/trf-table_{vartype}_{svtype}/trf.out'
+        out='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/data/trf-table_{vartype}_{svtype}/trf.out',
+        flag='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/data/trf-table_{vartype}_{svtype}/trf.out.flag'
     output:
         tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/trf-table_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
@@ -193,7 +194,7 @@ rule variant_anno_repeat_trf_table:
                 ]
             )
 
-            df.to_csv(output.tab, sep='\t', index=False)
+            df.to_csv(output.tsv, sep='\t', index=False)
 
             return
 
@@ -204,7 +205,7 @@ rule variant_anno_repeat_trf_table:
 
         line_count = 0
 
-        with open(input.out, 'r') as in_file:
+        with open(input.out, 'rt') as in_file:
             for line in in_file:
                 line_count += 1
 
@@ -222,10 +223,22 @@ rule variant_anno_repeat_trf_table:
                     raise RuntimeError('First line in TRF output file must begin with "@"')
 
                 # Parse
-                tok = re.split('\s+', line)
+                tok = re.split(r'\s+', line)
 
-                if len(tok) != 17:
+                if len(tok) < 17:
                     raise RuntimeError('Expected 17 fields on line {}: Received {}'.format(line_count, len(tok)))
+
+                    # if len(tok) == 14:
+                    #     tok = tok + [None, None, None]  # No sequences
+                    #
+                    # elif len(tok) in {15, 16}:  # No flanking sequence or missing from one side
+                    #     tok = tok[:15] + [None] * (17 - 16)
+                    #
+                    # elif len(tok) == 8:
+                    #     tok = tok + [None] * (17 - 8)
+                    #
+                    # else:
+                    #     raise RuntimeError('Expected 17 fields on line {}: Received {}'.format(line_count, len(tok)))
 
                 # BED coordinates
                 tok[0] = int(tok[0]) - 1
@@ -252,6 +265,9 @@ rule variant_anno_repeat_trf_table:
         # Define: Function to find longest perfect match. Start with lowest position index of the consensus repeat in
         # the string, then find all other sequential positions.
         def longest_match(row):
+            if pd.isnull(row['SEQ']):
+                return 0
+
             match_set = {m.start() for m in re.finditer(row['CONSENSUS'], row['SEQ'])}
 
             max_count = 0
@@ -302,7 +318,8 @@ rule variant_anno_repeat_trf_run:
     input:
         fa='temp/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa'
     output:
-        out='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/data/trf-table_{vartype}_{svtype}/trf.out'
+        out='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/data/trf-table_{vartype}_{svtype}/trf.out',
+        flag=touch('results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/trf/data/trf-table_{vartype}_{svtype}/trf.out.flag')
     wildcard_constraints:
         vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|rgn|sub'

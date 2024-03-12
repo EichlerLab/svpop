@@ -2,6 +2,7 @@
 Get nearest variant by SVLEN overlap. Used for merging and comparing callsets.
 """
 
+import multiprocessing
 import numpy as np
 import pandas as pd
 

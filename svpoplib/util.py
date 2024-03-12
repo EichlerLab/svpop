@@ -137,3 +137,27 @@ def parse_param_string(param_string):
                 [attrib_val.split('=', 1) for attrib_val in param_string.split(';')]
         ]
     }
+
+
+def cmp_ver(ver_a, ver_b):
+    """
+    Compare version strings element-by-element. Each version string must be composed of integers separated by
+    dots (e.g. "1.0", or "1.0.1").
+
+    :param ver_a: Version string.
+    :param ver_b: Version string.
+
+    :return: -1 if `ver_a` is smaller, 1 if `ver_b` is smaller, 0 otherwise.
+    """
+
+    try:
+        ver_a = tuple((int(val) for val in ver_a.split('.')))
+    except ValueError as e:
+        raise ValueError(f'Error converting version "{ver_a}" to a list of integers: {e}')
+
+    try:
+        ver_b = tuple((int(val) for val in ver_b.split('.')))
+    except ValueError as e:
+        raise ValueError(f'Error converting version "{ver_b}" to a list of integers: {e}')
+
+    return (ver_a > ver_b) - (ver_a < ver_b)

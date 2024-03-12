@@ -157,7 +157,10 @@ Supported types are:
 
 DATA: Path to input. See supported types for a description of what DATA should point to.
 
-VERSION: Can be used by parsers to modify how variants are parsed. Currently only used for documentation purposes.
+VERSION: Can be used by parsers to modify how variants are parsed. May be set for any input for documentation purposes.
+some input types, like pavbedhap, will alter where it looks in the variant call output for input files. This string may
+be enclosed with double-quotes to prevent Excel from interpreting it like an integer (i.e. Excel likes to change 3.0.0
+to 3, but "3.0.0" would be left as is and SV-Pop will strip the quotes).
 
 PARAMS: Additional parameters:
 

@@ -25,7 +25,7 @@ rule variant_caller_extern_get_bed:
         bed=temp('temp/variant/caller/bed/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz'),
         fa=temp('temp/variant/caller/bed/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz')
     wildcard_constraints:
-        svtype='ins|del|inv|dup|sub|rgn|snv',
+        svtype='ins|del|inv|dup|sub|rgn|snv'
     run:
 
         # Get entry and FASTA file name

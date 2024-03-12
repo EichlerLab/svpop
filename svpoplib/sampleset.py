@@ -16,16 +16,16 @@ from Bio import SeqIO
 # Default resource values
 DEFAULT_RESOURCES = {
     'sampleset': {
-        'cpu': '4',
-        'mem': '12000',
-        'rt': '48:00:00',
-        'anno_mem': '12000'
+        'cpu': '8',
+        'mem': '24576',
+        'rt': '72:00:00',
+        'anno_mem': '24576'
     },
     'callerset': {
         'cpu': '4',
-        'mem': '12000',
+        'mem': '12288',
         'rt': '48:00:00',
-        'anno_mem': '8000'
+        'anno_mem': '8192'
     }
 }
 
