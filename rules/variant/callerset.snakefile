@@ -115,7 +115,7 @@ rule variant_callerset_merge_chrom:
 rule variant_callerset_fa:
     input:
         bed='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
-        tab=lambda wildcards: svpoplib.callerset.get_caller_set_input(
+        tsv=lambda wildcards: svpoplib.callerset.get_caller_set_input(
             wildcards.sourcename,
             'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
             config,

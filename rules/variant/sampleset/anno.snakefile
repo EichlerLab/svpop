@@ -17,7 +17,7 @@ Merge annotations from a merged set of samples.
 rule variant_sampleset_anno_merge:
     input:
         bed='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
-        tab=lambda wildcards: svpoplib.sampleset.get_sample_set_input(
+        tsv=lambda wildcards: svpoplib.sampleset.get_sample_set_input(
             wildcards.sourcename,
             wildcards.sample,
             'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz',
@@ -25,7 +25,7 @@ rule variant_sampleset_anno_merge:
             wildcards
         )
     output:
-        tab='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
+        tsv='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
     params:
         mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config)
     wildcard_constraints:
@@ -55,4 +55,4 @@ rule variant_sampleset_anno_merge:
         )
 
         # Write
-        df_merge.to_csv(output.tab, sep='\t', index=False, compression='gzip')
+        df_merge.to_csv(output.tsv, sep='\t', index=False, compression='gzip')

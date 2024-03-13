@@ -33,7 +33,7 @@ rule variant_anno_homopolymer_nearest:
         var_bed='temp/variant/caller/{sourcename}/{sample}/{filter}/all/bed4/{vartype}_{svtype}.bed.gz',
         hpy_bed='data/anno/homopolymer/{rep_len}_regions_all.bed.gz'
     output:
-        tab='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/homopolymer/{rep_len}_nearest_all_{flank}_{vartype}_{svtype}.tsv.gz'
+        tsv='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/homopolymer/{rep_len}_nearest_all_{flank}_{vartype}_{svtype}.tsv.gz'
     wildcard_constraints:
         vartype='sv|indel|snv|rgn|sub',
         svtype='ins|del|inv|dup|snv|rgn|sub',
@@ -58,7 +58,7 @@ rule variant_anno_homopolymer_nearest:
                 """($4 != ".") {{print $4, $8, $9, abs($10)}}"""
                 """';\n """
             """}} | gzip """
-            """> {output.tab}"""
+            """> {output.tsv}"""
         )
 
         # abs() from: https://unix.stackexchange.com/questions/220588/how-to-take-the-absolute-value-using-awk

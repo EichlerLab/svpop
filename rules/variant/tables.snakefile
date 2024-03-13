@@ -7,13 +7,13 @@ Data summary tables.
 # TSV to Excel.
 rule variant_tables_caller_xlsx:
     input:
-        tab='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/tables/variant_summary/{vartype}_{svtype}.tsv.gz'
+        tsv='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/tables/variant_summary/{vartype}_{svtype}.tsv.gz'
     output:
         xlsx='results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/tables/variant_summary/{vartype}_{svtype}.xlsx'
     run:
 
         pd.read_csv(
-            input.tab, sep='\t'
+            input.tsv, sep='\t'
         ).to_excel(
             output.xlsx, index=False
         )

@@ -115,7 +115,7 @@ rule variant_anno_caller_region_band:
 
         # Write empty table
         if df.shape[0] == 0:
-            pd.DataFrame([], columns=['ID', 'BAND']).to_csv(output.tab, sep='\t', index=False)
+            pd.DataFrame([], columns=['ID', 'BAND']).to_csv(output.tsv, sep='\t', index=False)
             return
 
         # Get band prefix (chr name without "chr"), np.nan for unplaced/unlocalized contigs
