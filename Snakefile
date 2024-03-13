@@ -55,7 +55,9 @@ if os.path.isfile(CONFIG_FILE_NAME_INSTALLED):
 configfile: CONFIG_FILE_NAME
 
 if 'ucsc_ref_name' not in config:
-    config['ucsc_ref_name'] = 'hg38'
+    raise RuntimeWarning('No "ucsc_ref_name" in configuration (Genome name in the UCSC browser): Setting to UCSC_UNKNOWN - will affect downloading track data for annotations')
+    config['ucsc_ref_name'] = 'UCSC_UNKNOWN'
+
 
 UCSC_REF_NAME = config['ucsc_ref_name']
 
