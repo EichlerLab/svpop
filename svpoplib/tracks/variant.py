@@ -82,13 +82,14 @@ def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_des
     if '#CHROM' not in df.columns and 'CHROM' in df.columns:
         df.columns = [col if col != 'CHROM' else '#CHROM' for col in df.columns]
 
-    # Set #CHROM to string and sort
-    df['#CHROM'] = df['#CHROM'].astype(str)
-    df.sort_values(['#CHROM', 'POS', 'END'], inplace=True)
+    if df.shape[0] > 0:
+        # Set #CHROM to string and sort
+        df['#CHROM'] = df['#CHROM'].astype(str)
+        df.sort_values(['#CHROM', 'POS', 'END'], inplace=True)
 
-    # Trim large INS records that extend past chromosome end
-    df['END'] = df['POS'] + df['SVLEN']
-    df['END'] = df.apply(lambda row: np.min([row['END'], df_fai[row['#CHROM']]]), axis=1)
+        # Trim large INS records that extend past chromosome end
+        df['END'] = df['POS'] + df['SVLEN']
+        df['END'] = df.apply(lambda row: np.min([row['END'], df_fai[row['#CHROM']]]), axis=1)
 
     # Add BED fields
     report_status('Formatting BED', verbose)
@@ -98,7 +99,10 @@ def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_des
     df['POS_THICK'] = df['POS']
     df['END_THICK'] = df['END']
 
-    df['COL'] = df.apply(lambda row: TRACKS_SVTYPE_COLOR_DICT[row['SVTYPE']], axis=1)
+    if df.shape[0] > 0:
+        df['COL'] = df.apply(lambda row: TRACKS_SVTYPE_COLOR_DICT[row['SVTYPE']], axis=1)
+    else:
+        df['COL'] = np.nan
 
     # Arrange columns
     head_cols = ['#CHROM', 'POS', 'END', 'ID', 'SCORE', 'STRAND', 'POS_THICK', 'END_THICK', 'COL']
