@@ -27,6 +27,20 @@ def _input_svpop_variant_flag_input_list(wildcards, file_pattern):
 # svpop_variant_flag_bed
 #
 # Generate the callset for a collection of samples.
+localrules: flag_variant_caller_vcf
+
+rule flag_variant_caller_vcf:
+    input:
+        bed=lambda wildcards: _input_svpop_variant_flag_input_list(
+            wildcards,
+            'results/variant/caller/{sourcename}/{sample}/{filter}/{svset}/vcf/{vartype}_{svtype}_{altfmt}.vcf.gz'
+        )
+    output:
+        bed=touch('flag/variant/caller/{sourcename}/{sample}/{filter}/{svset}/vcf/{vartype}_{svtype}_{altfmt}.vcf.gz')
+
+# svpop_variant_flag_bed
+#
+# Generate the callset for a collection of samples.
 localrules: flag_variant_caller_bed
 
 rule flag_variant_caller_bed:
