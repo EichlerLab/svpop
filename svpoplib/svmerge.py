@@ -2,17 +2,21 @@
 Code for merging variant sets.
 """
 
-import collections
+import Bio.bgzf
 import intervaltree
+import joblib
 import multiprocessing
 import numpy as np
+import os
 import pandas as pd
+import pysam
 import re
+import subprocess
 import sys
+import tempfile
 import traceback
 
 import svpoplib
-import kanapy
 
 
 def get_merge_def(def_name, config, default_none=False):
@@ -39,14 +43,14 @@ def get_merge_def(def_name, config, default_none=False):
         if def_name in {'nr', 'nrsnp', 'nrsnv'}:
             raise RuntimeError(f'Cannot redefine built-in merge strategy: {def_name}')
 
-        if not re.match('^[a-zA-Z0-9\-_]+$', def_name):
+        if not re.match(r'^[a-zA-Z0-9\-_]+$', def_name):
             raise RuntimeError(f'Pre-defined merge strategy key contains illegal characters (only allows alhpa, numeric, underscore, and dash): {def_name}')
 
     # Get pre-defined merge config
     return config['merge_def'].get(def_name, None if default_none else def_name)
 
 
-def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=None, threads=1):
+def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=None, threads=1, ref_filename=None):
     """
     Merge variants from multiple samples.
 
@@ -58,6 +62,8 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
     :param subset_chrom: Merge only records from this chromosome. If `None`, merge all records. May be a string (single
         chromosome name) or a list, tuple, or set of chromosome names.
     :param threads: Number of threads to use for intersecting variants.
+    :param ref_filename: Reference FASTA filename. Not required for built-in SV-Pop merge strategies, but is required
+        for merge strategies using temporary VCF files (e.g. Truvari).
 
     :return: A Pandas dataframe of a BED file with the index set to the ID column.
     """
@@ -78,13 +84,14 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
     if merge_config.strategy in {'nr', 'nrsnv', 'nrsnp'}:
         return merge_variants_nr(
             bed_list, sample_names, merge_config,
-            fa_list=fa_list, subset_chrom=subset_chrom, threads=threads
+            fa_list=fa_list, subset_chrom=subset_chrom, threads=threads,
+            ref_filename=ref_filename
         )
     else:
         raise RuntimeError('Unrecognized merge strategy "{}": {}'.format(merge_config.strategy, strategy))
 
 
-def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset_chrom=None, threads=1, verbose=False):
+def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset_chrom=None, threads=1, verbose=False, ref_filename=None):
     """
     Merge all non-redundant variants from multiple samples.
 
@@ -116,6 +123,9 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
         chromosome name) or a list, tuple, or set of chromosome names.
     :param threads: Number of threads to use for intersecting variants.
     :param verbose: Print progress if True.
+    :param ref_filename: Reference FASTA filename. Not required for built-in SV-Pop merge strategies, but is required
+        for merge strategies using temporary VCF files (e.g. Truvari).
+
 
     :return: A Pandas dataframe of a BED file with the index set to the ID column.
     """
@@ -144,6 +154,12 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
     if len(set(sample_names)) != n_samples:
         raise RuntimeError('Sample names may not be duplicated')
 
+    # Discover variant types (needed to determine if sequences are needed for variant comparisons)
+    svtype_set = set()
+
+    for filename in bed_list:
+        svtype_set |= set(pd.read_csv(filename, sep='\t', usecols=['SVTYPE'], nrows=10000)['SVTYPE'])
+
     # Report parameters
     if verbose:
         print(merge_config.__repr__(pretty=True))
@@ -151,7 +167,7 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
     # Check fa_list if sequences are required
     seq_in_col = False
 
-    if merge_config.read_seq:
+    if merge_config.is_read_seq(svtype_set):
         if fa_list is None:
             seq_in_col = True
             fa_list = [None] * n_samples
@@ -171,7 +187,7 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
         col_list += ['REF']
         col_list += ['ALT']
 
-    if merge_config.read_seq:
+    if seq_in_col:
         col_list += ['SEQ']
 
 
@@ -249,10 +265,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
             if verbose:
                 print(f'* {merge_spec}')
 
-            spec_type = merge_spec.spec_type.lower()
-
             # Get support table
-            if spec_type == 'exact':
+            if merge_spec.spec_type == 'exact':
 
                 # INTERSECT: Exact match
                 df_support = get_support_table_exact(
@@ -312,6 +326,20 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
                     aligner=merge_spec.aligner
                 )
 
+            elif merge_spec.spec_type == 'truvari':
+
+                # INTERSECT: Truvari
+                df_support = get_support_table_truvari(
+                    df=df_sub,
+                    df_next=df_next_sub,
+                    refdist=merge_spec.refdist,
+                    pctseq=merge_spec.pctseq,
+                    pctsize=merge_spec.pctsize,
+                    pctovl=merge_spec.pctovl,
+                    align_match_prop=merge_spec.align_match_prop,
+                    aligner=merge_spec.aligner,
+                    ref_filename=ref_filename
+                )
 
             else:
                 raise RuntimeError(f'Unknown merge specification type: {spec_type}')
@@ -1297,6 +1325,150 @@ def get_support_table_exact(df, df_next, align_match_prop=None, aligner=None, ma
         return pd.concat(df_match_list, axis=1).T
     else:
         return None
+
+
+def get_support_table_truvari(df, df_next, refdist, pctseq, pctsize, pctovl, ref_filename, align_match_prop, aligner):
+
+    if ref_filename is None or not os.path.isfile(ref_filename):
+        raise RuntimeError('Merge strategy "truvari" requires a reference file')
+
+    # Make temporary directory
+    with tempfile.TemporaryDirectory(prefix='svpop_truvari_') as temp_dir:
+
+        vcf_base_filename = os.path.join(temp_dir, 'svpop_base.vcf.gz')
+        vcf_comp_filename = os.path.join(temp_dir, 'svpop_comp.vcf.gz')
+
+        # Write VCF - Base
+        vcf_tab = svpoplib.vcf.VariantVcfTable(df.copy(), 'SAMPLE', ref_filename)
+
+        with Bio.bgzf.BgzfWriter(vcf_base_filename, 'wt') as out_file:
+            vcf_tab.write(out_file)
+
+        pysam.tabix_index(vcf_base_filename, preset='vcf', force=True)
+
+        # Write VCF - Comparison
+        vcf_tab = svpoplib.vcf.VariantVcfTable(df_next.copy(), 'SAMPLE', ref_filename)
+
+        with Bio.bgzf.BgzfWriter(vcf_comp_filename, 'wt') as out_file:
+            vcf_tab.write(out_file)
+
+        pysam.tabix_index(vcf_comp_filename, preset='vcf', force=True)
+
+        # Run Truvari
+        subprocess.run(
+            [
+                'truvari', 'bench',
+                '--pctseq', f'{pctseq:.6f}',
+                '--pctsize', f'{pctsize:.6f}',
+                '--pctovl', f'{pctovl:.6f}',
+                '--refdist', f'{refdist:d}',
+                '--sizemin', '1',
+                '--sizefilt', '1',
+                '-b', vcf_base_filename,
+                '-c', vcf_comp_filename,
+                '-f', ref_filename,
+                '-o', os.path.join(temp_dir, 'run')
+            ]
+        ).check_returncode()
+
+        subprocess.run(
+            [
+                'truvari', 'vcf2df',
+                '--info',
+                '--bench-dir', os.path.join(temp_dir, 'run'),
+                os.path.join(temp_dir, 'bench_df.jl')
+            ]
+        ).check_returncode()
+
+        # Read JL
+        df_jl = joblib.load(os.path.join(temp_dir, 'bench_df.jl'))
+        #df_jl = df_jl[['ID', 'MatchId', 'state']]
+
+        df_base = df_jl[df_jl['state'].isin(['tpbase'])].copy()
+        df_base['base_id'] = df_base['MatchId'].apply(lambda x: x[0])
+        df_base['comp_id'] = df_base['MatchId'].apply(lambda x: x[1])
+
+        df_comp = df_jl[df_jl['state'].isin(['tp'])].copy()
+        df_comp['base_id'] = df_comp['MatchId'].apply(lambda x: x[0])
+        df_comp['comp_id'] = df_comp['MatchId'].apply(lambda x: x[1])
+
+        df_support = pd.merge(
+            df_base, df_comp, left_on='base_id', right_on='comp_id', suffixes=('_base', '_comp')
+        )[['ID_base', 'ID_comp']]
+
+        df_support.columns = ['ID', 'TARGET_ID']
+
+        # Fill support columns (RO, SZRO, etc)
+        return fill_support_table(
+            df_support, df, df_next, align_match_prop, aligner
+        )
+
+
+def fill_support_table(df_support, df, df_next, align_match_prop, aligner):
+
+    # Concat
+    df_a = df.set_index('ID').loc[list(df_support['ID'])].reset_index()
+    df_a.columns = [col + '_A' for col in df_a.columns]
+
+    df_b = df_next.set_index('ID').loc[list(df_support['TARGET_ID'])].reset_index()
+    df_b.columns = [col + '_B' for col in df_b.columns]
+
+    df_sup = pd.concat([df_support, df_a, df_b], axis=1)
+
+    # Base sanity checks
+    if np.any(df_sup['#CHROM_A'] != df_sup['#CHROM_B']):
+        raise RuntimeError('Chromosome mismatches in merge')
+
+    if np.any(df_sup['SVTYPE_A'] != df_sup['SVTYPE_B']):
+        raise RuntimeError('SVTYPE mismatches in merge')
+
+    # OFFSET
+    df_sup['OFFSET'] = df_sup.apply(lambda row:
+        np.min(
+            [
+                np.abs(row['POS_A'] - row['POS_B']),
+                np.abs(row['END_A'] - row['END_B'])
+            ]
+        ), axis=1
+    )
+
+    # RO
+    df_sup['RO'] = df_sup.apply(lambda row:
+        (
+            svpoplib.variant.reciprocal_overlap(row['POS_A'], row['END_A'], row['POS_B'], row['END_B'])
+        ) if row['SVTYPE_A'] != 'INS' else (
+            svpoplib.variant.reciprocal_overlap(row['POS_A'], row['POS_A'] + row['SVLEN_A'], row['POS_B'], row['POS_B'] + row['SVLEN_B'])
+        ), axis=1
+    )
+
+    # SZRO
+    df_sup['SZRO'] = df_sup.apply(lambda row:
+        np.min([row['SVLEN_A'] / row['SVLEN_B'], row['SVLEN_B'] / row['SVLEN_A']]),
+        axis=1
+    )
+
+    # OFFSZ
+    df_sup['OFFSZ'] = df_sup.apply(lambda row:
+        row['OFFSET'] / min(row['SVLEN_A'], row['SVLEN_B']),
+        axis=1
+    )
+
+    # MATCH
+    if aligner is not None:
+        df_sup['MATCH'] = df_sup.apply(lambda row:
+            aligner.match_prop(row['SEQ_A'], row['SEQ_B']),
+            axis=1
+        )
+
+        if align_match_prop is not None:
+            df_sup = df_sup.loc[df_sup['MATCH'] >= align_match_prop].copy()
+    else:
+        df_sup['MATCH'] = np.nan
+
+    # Return support table
+    return df_sup[
+        ['ID', 'TARGET_ID', 'OFFSET', 'RO', 'SZRO', 'OFFSZ', 'MATCH']
+    ]
 
 
 def is_exact_match_no_seq(row_a, row_b, match_ref, match_alt):

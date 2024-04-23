@@ -383,7 +383,7 @@ class SVLenFilterRunner(FilterRunner):
                     'SV length "range" cannot be specified with "min" or "max": {}'.format(self.filter_arg)
                 )
 
-            tok = re.split('\s*-\s*', self.args['range'].strip(), 1)
+            tok = re.split(r'\s*-\s*', self.args['range'].strip(), 1)
 
             if len(tok) != 2:
                 raise RuntimeError(
@@ -551,10 +551,10 @@ def args_to_dict(filter_arg):
     filter_arg = filter_arg.strip()
 
     # Parse arguments as a colon separated list where each element may have an assignment
-    for filter_avp in re.split('\s*:\s*', filter_arg):
+    for filter_avp in re.split(r'\s*:\s*', filter_arg):
 
         # Split on =
-        tok = re.split('\s*=\s*', filter_avp, 1)
+        tok = re.split(r'\s*=\s*', filter_avp, 1)
 
         filter_attr = tok[0]
         filter_val = tok[1] if len(tok) > 1 else None
@@ -599,7 +599,7 @@ def get_filter_spec_list(filter_spec_str):
         raise RuntimeError('Filter spec string is empty')
 
     filter_spec_list = [
-        re.split('\s*:\s*', spec.strip(), 1) for spec in filter_spec_str.split('+') if spec.strip()
+        re.split(r'\s*:\s*', spec.strip(), 1) for spec in filter_spec_str.split('+') if spec.strip()
     ]
 
     # Do not allow empty filter specs

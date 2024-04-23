@@ -21,7 +21,7 @@ MERGE_INFO_FIELD_LIST = [
 
 def intersect_is_read_seq(wildcards, config):
     """
-    Determine if merge requires input sequence.
+    Determine if merge requires input sequence.ID              TARGET_ID OFFSET RO SZRO OFFSZ MATCH
 
     :param wildcards: Rule wildcards.
     :param config: Configuration.
@@ -34,7 +34,9 @@ def intersect_is_read_seq(wildcards, config):
     if config_def is None:
         config_def = wildcards.merge_def
 
-    return svpoplib.svmergeconfig.params.get_merge_config(config_def).read_seq
+    merge_config = svpoplib.svmergeconfig.params.get_merge_config(config_def)
+
+    return merge_config.is_read_seq(wildcards.svtype)
 
 
 def intersect_get_input(pattern, wildcards, config):
@@ -58,7 +60,7 @@ def intersect_get_input(pattern, wildcards, config):
     elif all([file_name.endswith('.fa.gz') for file_name in pattern]):
         file_type = 'fa'
     else:
-        raise RuntimeError(f'Pattern does not contain a list of BED or FASTA files')
+        raise RuntimeError(f'Pattern does not contain a list of BED, FASTA, or VCF files')
 
     # Stop if FASTA and no sequence
     if file_type == 'fa' and not intersect_is_read_seq(wildcards, config):
@@ -93,7 +95,7 @@ def intersect_get_input(pattern, wildcards, config):
     ]
 
 
-def run_intersect(bed_list, strategy, fa_list=None, threads=1):
+def run_intersect(bed_list, strategy, fa_list=None, threads=1, ref_filename=None):
     """
     Intersect two callsets and generate a table of matching and non-matching variants.
 
@@ -101,6 +103,8 @@ def run_intersect(bed_list, strategy, fa_list=None, threads=1):
     :param strategy: Merge strategy.
     :param fa_list: List of sequence FASTA files. If sequences are not needed for the match, this should be `None`.
     :param threads: Number of threads to use for the match.
+    :param ref_filename: Reference FASTA filename. Not required for built-in SV-Pop merge strategies, but is required
+        for merge strategies using temporary VCF files (e.g. Truvari).
 
     :return: Table of matching and non-matching variants.
     """
@@ -118,7 +122,8 @@ def run_intersect(bed_list, strategy, fa_list=None, threads=1):
         sample_names=['A', 'B'],
         strategy=strategy,
         threads=threads,
-        fa_list=fa_list
+        fa_list=fa_list,
+        ref_filename=ref_filename
     )
 
     support_col_list = [col for col in df.columns if col in MERGE_INFO_FIELD_LIST]

@@ -61,6 +61,7 @@ RESERVED_PARAM_NAMES = {
     'align_match_prop',  # Proportion of the maximum value to allow or None variant sequence comparisons should not be done
     'align_param',       # Alignment paramters used to initialize the aligner
     'read_seq',          # Set to true if a sequence is required (i.e. match, but could be used independent of match in the future)
+    'vcf_temp',          # Set to true if an intersect method uses VCF temporary files.
     'matcher_global'     # Set to true if the configured matcher is global, not local to the parameter object
 }
 
@@ -154,6 +155,8 @@ class MergeConfig(object):
                     spec = MergeSpecSzro(spec_ast['val_list'])
                 elif spec_ast['type'] == 'distance':
                     spec = MergeSpecDistance(spec_ast['val_list'])
+                elif spec_ast['type'] == 'truvari':
+                    spec = MergeSpecTruvari(spec_ast['val_list'])
                 elif spec_ast['type'] == 'match':
                     self.default_matcher = MergeSpecMatch(spec_ast['val_list'])
                 else:
@@ -164,7 +167,7 @@ class MergeConfig(object):
                     spec = MergeSpecExact(spec_ast['val_list'])
                 elif spec_ast['type'] == 'distance':
                     raise RuntimeError('MergeSpecDistance is not yet implemented')
-                    spec = MergeSpecDistance(spec_ast['val_list'])
+                    #spec = MergeSpecDistance(spec_ast['val_list'])
                 else:
                     raise RuntimeError(f'MergeConfig {self.strategy}: Merge specification type at {index + 1} is unknown: {spec_ast["type"]}')
 
@@ -198,9 +201,21 @@ class MergeConfig(object):
                     spec.set_matcher(self.default_matcher, matcher_global=True)
 
         # Set fields
-        self.read_seq = any([spec.read_seq for spec in self.spec_list])
+        # self.read_seq = any([spec.read_seq for spec in self.spec_list])
+        self.vcf_temp = any([spec.vcf_temp for spec in self.spec_list])
 
         return
+
+    def is_read_seq(self, svtype):
+        """
+        Determine if a sequence should be read for this MergeConfig. Returns true if any step requires an input sequence
+        for sequence comparisons. If any ParamSpec requires a VCF intermediate, this returns true if svtype is not SNV.
+
+        :param svtype: SV type to check (str) or a set of svtypes (set of str).
+
+        :return: `True` if sequence input is required.
+        """
+        return any([spec.is_read_seq(svtype) for spec in self.spec_list])
 
     def any_match(self):
         """
@@ -345,7 +360,7 @@ class MergeSpec(object):
             param_spec_index[param_spec.name] = index
 
             if param_spec.name in self.__dict__.keys():
-                raise RuntimeError(f'Specification type {spec_type}: Param spec name clashed with a name already defined in the parameter set: {param_spec.name}')
+                raise RuntimeError(f'Specification type {self.spec_type}: Param spec name clashed with a name already defined in the parameter set: {param_spec.name}')
 
             self.__dict__[param_spec.name] = param_spec.default
 
@@ -368,6 +383,7 @@ class MergeSpec(object):
 
         # Read sequence
         self.read_seq = False  # If set, a parameter requires sequence-resolution as a SEQ column (flag to load SEQ from FASTA)
+        self.vcf_temp = False  # If set, a parameter uses VCF temporary files. Requires a SEQ column for non-SNV variants.
 
         # Check and set parameters
         named_state = False    # Set to True when a named parameters is found. Only named parameters are allowed after
@@ -383,18 +399,18 @@ class MergeSpec(object):
 
             # Check formatting
             if param_tuple is None:
-                raise RuntimeError(f'Specification type {spec_type}: Cannot check paramters: None')
+                raise RuntimeError(f'Specification type {self.spec_type}: Cannot check paramters: None')
 
             if len(param_tuple) != 3:
-                raise RuntimeError(f'Specification type {spec_type}: Expected 3 parameters in param_tuple: Found {len(param_tuple)}')
+                raise RuntimeError(f'Specification type {self.spec_type}: Expected 3 parameters in param_tuple: Found {len(param_tuple)}')
 
             # Check for matcher
             if matcher_state:
-                raise RuntimeError(f'Specification type {spec_type}: Parameter at position {index + 1} follows a matcher (matcher must be the last item in a parameter list)')
+                raise RuntimeError(f'Specification type {self.spec_type}: Parameter at position {index + 1} follows a matcher (matcher must be the last item in a parameter list)')
 
             if param_tuple[0] == 'match':
                 if not allow_matcher:
-                    raise RuntimeError(f'Specification type {spec_type}: Found matcher at position {index + 1}: No matcher is allowed for this specification type')
+                    raise RuntimeError(f'Specification type {self.spec_type}: Found matcher at position {index + 1}: No matcher is allowed for this specification type')
 
                 self.set_matcher(MergeSpecMatch(param_tuple[1]))
 
@@ -404,23 +420,23 @@ class MergeSpec(object):
 
             # Check states
             if named_state and param_tuple[2] is None:
-                raise RuntimeError(f'Specification type {spec_type}: Unnamed value {param_tuple[0]} at position {index + 1} follows a named value: Positional parameters must come before named parameters')
+                raise RuntimeError(f'Specification type {self.spec_type}: Unnamed value {param_tuple[0]} at position {index + 1} follows a named value: Positional parameters must come before named parameters')
 
             # Get spec
             if param_tuple[2] is None:
                 param_index = index
 
                 if param_index >= len(param_spec_list):
-                    raise RuntimeError(f'Specification type {spec_type}: Positional parameter {index + 1} is out of range: Max {len(param_spec_list)}')
+                    raise RuntimeError(f'Specification type {self.spec_type}: Positional parameter {index + 1} is out of range: Max {len(param_spec_list)}')
 
             else:
                 param_index = param_spec_index.get(param_tuple[2], None)
 
                 if param_index is None:
-                    raise RuntimeError(f'Specification type {spec_type}: Unknown named parameter: {param_tuple[2]}')
+                    raise RuntimeError(f'Specification type {self.spec_type}: Unknown named parameter: {param_tuple[2]}')
 
                 if param_index >= len(param_spec_list):
-                    raise RuntimeError(f'BUG: Specification type {spec_type}: Named parameter at position {index + 1} ({param_tuple[2]}) returns a parameter specification index that is out of range: {param_index}: Max {len(param_spec_list)}')
+                    raise RuntimeError(f'BUG: Specification type {self.spec_type}: Named parameter at position {index + 1} ({param_tuple[2]}) returns a parameter specification index that is out of range: {param_index}: Max {len(param_spec_list)}')
 
                 named_state = True
 
@@ -431,7 +447,7 @@ class MergeSpec(object):
                 self.__dict__[param_spec.name] = param_spec.check(param_tuple)
 
             except RuntimeError as e:
-                raise RuntimeError(f'Specification type {spec_type}: {e}')
+                raise RuntimeError(f'Specification type {self.spec_type}: {e}')
 
     def set_matcher(self, param_set_matcher=None, matcher_global=False):
         """
@@ -452,9 +468,6 @@ class MergeSpec(object):
             self.align_param = None
             self.matcher_global = False
 
-            # Read sequence
-            self.read_seq = False
-
             return
 
         # Check matcher types
@@ -466,7 +479,7 @@ class MergeSpec(object):
 
         # Check if matcher is allowed
         if not self.allow_matcher:
-            raise RuntimeError(f'Specification type {spec_type}: Matcher is not allowed for this specification type')
+            raise RuntimeError(f'Specification type {self.spec_type}: Matcher is not allowed for this specification type')
 
         # Create aligner and set matcher fields
         self.aligner = svpoplib.aligner.ScoreAligner(
@@ -488,6 +501,36 @@ class MergeSpec(object):
         self.matcher_global = matcher_global
 
         return
+
+    def is_read_seq(self, svtype):
+        """
+        Determine if sequence input is needed for this ParamSpec. If any ParamSpec requires a VCF intermediate, this
+        returns true if svtype is not SNV.
+
+        :param svtype: SV type to check (str) or a set of svtypes (set of str).
+
+        :return: `True` if sequence input is required.
+        """
+
+        if isinstance(svtype, str):
+            svtype = {svtype}
+        elif not isinstance(svtype, set):
+            raise RuntimeError(f'Cannot check for sequence input requirement with svtype class "{type(svtype)}": Expected str or set of str')
+
+        svtype = {val.upper() for val in svtype}
+
+        if self.read_seq:
+            return True
+
+        if self.vcf_temp:
+            if 'SNV' in svtype:
+                if len(svtype - {'SNV'}) > 0:
+                    raise RuntimeError(f'Cannot mix SNV and other variant types: {", ".join(sorted(svtype))}')
+
+                return False
+            return True
+
+        return False
 
     def __repr__(self, show_matcher=True):
         repr_str = f'MergeSpec({self.spec_type}:'
@@ -537,7 +580,7 @@ class MergeSpecSzro(MergeSpec):
         )
 
         if self.dist is None and self.szdist is None:
-            raise RuntimeError(f'Specification type {spec_type}: At least one of "dist" or "szdist" arguments must not be unlimited')
+            raise RuntimeError(f'Specification type {self.spec_type}: At least one of "dist" or "szdist" arguments must not be unlimited')
 
         return
 
@@ -562,9 +605,10 @@ class MergeSpecDistance(MergeSpec):
         )
 
         if self.dist is None and self.szdist is None:
-            raise RuntimeError(f'Specification type {spec_type}: At least one of "dist" or "szdist" arguments must not be unlimited')
+            raise RuntimeError(f'Specification type {self.spec_type}: At least one of "dist" or "szdist" arguments must not be unlimited')
 
         return
+
 
 class MergeSpecRo(MergeSpec):
     """
@@ -595,6 +639,31 @@ class MergeSpecExact(MergeSpec):
 
     def __init__(self, arg_list):
         super().__init__('exact', arg_list, [], True)
+
+        return
+
+
+class MergeSpecTruvari(MergeSpec):
+    """
+    Param set: Truvari
+
+    Use Truvari for matches.
+    """
+
+    def __init__(self, arg_list):
+        super().__init__(
+            'truvari',
+            arg_list,
+            [
+                ParamSpec('int', 500, 'refdist', 0, True),
+                ParamSpec('num', 0.7, 'pctseq', 0.0, True),
+                ParamSpec('num', 0.7, 'pctsize', 0.0, False),
+                ParamSpec('num', 0.0, 'pctovl', 0.0, True)
+            ],
+            False
+        )
+
+        self.vcf_temp = True
 
         return
 

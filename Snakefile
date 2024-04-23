@@ -4,6 +4,10 @@ Handle merging, comparing, and annotating samples from multiple sources.
 
 ### Get svpop directory ###
 
+import os
+
+global workflow
+
 SVPOP_DIR = os.path.dirname(workflow.snakefile)
 
 

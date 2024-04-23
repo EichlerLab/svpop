@@ -43,11 +43,11 @@ def nlset(named_list, key, value=None, wildcards=None):
         # Format
         if wildcards is not None:
             if type(value) == str:
-                value = re.sub('\{([^,\}]+),[^\}]+\}', '{\\1}', value)  # Remove regex qualifiers from wildcards
+                value = re.sub(r'\{([^,\}]+),[^\}]+\}', r'{\1}', value)  # Remove regex qualifiers from wildcards
                 value = value.format(**wildcards)  # Format wildcards into value
             elif type(value) == list:
                 value = [
-                    re.sub('\{([^,\}]+),[^\}]+\}', '{\\1}', item).format(**wildcards) for item in value
+                    re.sub(r'\{([^,\}]+),[^\}]+\}', r'{\1}', item).format(**wildcards) for item in value
                 ]
 
     # Set value

@@ -9,7 +9,7 @@
 def _input_svpop_variant_flag_input_list(wildcards, file_pattern):
 
     # Get sample list
-    sample_list = svpoplib.rules.get_sample_list(wildcards.sample, config)
+    sample_list = svpoplib.rules.get_sample_list(wildcards.sample, 'caller', config)
 
     if sample_list is None:
         raise RuntimeError(f'No sample list with name: {wildcards.sample}')

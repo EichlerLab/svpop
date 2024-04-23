@@ -2,9 +2,14 @@
 VCF writer.
 """
 
+import Bio.SeqIO
 import datetime
+import numpy as np
 import os
+import pandas as pd
 import pysam
+
+import svpoplib
 
 INFO_FIELDS = [
     ('VARTYPE', 'A', 'String', 'Variant class (SV, INDEL, SNV)'),
@@ -41,6 +46,26 @@ FILTER_FIELDS = [
     ('PASS', 'Passed all QV stages')
 ]
 
+VARIANT_VCF_INFO_HEADER = {
+    'ID': ('ID', '1', 'String', 'Variant ID'),
+    'SVTYPE': ('SVTYPE', '1', 'String', 'Variant type'),
+    'SVLEN': ('SVLEN', '.', 'Integer', 'Variant length'),
+    'SEQ': ('SEQ', '.', 'String', 'Variant sequence')
+}
+
+VARIANT_VCF_ALT_HEADER = {
+    'INS': ('INS', 'Sequence insertion'),
+    'DEL': ('DEL', 'Sequence deletion'),
+    'INV': ('INV', 'Inversion'),
+    'DUP': ('DUP', "Duplication")
+}
+
+VARIANT_VCF_SVTYPE_LIST = {
+    'insdel': ('INS', 'DEL'),
+    'insdelinv': ('INS', 'DEL', 'INV')
+}
+
+
 def header_list(
         df_ref,
         info_fields,
@@ -50,7 +75,7 @@ def header_list(
         vcf_version='4.2',
         file_date=None,
         variant_source='SV-Pop',
-        ref_file_name=None
+        ref_filename=None
     ):
 
     """
@@ -72,12 +97,17 @@ def header_list(
     :param vcf_version: VCF format version (should comply with VCF specs).
     :param file_date: Date string or `None` to generate from current date.
     :param variant_source: Variant caller or variant source.
-    :param ref_file_name: Name of the reference file. If `None` or empty, then no "reference" header is written.
+    :param ref_filename: Name of the reference file. If `None` or empty, then no "reference" header is written.
 
     :return: A list of header lines including newlines for each line.
     """
 
     header_list = list()
+
+    if ref_filename is not None and not ref_filename.strip():
+        ref_filename = None
+    else:
+        ref_filename = ref_filename.strip()
 
     # Get dict of known fields
     info_field_dict = {
@@ -112,17 +142,27 @@ def header_list(
     if variant_source and variant_source.strip():
         header_list.append(f"""##source={variant_source}\n""")
 
-    if ref_file_name and ref_file_name.strip():
-        ref_file_name = ref_file_name.strip()
-
-        if '://' not in ref_file_name:
-            header_list.append("""##reference=file://{}\n""".format(os.path.basename(ref_file_name.strip())))
-        else:
-            header_list.append("""##reference={}\n""".format(ref_file_name.strip()))
+    if ref_filename:
+        header_list.append("""##reference=file://{}\n""".format(os.path.basename(ref_filename)))
 
     # Reference contigs
-    for index, row in df_ref.reset_index().iterrows():
-        header_list.append("""##contig=<ID={CHROM},length={LEN},md5={MD5}>\n""".format(**row))
+    if df_ref is not None:
+        for index, row in df_ref.reset_index().iterrows():
+            header_list.append("""##contig=<ID={CHROM},length={LEN},md5={MD5}>\n""".format(**row))
+
+    else:
+        if ref_filename is None:
+            raise RuntimeError('Either a reference table (CHROM, LEN, MD5 columns) or a reference FASTA file is required to write VCF headers.')
+
+        ref_fai_name = ref_filename + '.fai'
+
+        if not os.path.isfile(ref_fai_name):
+            raise RuntimeError(f'Reference FAI is missing: {ref_fai_name}')
+
+        df_fai = svpoplib.ref.get_df_fai(ref_fai_name)
+
+        for index, row in df_fai.reset_index().iterrows():
+            header_list.append("""##contig=<ID={CHROM},length={LEN}>\n""".format(**row))
 
     # INFO
     info_element_set = set()
@@ -219,10 +259,10 @@ def ref_base(df, ref_fa):
     # Open and update records
     with pysam.FastaFile(ref_fa) as ref_file:
         for index, row in df.iterrows():
-            if row['VARTYPE'] in {'SV', 'INDEL'}:
+            if row['SVTYPE'] in {'INS', 'DEL', 'INSDEL', 'DUP'}:
                 yield ref_file.fetch(row['#CHROM'], row['POS'] + (-1 if row['POS'] > 0 else 0), row['POS']).upper()
 
-            elif row['VARTYPE'] == 'SNV':
+            elif row['SVTYPE'] == 'SNV':
                 if 'REF' in row:
                     yield row['REF']
                 else:
@@ -232,65 +272,235 @@ def ref_base(df, ref_fa):
                 raise RuntimeError('Unknown variant type: "{}" at index {}'.format(row['VARTYPE'], index))
 
 
-def get_variant_seq(
-    df, svpop_run_dir, fa_pattern, var_sv_type, fmt={}
-):
-    """
-    Get fields from pre-merged variants for a set of samples.
+class VariantVcfTable:
+    def __init__(self, df, sample, ref_filename, fa_filename=None, altfmt='alt'):
 
-    :param df: Merged data frame with variant ID ("ID" column) and discovery sample ("MERGE_SRC" column).
-    :param svpop_run_dir: Directory SV-Pop was run from.
-    :param bed_pattern: Pattern of BED files to search.
-    :param var_sv_type: Variant/SV type keyword to `multivcflib.bed.VAR_SV_TYPE_LIST` to get a list of vartype, svtype
-        tuples for all variant types (sv, indel, snv) and svtype (ins, del, snv, inv) that should be read and filled
-        into "vartype" and "svtype" wildcards in `bed_pattern`.
-    :param fmt: Additional format fields for `bed_pattern` ("sample", "vartype", and "svtype" are filled in
-        for each sample and variant BED file).
+        self.sample = sample
+        self.ref_filename = ref_filename
+        self.fa_filename = fa_filename
+        self.altfmt = altfmt
 
-    :return: A series keyed by IDs for sequences. SNVs and INVs are given np.nan sequence.
-    """
+        # Check assembly name
+        if sample in {'#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT'}:
+            raise RuntimeError(f'Sample name conflicts with a VCF header column name: {sample}')
 
-    if var_sv_type not in multivcflib.bed.VAR_SV_TYPE_LIST.keys():
-        raise RuntimeError('var_sv_type is not a key in VAR_SV_TYPE_LIST: {}'.format(var_sv_type))
+        # Check alt format
+        if altfmt == 'alt':
+            symbolic_alt = False
+            alt_seq = True
 
-    fmt = fmt.copy()
+        elif altfmt == 'sym':
+            symbolic_alt = True
+            alt_seq = True
 
-    # Process each sample
-    df_list = list()
+        elif altfmt == 'sym-noseq':
+            symbolic_alt = True
+            alt_seq = True
 
-    # Collect dataframes for each vartype/svtype
-    df_seq_list = list()
+        else:
+            raise RuntimeError(f'Unknown alt format wildcard (altfmt): {altfmt}')
 
-    for sample in set(df['MERGE_SRC']):
+        # Get SVTYPES
+        svtype_set = set(df['SVTYPE'])
 
-        fmt['sample'] = sample
+        # Check for symbolic ALT compatibility
+        if symbolic_alt:
+            unsupported = svtype_set - {'INS', 'DEL', 'INV', 'DUP'}
 
-        for vartype, svtype in multivcflib.bed.VAR_SV_TYPE_LIST[var_sv_type]:
+            if unsupported:
+                n = len(unsupported)
+                unsupported = ', '.join(sorted(unsupported)[:3]) + '..' if n > 3 else ''
+                raise RuntimeError(f'Symbolic ALT output is not supported for input variant type(s): {unsupported}')
 
-            id_set = set(df.loc[
-                (df['VARTYPE'] == vartype.upper()) &
-                (df['SVTYPE'] == svtype.upper()) &
-                (df['MERGE_SRC'] == sample),
-                'ID'
-            ])
+            is_snv = False
 
-            if svtype in {'ins', 'del', 'inv'}:
+        else:
+            unsupported = svtype_set - {'INS', 'DEL', 'SNV'}
 
-                fmt['vartype'] = vartype
-                fmt['svtype'] = svtype
+            if unsupported:
+                n = len(unsupported)
+                unsupported = ', '.join(sorted(unsupported)[:3]) + '..' if n > 3 else ''
+                raise RuntimeError(f'REF/ALT output is not supported for input variant type(s): {unsupported}')
 
-                with gzip.open(os.path.join(svpop_run_dir, fa_pattern.format(**fmt)), 'rt') as in_file:
-                    df_seq = pd.Series({record.id: str(record.seq).upper() for record in SeqIO.parse(in_file, 'fasta') if record.id in id_set})
+            if 'SNV' in svtype_set:
+                if svtype_set != {'SNV'}:
+                    raise RuntimeError(f'Mixing SNVs and other variant types is not supported: {", ".join(sorted(svtype_set))}')
 
-                if df_seq.shape[0] != len(id_set):
-                    raise RuntimeError('Mismatch in sample {}: {} in df, {} in FASTA'.format(sample, len(id_set), df_seq.shape[0]))
+                is_snv = True
+            else:
+                is_snv = False
 
-                df_seq_list.append(df_seq)
+        # Setup header lists
+        info_header_id_list = list()
 
-            elif svtype in {'snv'}:
-                df_seq_list.append(pd.Series(np.nan, index=list(id_set)))
+        # Read sequence from FASTA
+        read_seq = df.shape[0] > 0 and alt_seq and (
+            'SEQ' not in df.columns or np.any(pd.isnull(df['SEQ']))
+        )
+
+        if read_seq:
+
+            # FASTA must have been given
+            if fa_filename is None:
+                raise RuntimeError(f'Missing sequence data to construct VCF: No variant FASTA given and no SEQ column in variant table.')
+
+            # FASTA cannot be empty
+            if not os.isfile(fa_filename) or os.stat(fa_filename).st_size == 0:
+                raise RuntimeError(f'Missing sequence data to construct VCF: Variant FASTA is missing or empty: {fa_filename}')
+
+            # Get Sequence from FASTA and assign to SEQ column (not for SNVs)
+            with svpoplib.seq.PlainOrGzReader(ref_filename, 'rt') as fa_in:
+                df_seq_dict = {
+                    record.name: str(record.seq) for record in Bio.SeqIO.parse(fa_in, 'fasta')
+                }
+
+            # Assign SEQ to records
+            df.set_index('ID', inplace=True)
+
+            df['SEQ'] = pd.Series(df_seq_dict)
+
+            del(df_seq_dict)
+
+            df.reset_index(inplace=True)
+
+            # Check for missing sequences
+            df_null_seq = df.loc[pd.isnull(df['SEQ'])]
+
+            if df_null_seq.shape[0] > 0:
+                id_list = ', '.join(df_null_seq.iloc[:3]['ID'])
+
+                raise RuntimeError(
+                    'Missing FASTA sequence for {} variants: {}{}'.format(
+                        df_null_seq.shape[0],
+                        ', '.join([str(val) for val in df_null_seq.iloc[:3]['ID']]),
+                        '...' if df_null_seq.shape[0] > 3 else ''
+                    )
+                )
+
+        # # Add VARTYPE
+        # df['VARTYPE'] = wildcards.vartype.upper()
+
+        # SVTYPE
+        if df.shape[0] > 0:
+            df['SVTYPE'] = df['SVTYPE'].apply(lambda val: val.upper())
+
+        # Reformat fields for INFO
+        df['SVLEN'] = df.apply(lambda row: np.abs(row['SVLEN']) * (-1 if row['SVTYPE'] == 'DEL' else 1), axis=1)
+
+        # Add GT if missing
+        if 'GT' not in df.columns:
+            df['GT'] = '1/.'
+
+        # INFO: Base
+        df['INFO'] = df.apply(lambda row: 'ID={ID};SVTYPE={SVTYPE}'.format(**row), axis=1)
+
+        info_header_id_list.append('ID')
+        info_header_id_list.append('SVTYPE')
+
+        # INFO: Add SV/INDEL annotations
+        if df.shape[0] > 0:
+            df['INFO'] = df.apply(lambda row: row['INFO'] + (';SVLEN={SVLEN}'.format(**row)) if row['SVTYPE'] != 'SNV' else '', axis=1)
+
+        info_header_id_list.append('SVLEN')
+
+        # REF
+        df['REF'] = list(svpoplib.vcf.ref_base(df, ref_filename))
+
+        # ALT
+        if not is_snv:
+            if df.shape[0] > 0:
+                if symbolic_alt:
+                    df['ALT'] = df['SVTYPE'].apply(lambda val: f'<{val}>')
+
+                    if alt_seq:
+                        df['INFO'] = df.apply(lambda row: row['INFO'] + ';SEQ={SEQ}'.format(**row), axis=1)
+                        info_header_id_list.append('SEQ')
+
+                else:
+
+                    df['REF'] = df.apply(lambda row:
+                        ((row['REF'] + row['SEQ']) if row['POS'] > 0 else (row['SEQ'] + row['REF'])) if row['SVTYPE'] == 'DEL' else row['REF'],
+                        axis=1
+                    )
+
+                    df['ALT'] = df.apply(lambda row:
+                        ((row['REF'] + row['SEQ']) if row['POS'] > 0 else (row['SEQ'] + row['REF'])) if row['SVTYPE'] == 'INS' else row['REF'][0],
+                        axis=1
+                    )
 
             else:
-                raise RuntimeError('Don\'t know how to handle SVTYPE {}'.format(svtype))
+                df['ALT'] = np.nan
 
-    return pd.concat(df_seq_list, axis=0)
+        else:
+            # Fix position for SNVs (0-based BED to 1-based VCF)
+            df['POS'] += 1
+
+        # Remove SEQ
+        if alt_seq and df.shape[0] > 0:
+            del df['SEQ']
+
+        # No masked bases in REF/ALT
+        df['REF'] = df['REF'].apply(lambda val: val.upper())
+        df['ALT'] = df['ALT'].apply(lambda val: val.upper())
+
+        # Save columns needed for VCF
+        df = df[['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'INFO', 'GT']].copy()
+
+        # Sort
+        df.sort_values(['#CHROM', 'POS'], inplace=True)
+
+        # INFO headers
+        info_header_list = [svpoplib.vcf.VARIANT_VCF_INFO_HEADER[val] for val in info_header_id_list]
+
+        # ALT headers
+        if symbolic_alt:
+            alt_header_list = [svpoplib.vcf.VARIANT_VCF_ALT_HEADER[svtype] for svtype in sorted(svtype_set)]
+        else:
+            alt_header_list = list()
+
+        # QUAL, FILTER, FORMAT
+        if 'QUAL' not in df.columns:
+            df['QUAL'] = '.'
+
+        if 'FILTER' in df.columns:
+            raise RuntimeError('FILTER is defined in dataframe, but FILTER headers are not implemented')
+
+        filter_header_list = list()
+        df['FILTER'] = '.'
+
+        df['FORMAT'] = 'GT'
+
+        format_header_list = [
+            ('GT', '1', 'String', 'Genotype')
+        ]
+
+        # VCF order
+        df = df[['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'GT']]
+        df.columns = ['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', sample]
+
+
+        # Assign fields
+        self.df = df
+        self.info_header_list = info_header_list
+        self.format_header_list = format_header_list
+        self.alt_header_list = alt_header_list
+        self.filter_header_list = filter_header_list
+
+    def write(self, out_file, df_ref=None):
+        for line in header_list(
+            df_ref,
+            self.info_header_list,
+            self.format_header_list,
+            self.alt_header_list,
+            self.filter_header_list,
+            variant_source=f'SV-Pop {svpoplib.constants.VERSION}',
+            ref_filename=self.ref_filename
+        ):
+            out_file.write(line)
+
+        out_file.write('\t'.join(self.df.columns))
+        out_file.write('\n')
+
+        for index, row in self.df.iterrows():
+            out_file.write('\t'.join(row.astype(str)))
+            out_file.write('\n')

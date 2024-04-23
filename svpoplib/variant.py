@@ -935,7 +935,7 @@ def vcf_tsv_to_bed(
         df_iter_index += 1
 
         # Remove prefixes added by bcftools (e.g. "# [1]CHROM" to "CHROM", "[2]POS" to "POS"
-        df.columns = [re.sub('^#?\s*\[[^\]]+\]', '', col) for col in df.columns]
+        df.columns = [re.sub(r'^#?\s*\[[^\]]+\]', '', col) for col in df.columns]
 
         if col_names is None:
 

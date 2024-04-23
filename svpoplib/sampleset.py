@@ -43,7 +43,7 @@ def get_config_entry(sampleset_name, sample_list_name, config):
     # Get list of samples
     if sample_list_name is not None:
         try:
-            sample_list = svpoplib.rules.get_sample_list(sample_list_name, config)
+            sample_list = svpoplib.rules.get_sample_list(sample_list_name, 'caller', config)  # Caller: list of caller input (tells get_sample_list() to expand the match as if it was searching for callers).
         except Exception as e:
             raise RuntimeError(f'Unable to get samples from list name {sample_list_name}: {e}')
 
@@ -554,4 +554,4 @@ def is_read_seq(wildcards, config):
         svpoplib.sampleset.get_merge_strategy(sampleset_entry, wildcards.vartype, wildcards.svtype, config)['strategy']
     )
 
-    return merge_config.read_seq
+    return merge_config.is_read_seq(wildcards.svtype)

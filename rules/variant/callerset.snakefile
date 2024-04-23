@@ -80,7 +80,8 @@ rule variant_callerset_merge_chrom:
             merge_strategy['strategy'],
             fa_list = input.fa if input.fa else None,
             subset_chrom=wildcards.chrom,
-            threads=threads
+            threads=threads,
+            ref_filename=config['reference']
         )
 
         # Rename MERGE for callerset

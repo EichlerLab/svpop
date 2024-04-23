@@ -232,11 +232,12 @@ def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=Non
     return file_pattern.format(**wildcards)
 
 
-def get_sample_list(sample_list_name, config):
+def get_sample_list(sample_list_name, source_type, config):
     """
     Get a named list of samples ("samplelist" in config) or a single sample name if the sample-list is not defined.
 
     :param sample_list_name: Name of the sample list to retrieve.
+    :param source_type: Variant source type
     :param config: Config object.
 
     :return: List of sample names or None if the sample list was not found.
@@ -246,6 +247,9 @@ def get_sample_list(sample_list_name, config):
 
     if not sample_list_name:
         raise RuntimeError('Sample list name is empty')
+
+    if source_type != 'caller':
+        return [sample_list_name]
 
     # Get attributes
     hap_expand = False

@@ -2,6 +2,14 @@
 Variant set intersections.
 """
 
+import pandas as pd
+
+import svpoplib
+
+global get_svset_label
+global get_svtype_label
+global get_sample_name
+
 
 #############
 ### Rules ###
@@ -185,7 +193,8 @@ rule var_intersect_by_merge_svindel:
             input.bed,
             svpoplib.svmerge.get_merge_def(wildcards.merge_def, config),
             input.fa if len(input.fa) > 0 else None,
-            threads=threads
+            threads=threads,
+            ref_filename=config['reference']
         )
 
         # Read SV set
@@ -239,13 +248,13 @@ rule var_intersect_by_merge:
         svtype='ins|del|inv|dup|sub|snv|rgn'
     run:
 
-
         # Intersect
         df = svpoplib.intersect.run_intersect(
             input.bed,
             svpoplib.svmerge.get_merge_def(wildcards.merge_def, config),
             input.fa if len(input.fa) > 0 else None,
-            threads=threads
+            threads=threads,
+            ref_filename=config['reference']
         )
 
         # Read SV set

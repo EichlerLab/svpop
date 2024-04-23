@@ -19,8 +19,8 @@ def _input_svpop_flag_intersect_input_list(input_pattern, wildcards, policy):
 def _input_svpop_flag_intersect_sample_tuples(wildcards, policy):
 
     # Get sample lists
-    sample_list_a = svpoplib.rules.get_sample_list(wildcards.sample_a, config)
-    sample_list_b = svpoplib.rules.get_sample_list(wildcards.sample_b, config)
+    sample_list_a = svpoplib.rules.get_sample_list(wildcards.sample_a, wildcards.sourcetype_a, config)
+    sample_list_b = svpoplib.rules.get_sample_list(wildcards.sample_b, wildcards.sourcetype_b, config)
 
     if sample_list_a is None:
         sample_list_a = [wildcards.sample_a]

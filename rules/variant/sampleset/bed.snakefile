@@ -125,7 +125,8 @@ rule variant_sampleset_bed_merge_part:
             merge_strategy['strategy'],
             fa_list=input.fa if input.fa else None,
             subset_chrom=set(df_part['CHROM']),
-            threads=threads
+            threads=threads,
+            ref_filename=config['reference']
         )
 
         # Bylen to byref
