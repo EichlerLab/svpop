@@ -2,6 +2,67 @@
 Import external BED with variant calls for samples.
 """
 
+import collections
+import numpy as np
+import os
+import pandas as pd
+import svpoplib
+
+global SAMPLE_TABLE
+global temp
+
+from Bio import SeqIO
+import Bio.bgzf
+
+###################
+### Definitions ###
+###################
+
+def _variant_caller_extern_get_bed(wildcards):
+
+    in_file_pattern = svpoplib.rules.sample_table_entry(
+        wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='bed', format_data=False
+    )['DATA']
+
+    in_file = in_file_pattern.format(**wildcards)
+
+    if not os.path.isfile(in_file) and wildcards.vartype in {'sv', 'indel'} and wildcards.svtype in {'ins', 'del'}:
+        in_file_svindel = svpoplib.util.format_cards(in_file_pattern, vartype='svindel').format(**wildcards)
+
+        if os.path.isfile(in_file_svindel):
+            in_file = in_file_svindel
+
+    return in_file
+
+def _variant_caller_extern_get_fa(wildcards):
+
+    fa_input = svpoplib.rules.get_bed_fa_input(
+        svpoplib.rules.sample_table_entry(
+            wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='bed'
+        ),
+        wildcards,
+        default=None
+    )
+
+    if fa_input is not None and not os.path.isfile(fa_input) and wildcards.vartype in {'sv', 'indel'} and wildcards.svtype in {'ins', 'del'}:
+        fa_input_svindel = svpoplib.rules.get_bed_fa_input(
+            svpoplib.rules.sample_table_entry(
+                wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='bed',
+            ),
+            wildcards,
+            default=None,
+            vartype='svindel'
+        )
+
+        if fa_input_svindel is not None and os.path.isfile(fa_input_svindel):
+            fa_input = fa_input_svindel
+
+    if fa_input is None or not os.path.isfile(fa_input):
+        return []
+
+    return fa_input
+
+
 #############
 ### Rules ###
 #############
@@ -11,16 +72,8 @@ Import external BED with variant calls for samples.
 # Apply region filter to variant BED.
 rule variant_caller_extern_get_bed:
     input:
-        bed=lambda wildcards: svpoplib.rules.sample_table_entry(
-            wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='bed'
-        )['DATA'],
-        fa=lambda wildcards: svpoplib.rules.get_bed_fa_input(
-            svpoplib.rules.sample_table_entry(
-                wildcards.sourcename, SAMPLE_TABLE, wildcards=wildcards, caller_type='bed'
-            ),
-            wildcards,
-            default=[]
-        )
+        bed=_variant_caller_extern_get_bed,
+        fa=_variant_caller_extern_get_fa
     output:
         bed=temp('temp/variant/caller/bed/{sourcename}/{sample}/all/all/bed/pre_filter/{vartype}_{svtype}.bed.gz'),
         fa=temp('temp/variant/caller/bed/{sourcename}/{sample}/all/all/bed/pre_filter/fa/{vartype}_{svtype}.fa.gz')
@@ -34,7 +87,11 @@ rule variant_caller_extern_get_bed:
         if sample_entry['TYPE'] != 'bed':
             raise RuntimeError('Cannot process non-bed type: ' + sample_entry['TYPE'])
 
-        fa_file_name = svpoplib.rules.get_bed_fa_input(sample_entry, wildcards)
+        #fa_file_name = svpoplib.rules.get_bed_fa_input(sample_entry, wildcards)
+        fa_file_name = input.fa
+
+        if not fa_file_name:
+            fa_file_name = None
 
         # Get parameters
         dedup = svpoplib.util.as_bool(sample_entry['PARAMS'].get('dedup', False), True)

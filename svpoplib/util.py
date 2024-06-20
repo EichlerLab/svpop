@@ -5,6 +5,7 @@ Miscelaneous utilities.
 import inspect
 import os
 import pandas as pd
+import string
 import sys
 
 import traceback
@@ -161,3 +162,28 @@ def cmp_ver(ver_a, ver_b):
         raise ValueError(f'Error converting version "{ver_b}" to a list of integers: {e}')
 
     return (ver_a > ver_b) - (ver_a < ver_b)
+
+def format_cards(template, **kwargs):
+    """
+    Format a string with wildcards using kwargs. Any wildcard values missing will be left in the string for the next
+    round.
+
+    Credit:
+    https://github.com/snakemake/snakemake/issues/124
+    https://stackoverflow.com/questions/11283961/partial-string-formatting
+
+    :param template: String template.
+    :param kwargs: Wildcard values.
+
+    :return: Parsed string.
+    """
+
+    class FormatDict(dict):
+        def __missing__(self, key):
+            return "{" + key + "}"
+
+    formatter = string.Formatter()
+
+    mapping = FormatDict(**kwargs)
+
+    return formatter.vformat(template, (), mapping)

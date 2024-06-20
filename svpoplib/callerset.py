@@ -289,8 +289,7 @@ def is_read_seq(wildcards, config):
         svpoplib.sampleset.get_merge_strategy(callerset_entry, wildcards.vartype, wildcards.svtype, config)['strategy']
     )
 
-    return merge_config.read_seq
-
+    return merge_config.is_read_seq(wildcards.svtype)
 
 # def cluster_param_cpu(wildcards, config):
 #     """

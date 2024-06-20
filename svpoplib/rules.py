@@ -177,32 +177,53 @@ def sample_table_entry(name, sample_table, sample=None, wildcards=None, caller_t
     return sample_entry
 
 
-def get_bed_fa_input(sample_entry, wildcards, default=None):
+def get_bed_fa_input(sample_entry, wildcards, default=None, vartype=None, svtype=None):
     """
     Locate FASTA sequence input file.
 
     :param sample_entry: Entry from the sample table.
+    :param wildcards: Wildcards object.
+    :param default: Def ault file pattern.
+    :param vartype: Variant type (default to wildcards).
+    :param svtype: SV type (default to wildcards).
 
     :return: FASTA input file location
     """
 
-    # Check for explicit location
+    if vartype is None:
+        vartype = wildcards.get('vartype', None)
+
+    if vartype is None:
+        raise RuntimeError('Cannot get FASTA input: vartype is None (missing both wildcards and function parameter)')
+
+    if svtype is None:
+        svtype = wildcards.get('svtype', None)
+
+    if svtype is None:
+        raise RuntimeError('Cannot get FASTA input: svtype is None (missing both wildcards and function parameter)')
+
+    # Check explicit and explicit locations
     if 'fa_pattern' in sample_entry['PARAMS']:
         if sample_entry['PARAMS'] is None or not sample_entry['PARAMS']['fa_pattern'].strip():
             return default
 
-        return sample_entry['PARAMS']['fa_pattern'].format(**wildcards)
+        fa_file_name = sample_entry['PARAMS']['fa_pattern'].strip('"')
 
-    fa_file_name = os.path.join(
-        os.path.dirname(sample_entry['DATA']),
-        'fa',
-        '{vartype}_{svtype}.fa.gz'.format(**wildcards)
-    )
+        return svpoplib.util.format_cards(fa_file_name, vartype=vartype, svtype=svtype).format(**wildcards)
 
-    if os.path.isfile(fa_file_name):
+    else:
+        fa_file_name = os.path.join(
+            os.path.dirname(sample_entry['DATA']),
+            'fa',
+            '{vartype}_{svtype}.fa.gz'
+        )
+
+        fa_file_name = svpoplib.util.format_cards(fa_file_name, vartype=vartype, svtype=svtype).format(**wildcards)
+
+        if not os.path.exists(fa_file_name):
+            return default
+
         return fa_file_name
-
-    return default
 
 
 def parse_wildcards(file_pattern, name, sample_table, sample=None, wildcards=None, caller_type=None):
@@ -248,7 +269,7 @@ def get_sample_list(sample_list_name, source_type, config):
     if not sample_list_name:
         raise RuntimeError('Sample list name is empty')
 
-    if source_type != 'caller':
+    if source_type not in {'caller', 'callerset'}:
         return [sample_list_name]
 
     # Get attributes

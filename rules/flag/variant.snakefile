@@ -9,7 +9,7 @@
 def _input_svpop_variant_flag_input_list(wildcards, file_pattern):
 
     # Get sample list
-    sample_list = svpoplib.rules.get_sample_list(wildcards.sample, 'caller', config)
+    sample_list = svpoplib.rules.get_sample_list(wildcards.sample, wildcards.sourcetype, config)
 
     if sample_list is None:
         raise RuntimeError(f'No sample list with name: {wildcards.sample}')
@@ -33,10 +33,12 @@ rule flag_variant_caller_vcf:
     input:
         bed=lambda wildcards: _input_svpop_variant_flag_input_list(
             wildcards,
-            'results/variant/caller/{sourcename}/{sample}/{filter}/{svset}/vcf/{vartype}_{svtype}_{altfmt}.vcf.gz'
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{vartype}_{svtype}_{altfmt}.vcf.gz'
         )
     output:
-        bed=touch('flag/variant/caller/{sourcename}/{sample}/{filter}/{svset}/vcf/{vartype}_{svtype}_{altfmt}.vcf.gz')
+        bed=touch('flag/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/vcf/{vartype}_{svtype}_{altfmt}.vcf.gz')
+    wildcard_constraints:
+        sourcetype='caller|callerset'
 
 # svpop_variant_flag_bed
 #
@@ -47,10 +49,12 @@ rule flag_variant_caller_bed:
     input:
         bed=lambda wildcards: _input_svpop_variant_flag_input_list(
             wildcards,
-            'results/variant/caller/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz'
         )
     output:
-        bed=touch('flag/variant/caller/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz')
+        bed=touch('flag/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/{vartype}_{svtype}.bed.gz')
+    wildcard_constraints:
+        sourcetype='caller|callerset'
 
 # flag_variant_caller_anno
 #
@@ -61,10 +65,13 @@ rule flag_variant_caller_anno:
     input:
         anno=lambda wildcards: _input_svpop_variant_flag_input_list(
             wildcards,
-            'results/variant/caller/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
         )
     output:
-        anno=touch('flag/variant/caller/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz')
+        anno=touch('flag/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz')
+    wildcard_constraints:
+        sourcetype='caller|callerset'
+
 
 # flag_variant_caller_bed_fa
 #
@@ -75,7 +82,9 @@ rule flag_variant_caller_bed_fa:
     input:
         bed=lambda wildcards: _input_svpop_variant_flag_input_list(
             wildcards,
-            'results/variant/caller/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'
+            'results/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz'
         )
     output:
-        bed=touch('flag/variant/caller/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz')
+        bed=touch('flag/variant/{sourcetype}/{sourcename}/{sample}/{filter}/{svset}/bed/fa/{vartype}_{svtype}.fa.gz')
+    wildcard_constraints:
+        sourcetype='caller|callerset'
