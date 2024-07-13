@@ -18,7 +18,7 @@ rule variant_anno_reg_oreganno_intersect:
         """{{\n"""
         """    {{\n"""
         """        head -n 1 <(zcat {input.bed});\n"""
-        """        head -n 1 <(zcat {input.anno}) | sed -re 's/#|\s+/\\tOREG_/g' | sed -re 's/^\s+//'\n"""
+        """        head -n 1 <(zcat {input.anno}) | sed -re 's/#|\\s+/\\tOREG_/g' | sed -re 's/^\\s+//'\n"""
         """    }} | awk -vORS="\t" '{{print}}' | sed -re 's/\\s+/\\t/g' | sed -re 's/\\s*$/\\n/';\n"""
         """    bedtools intersect -a {input.bed} -b {input.anno} -loj\n"""
         """}} | """

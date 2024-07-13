@@ -60,7 +60,7 @@ rule variant_anno_repeat_rmsk_table:
                 line_count += 1
 
                 # Split
-                tok = re.split('\s+', line.strip())
+                tok = re.split(r'\s+', line.strip())
 
                 # Check number of tokens
                 if len(tok) < 14:
@@ -69,9 +69,9 @@ rule variant_anno_repeat_rmsk_table:
                 tok = tok[:14]
 
                 # Remove parenthesis
-                tok[7] = re.sub('\((.*)\)', '\\1', tok[7])
-                tok[11] = re.sub('\((.*)\)', '\\1', tok[11])
-                tok[13] = re.sub('\((.*)\)', '\\1', tok[13])
+                tok[7] = re.sub(r'\((.*)\)', r'\1', tok[7])
+                tok[11] = re.sub(r'\((.*)\)', r'\1', tok[11])
+                tok[13] = re.sub(r'\((.*)\)', r'\1', tok[13])
 
                 # Percent to proportion (div, del, ins fields)
                 tok[1] = float(tok[1]) / 100.0

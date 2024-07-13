@@ -2,18 +2,21 @@
 Merge variants from multiple callers for a single sample.
 """
 
-###################
-### Definitions ###
-###################
+import Bio.bgzf
+import Bio.SeqIO
+import pandas as pd
+
+import svpoplib
+
+global expand
+global temp
+global shell
 
 
-
-#############
-### Rules ###
-#############
-
-# variant_callerset_bed_merge
 #
+# Rules
+#
+
 # Merge callerset variants from multiple sources for one sample.
 rule variant_callerset_merge:
     input:
@@ -41,8 +44,6 @@ rule variant_callerset_merge:
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 
-# variant_callerset_bed_merge_chrom
-#
 # Merge one chromosome.
 rule variant_callerset_merge_chrom:
     input:
@@ -62,10 +63,7 @@ rule variant_callerset_merge_chrom:
             ) if svpoplib.callerset.is_read_seq(wildcards, config) else []
     output:
         bed=temp('temp/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}/chrom_{chrom}.bed.gz')
-    params:
-        mem=lambda wildcards: svpoplib.callerset.cluster_param_mem(wildcards, config),
-        rt=lambda wildcards: svpoplib.callerset.cluster_param_rt(wildcards, config)
-    threads: lambda wildcards: svpoplib.callerset.cluster_param_cpu(wildcards, config)
+    threads: 8
     run:
 
         # Get entry
@@ -110,8 +108,7 @@ rule variant_callerset_merge_chrom:
         # Write
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
-# variant_callerset_anno_merge
-#
+
 # Merge annotations for a caller set.
 rule variant_callerset_fa:
     input:
@@ -125,8 +122,6 @@ rule variant_callerset_fa:
     output:
         fa='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',
         fai='results/variant/callerset/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz.fai'
-    params:
-        mem=lambda wildcards: svpoplib.callerset.cluster_param_anno_mem(wildcards, config),
     wildcard_constraints:
         filter='\\w+',
         annodir='[a-zA-Z0-9\\.\\-]+',
@@ -150,7 +145,7 @@ rule variant_callerset_fa:
 
         # Open FA and write
         with Bio.bgzf.BgzfWriter(output.fa, 'wt') as out_file:
-            SeqIO.write(
+            Bio.SeqIO.write(
                 svpoplib.callerset.fa_iter(df, callerset_entry, callerset_input),
                 out_file,
                 'fasta'
@@ -159,8 +154,6 @@ rule variant_callerset_fa:
         shell("""samtools faidx {output.fa}""")
 
 
-# variant_callerset_anno_merge
-#
 # Merge annotations for a caller set.
 rule variant_callerset_anno_merge:
     input:
@@ -173,8 +166,6 @@ rule variant_callerset_anno_merge:
         )
     output:
         anno='results/variant/callerset/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
-    params:
-        mem=lambda wildcards: svpoplib.callerset.cluster_param_anno_mem(wildcards, config),
     wildcard_constraints:
         filter='\\w+',
         annodir='[a-zA-Z0-9\\.\\-]+',

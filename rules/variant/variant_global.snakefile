@@ -62,7 +62,7 @@ rule variant_global_filter_region:
     input:
         bed=variant_global_filter_input_bed,
         fa=variant_global_filter_input_fa,
-        bed_filt=lambda wildcards: svpoplib.variant.get_filter_bed(wildcards.filter, UCSC_REF_NAME, config, SVPOP_DIR)
+        bed_filt=lambda wildcards: svpoplib.variant.get_filter_bed(wildcards.filter, UCSC_REF_NAME, config, PIPELINE_DIR)
             if wildcards.filter != 'all' else []
     output:
         bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
@@ -195,7 +195,7 @@ rule variant_global_filter_region:
 #     input:
 #         bed='results/variant/caller/{sourcename}/{sample}/all/all/bed/{vartype}_{svtype}.bed.gz',
 #         fa='results/variant/caller/{sourcename}/{sample}/all/all/bed/fa/{vartype}_{svtype}.fa.gz',
-#         filter=lambda wildcards: svpoplib.variant.get_filter_bed(wildcards.filter, UCSC_REF_NAME, config, SVPOP_DIR)
+#         filter=lambda wildcards: svpoplib.variant.get_filter_bed(wildcards.filter, UCSC_REF_NAME, config, PIPELINE_DIR)
 #     output:
 #         bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}.bed.gz',
 #         fa='results/variant/caller/{sourcename}/{sample}/{filter}/all/bed/fa/{vartype}_{svtype}.fa.gz',

@@ -1,0 +1,107 @@
+---
+latency-wait: 60
+keep-going: True
+rerun-incomplete: True
+printshellcmds: False
+rerun-triggers: "mtime"
+
+# Cluster submission
+jobname: "{rule}.{jobid}"
+max-jobs-per-second: 2
+
+# Default resources
+default-resources:
+  - mem_mb=2048
+  - runtime=240
+
+# Set threads
+set-threads:
+  - var_intersect_by_merge=8
+  - var_intersect_bymerge_svset_diff=4
+  - variant_caller_anno_altmap_minimap2_map=4
+  - variant_callerset_merge_chrom=8
+  - variant_dv_tsv_to_bed=6
+  - variant_sampleset_bed_merge_part=8
+  - variant_smrtsv_bed_correct_indel_calls=4
+  - variant_varset_bed=6
+  - varset_set_hgsvc1_bed_all_samples=6
+
+set-resources:
+  - depth_data_sample_depth_merge:mem_mb=8192
+  - depth_data_sample_depth_merge:runtime=720
+  - depth_data_sample_depth_per_index:mem_mb=2048
+  - depth_data_sample_depth_per_index:runtime=720
+  - depth_data_sample_read_bed:mem_mb=12288
+  - depth_data_sample_read_bed:runtime=2160
+  - depth_data_sample_wiggle:mem_mb=8192
+  - depth_data_sample_wiggle:runtime=480
+  - gt_call_table:mem_mb=4096
+  - gt_call_table:runtime=720
+  - intersect_nearest_distance_table:mem_mb=20480
+  - intersect_nearest_distance_table:runtime=1440
+  - intersect_nearest_ra_distance_table:mem_mb=20480
+  - intersect_nearest_ra_distance_table:runtime=1440
+  - tracks_sv_bed:mem_mb=24576
+  - var_intersect_by_merge:mem_mb=32768
+  - var_intersect_by_merge:runtime=2880
+  - var_intersect_by_merge_svindel:mem_mb=16384
+  - var_intersect_by_merge_svindel:runtime=1440
+  - var_intersect_bymerge_svset_diff:mem_mb=32768
+  - var_intersect_bymerge_svset_diff:runtime=720
+  - variant_anno_caller_region_band:mem_mb=4096
+  - variant_anno_caller_seqcontent_gc:mem_mb=4096
+  - variant_anno_caller_seqcontent_gc:runtime=1920
+  - variant_anno_homopoly_intersect:mem_mb=1024
+  - variant_anno_homopoly_intersect:runtime=1440
+  - variant_anno_homopoly_nearest:mem_mb=1024
+  - variant_anno_homopoly_nearest:runtime=1440
+  - variant_anno_homopolymer_nearest:mem_mb=16384
+  - variant_anno_homopolymer_nearest:runtime=1440
+  - variant_anno_refseq_intersect_count:mem_mb=24576
+  - variant_anno_refseq_intersect_count:runtime=2880
+  - variant_anno_reg_oreganno_intersect:mem_mb=1024
+  - variant_anno_reg_oreganno_intersect:runtime=1440
+  - variant_anno_repeat_rmsk_run:mem_mb=6144
+  - variant_anno_repeat_rmsk_run:runtime=2880
+  - variant_anno_repeat_trf_run:mem_mb=2048
+  - variant_anno_repeat_trf_run:runtime=1440
+  - variant_anno_repeat_trf_table:mem_mb=4096
+  - variant_anno_repeat_trf_table:runtime=720
+  - variant_bed_altdup_inner:mem_mb=4096
+  - variant_bed_altdup_inner:runtime=120
+  - variant_bed_vcf_to_tsv:mem_mb=2048
+  - variant_bed_vcf_to_tsv:runtime=1440
+  - variant_bed_vcf_tsv_to_bed:mem_mb=4096
+  - variant_bed_vcf_tsv_to_bed:runtime=1440
+  - variant_caller_anno_altmap_minimap2_map:mem_mb=16384
+  - variant_caller_anno_altmap_minimap2_map:runtime=1440
+  - variant_caller_anno_depth_chrom:mem_mb=4096
+  - variant_caller_anno_depth_chrom:runtime=240
+  - variant_caller_anno_depth_merge:mem_mb=12288
+  - variant_caller_anno_depth_merge:runtime=120
+  - variant_caller_global_concat_anno_insdel:mem_mb=4096
+  - variant_caller_global_concat_anno_insdel:runtime=720
+  - variant_caller_global_concat_insdel:mem_mb=8192
+  - variant_callerset_anno_merge:mem_mb=12288
+  - variant_callerset_merge:mem_mb=12288
+  - variant_callerset_merge:runtime=480
+  - variant_callerset_merge_chrom:mem_mb=12288
+  - variant_callerset_merge_chrom:runtime=2880
+  - variant_dv_bed_fa:mem_mb=8192
+  - variant_dv_tsv_to_bed:mem_mb=6144
+  - variant_global_concat_insdel:mem_mb=4096
+  - variant_global_concat_insdel:runtime=240
+  - variant_pavbedhap_bed:mem_mb=4096
+  - variant_pavbedhap_bed:runtime=240
+  - variant_sampleset_anno_merge:mem_mb=32768
+  - variant_sampleset_bed_merge:mem_mb=12288
+  - variant_sampleset_bed_merge:runtime=480
+  - variant_sampleset_bed_merge_part:mem_mb=12288
+  - variant_sampleset_bed_merge_part:runtime=2880
+  - variant_sampleset_bed_merge_svindel:mem_mb=12288
+  - variant_sampleset_bed_merge_svindel:runtime=480
+  - variant_smrtsv_bed_correct_indel_calls:runtime=240
+  - variant_svsetfilter_bed:mem_mb=12288
+  - variant_varset_bed:mem_mb=24576
+  - variant_vcf_bed_fa:mem_mb=12288
+  - varset_set_hgsvc1_bed_all_samples:mem_mb=24576

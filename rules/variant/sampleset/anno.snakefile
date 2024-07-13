@@ -2,17 +2,14 @@
 Merge annotations from a merged set of samples.
 """
 
-###################
-### Definitions ###
-###################
+import pandas as pd
 
+import svpoplib
 
-#############
-### Rules ###
-#############
-
-# variant_sampleset_anno_merge
 #
+# Rules
+#
+
 # Merge annotations for a sample set.
 rule variant_sampleset_anno_merge:
     input:
@@ -26,8 +23,6 @@ rule variant_sampleset_anno_merge:
         )
     output:
         tsv='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/anno/{annodir}/{annotype}_{vartype}_{svtype}.{ext}.gz'
-    params:
-        mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config)
     wildcard_constraints:
         svtype='ins|del|inv|dup|sub|rgn|snv',
         vartype='sv|indel|snv|sub|rgn',

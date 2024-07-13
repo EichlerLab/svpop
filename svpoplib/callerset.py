@@ -215,64 +215,6 @@ def fa_iter(df, callerset_entry, callerset_input):
         ):
             yield record
 
-
-def cluster_param_cpu(wildcards, config):
-    """
-    Get number of cores to be allocated for variant merge jobs.
-    """
-
-    return int(
-        svpoplib.sampleset.get_merge_strategy(
-            get_config_entry(wildcards.sourcename, config),
-            wildcards.vartype,
-            wildcards.svtype,
-            config
-        ).get('cpu', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['cpu'])
-    )
-
-
-def cluster_param_mem(wildcards, config):
-    """
-    Get amount of memory to be allocated for variant merge jobs.
-    """
-
-    return \
-        svpoplib.sampleset.get_merge_strategy(
-            get_config_entry(wildcards.sourcename, config),
-            wildcards.vartype,
-            wildcards.svtype,
-            config
-        ).get('mem', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['mem'])
-
-
-def cluster_param_rt(wildcards, config):
-    """
-    Get cluster runtime to be allocated for variant merge jobs.
-    """
-
-    return \
-        svpoplib.sampleset.get_merge_strategy(
-            get_config_entry(wildcards.sourcename, config),
-            wildcards.vartype,
-            wildcards.svtype,
-            config
-        ).get('rt', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['rt'])
-
-
-def cluster_param_anno_mem(wildcards, config):
-    """
-    Get amount of memory to be allocated for callerset/sampleset annotation merge jobs.
-    """
-
-    return \
-        svpoplib.sampleset.get_merge_strategy(
-            get_config_entry(wildcards.sourcename, config),
-            wildcards.vartype,
-            wildcards.svtype,
-            config
-        ).get('anno_mem', svpoplib.sampleset.DEFAULT_RESOURCES['callerset']['anno_mem'])
-
-
 def is_read_seq(wildcards, config):
     """
     Determine if merge requires input sequence.
@@ -290,42 +232,3 @@ def is_read_seq(wildcards, config):
     )
 
     return merge_config.is_read_seq(wildcards.svtype)
-
-# def cluster_param_cpu(wildcards, config):
-#     """
-#     Get number of cores to be allocated for variant merge jobs.
-#     """
-#
-#     return int(get_config_entry(
-#         wildcards.sourcename, config
-#     ).get('cpu', '4'))
-#
-#
-# def cluster_param_mem(wildcards, config):
-#     """
-#     Get amount of memory to be allocated for variant merge jobs.
-#     """
-#
-#     return get_config_entry(
-#         wildcards.sourcename, config
-#     ).get('mem', '2G')
-#
-#
-# def cluster_param_anno_mem(wildcards, config):
-#     """
-#     Get amount of memory to be allocated for variant merge jobs.
-#     """
-#
-#     return get_config_entry(
-#         wildcards.sourcename, config
-#     ).get('anno_mem', '4G')
-#
-#
-# def cluster_param_rt(wildcards, config):
-#     """
-#     Get cluster runtime to be allocated for variant merge jobs.
-#     """
-#
-#     return get_config_entry(
-#         wildcards.sourcename, config
-#     ).get('rt', '48:00:00')

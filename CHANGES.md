@@ -1,5 +1,8 @@
 # Changes
 
+## 3.5
+* Switching to a Snakemake profile method for setting resources.
+
 ## 3.4.3
 * Removed references to numpy primitives (np.int, np.float, etc.)
 * Updated submodules (pulled in fixes)

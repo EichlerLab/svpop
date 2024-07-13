@@ -2,17 +2,23 @@
 Prepare annotation input files.
 """
 
+import gzip
+import numpy as np
+import pandas as pd
+import re
 
-#############
-### Rules ###
-#############
+global expand
+global shell
+global temp
+
+global UCSC_REF_NAME
+
 
 #
 # Region Merge
 #
 
-# data_merge_bed_regions
-#
+
 # Merge all BED records within a set distance to produce regions covered by the BED. First, regions are merged
 # by "distance", then the merged regions are expanded by "flank". If any regions overlap after expanding, then they
 # are merged.
@@ -27,7 +33,7 @@ rule data_merge_bed_regions:
         flank=r'\d+'
     shell:
         """awk -vOFS="\\t" '{{print $1, $2, $3}}' <(zcat {input.bed}) | """
-        """python3 {SVPOP_DIR}/scripts/filter_chrom.py -g {input.fai} | """
+        """python3 {PIPELINE_DIR}/scripts/filter_chrom.py -g {input.fai} | """
         """bedtools merge -d {wildcards.distance} -header | """
         """bedtools slop -b {wildcards.flank} -g {input.fai} -header | """
         """awk '$2 >= 0' | """
@@ -38,8 +44,6 @@ rule data_merge_bed_regions:
 # ORegAnno
 #
 
-# data_oreganno
-#
 # Prepare ORegAnno BED.
 rule data_oreganno:
     input:
@@ -52,8 +56,7 @@ rule data_oreganno:
         """    awk -vOFS="\t" '{{print $2, $3, $4, $5, $6, $7}}' <(zcat {input.txt});\n"""
         """}} | gzip > {output.bed}"""
 
-# data_oreganno_table_gz
-#
+
 # Compress ORegAnno annotation table.
 rule data_oreganno_table_gz:
     input:
@@ -63,8 +66,7 @@ rule data_oreganno_table_gz:
     shell:
         """gzip -c {input.tsv} > {output.tsv}"""
 
-# data_oreganno_table
-#
+
 # Get a table of oreganno annotations.
 rule data_oreganno_table:
     output:
@@ -78,12 +80,11 @@ rule data_oreganno_table:
 
         shell("""wget {params.url} -O {output.tsv}""")
 
+
 #
 # ENCODE 2020 (DHS: Vierstra 2020, CCRE: Consortium 2020)
 #
 
-# data_encode_dhs2020_minscore
-#
 # Get table with minimum score
 rule data_encode_dhs2020_minscore:
     input:
@@ -102,8 +103,7 @@ rule data_encode_dhs2020_minscore:
 
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
-# data_encode_dhs2020_header
-#
+
 # Add header to DHS 2020
 #
 # Legend:
@@ -127,8 +127,7 @@ rule data_encode_ccre2020_header:
 
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
-# data_encode_dhs2020_dl
-#
+
 # Download DHS data.
 rule data_encode_ccre2020_dl:
     output:
@@ -138,8 +137,7 @@ rule data_encode_ccre2020_dl:
             """http://gcp.wenglab.org/GRCh38-ccREs.bed """
             """-O {output.bed}"""
 
-# data_encode_dhs2020_header
-#
+
 # Add header to DHS 2020
 #
 # Legend:
@@ -164,8 +162,7 @@ rule data_encode_dhs2020_header:
 
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
-# data_encode_dhs2020_dl
-#
+
 # Download DHS data.
 rule data_encode_dhs2020_dl:
     output:
@@ -179,8 +176,7 @@ rule data_encode_dhs2020_dl:
 # Encode DHS (DNAse hypersensitivity) - UCSC browser
 #
 
-# data_encode_dhs_cluster_score
-#
+
 # Subset DHS by minimum score.
 rule data_encode_dhs_cluster_score:
     input:
@@ -197,8 +193,7 @@ rule data_encode_dhs_cluster_score:
 
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
-# data_encode_dhs_cluster
-#
+
 # Get DHS cluster BED.
 rule data_encode_dhs_cluster:
     input:
@@ -220,8 +215,6 @@ rule data_encode_dhs_cluster:
 # Encode histone modification (H3K4Me1, H3K4Me3, H3K27Ac)
 #
 
-# data_encode_merge_cells
-#
 # Merge all cells.
 rule data_encode_merge_cells:
     input:
@@ -239,8 +232,7 @@ rule data_encode_merge_cells:
         """bedtools merge -i stdin -header | """
         """gzip > {output.bed}"""
 
-# data_encode_threshold_merge
-#
+
 # Filter by threshold and merge windows within 100 bp.
 rule data_encode_threshold_merge:
     input:
@@ -254,8 +246,7 @@ rule data_encode_threshold_merge:
         """    bedtools merge -i stdin -d 100 -header;"""
         """}} | gzip > {output.bed}"""
 
-# data_encode_bw_to_bed
-#
+
 # BigWig to BedGraph for encode.
 rule data_encode_bw_to_bed:
     input:
@@ -270,8 +261,7 @@ rule data_encode_bw_to_bed:
         """    cat {output.bed_tmp}\n"""
         """}} | gzip > {output.bed}"""
 
-# data_encode_dl
-#
+
 # Download Encode data
 rule data_encode_dl:
     output:
@@ -293,8 +283,6 @@ rule data_encode_dl:
 # CpG Islands
 #
 
-# data_cpg_unmasked
-#
 # CpG unmasked (includes records in RepeatMasked regions).
 rule data_cpg_unmasked:
     input:
@@ -342,8 +330,7 @@ _ANNO_RMSK_FAM_PATTERN = {
     }
 }
 
-# data_rmsk_subset_bed
-#
+
 # Subset the RepeatMasker BED file.
 rule data_rmsk_subset_bed:
     input:
@@ -352,24 +339,24 @@ rule data_rmsk_subset_bed:
         bed='data/anno/rmsk/rmsk-{filter_spec}-{ident}.bed.gz'
     wildcard_constraints:
         filter_spec='[a-z0-9]+',
-        ident='((lt|gt)[\d]+)|([\d]+to[\d]+)|all'
+        ident=r'((lt|gt)\d+)|(\d+to\d+)|all'
     run:
 
         # Read
         df = pd.read_csv(input.bed, sep='\t')
 
         # Get identity (%) filter
-        if re.match('^gt[\d]+$', wildcards.ident):
+        if re.match(r'^gt\d+$', wildcards.ident):
             min_ident = int(wildcards.ident[2:])
             max_ident = None
 
-        elif re.match('^lt[\d]+$', wildcards.ident):
+        elif re.match(r'^lt\d+$', wildcards.ident):
             min_ident = None
             max_ident = int(wildcards.ident[2:])
 
-        elif re.match('^[\d]+to[\d]+$', wildcards.ident):
+        elif re.match(r'^\d+to\d+$', wildcards.ident):
 
-            match_obj = re.match('^([\d]+)to([\d]+)$', wildcards.ident)
+            match_obj = re.match(r'^(\d+)to(\d+)$', wildcards.ident)
 
             min_ident = match_obj[1]
             max_ident = match_obj[2]
@@ -437,9 +424,6 @@ rule data_rmsk_subset_bed:
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 
-
-# data_rmsk_to_bed
-#
 # Make RepeatMasker annotation BED file.
 rule data_rmsk_to_bed:
     input:
@@ -477,8 +461,6 @@ rule data_rmsk_to_bed:
 # Segmental Duplications
 #
 
-# data_sd_max_merge
-#
 # Concatenate consecutive records if they have the same identity.
 rule data_sd_max_merge:
     input:
@@ -555,8 +537,6 @@ rule data_sd_max_merge:
 
         df_merge.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
-# data_sd_max
-#
 # Get maximum identity per window.
 rule data_sd_max:
     input:
@@ -577,8 +557,7 @@ rule data_sd_max:
         """gzip """
         """> {output.bed}"""
 
-# data_sd_max_fragment
-#
+
 # Fragment SD records to non-overlapping segments.
 rule data_sd_max_fragment:
     input:
@@ -650,8 +629,6 @@ rule data_sd_max_fragment:
 
                         pos_start = pos_end
 
-# data_sd_to_bed
-#
 # SD track to BED.
 rule data_sd_to_bed:
     input:
@@ -669,8 +646,6 @@ rule data_sd_to_bed:
 # TRF
 #
 
-# data_get_trf_txt_to_bed
-#
 # TRF to BED.
 rule data_get_trf_txt_to_bed:
     input:
@@ -688,8 +663,6 @@ rule data_get_trf_txt_to_bed:
 # RefSeq
 #
 
-# data_anno_refseq_updown_bed
-#
 # Get a BED file of regions upstream and downstream of refseq annotations.
 rule data_anno_refseq_updown_bed:
     input:
@@ -730,8 +703,6 @@ rule data_anno_refseq_updown_bed:
         df_up.to_csv(output.bed_up, sep='\t', index=False, compression='gzip')
         df_dn.to_csv(output.bed_dn, sep='\t', index=False, compression='gzip')
 
-# data_anno_refseq_bed
-#
 # RefSeq BED.
 rule data_anno_refseq_bed:
     input:
@@ -750,8 +721,6 @@ rule data_anno_refseq_bed:
 # Chromosome bands
 #
 
-# data_get_chrom_bands
-#
 # Get chromosome bands and add a header line
 rule data_get_chrom_bands:
     input:
@@ -769,8 +738,6 @@ rule data_get_chrom_bands:
 # AGP (Golden path)
 #
 
-# data_get_agp
-#
 # Get AGP file for the assembly. A header line is added to the original file. This shows the tiling path ("golden
 # path") through scaffolds to create the primary assembly.
 rule data_get_agp:
@@ -784,8 +751,7 @@ rule data_get_agp:
         """   zcat {input.txt};\n"""
         """}} | gzip > {output.bed}; """
 
-# variant_anno_agp_switch_bed
-#
+
 # Get a BED file of intervals around AGP switchpoints (where contigs in the reference are joined).
 rule variant_anno_agp_switch_bed:
     input:
@@ -850,8 +816,6 @@ rule variant_anno_agp_switch_bed:
 # Gaps
 #
 
-# data_gap_txt_to_bed
-#
 # Gap to BED.
 rule data_gap_txt_to_bed:
     input:
@@ -868,6 +832,8 @@ rule data_gap_txt_to_bed:
 #
 # Centromeres
 #
+
+# Get centromere annotations
 rule data_anno_cen:
     input:
         txt='temp/data/anno/ucsc/database/centromeres.txt.gz'
@@ -883,8 +849,6 @@ rule data_anno_cen:
 # Get UCSC Track
 #
 
-# data_get_ucsc_track_database
-#
 # Download annotations from UCSC.
 rule data_anno_dl_ucsc:
     output:

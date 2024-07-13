@@ -2,9 +2,20 @@
 Merge variants from multiple samples.
 """
 
-#############
-### Rules ###
-#############
+import Bio.bgzf
+import Bio.SeqIO
+import os
+import pandas as pd
+
+global shell
+global temp
+global expand
+
+import svpoplib
+
+#
+# Rules
+#
 
 def _variant_sampleset_bed_get_partition_count(wildcards):
         sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sourcename, None, config)
@@ -16,8 +27,7 @@ def _variant_sampleset_bed_get_partition_count(wildcards):
         except ValueError:
             raise RuntimeError(f'Error getting "config/partitions" from sampleset config for {wildcards.sourcename}: Partition count is not an integer: {partition_count}')
 
-# variant_sampleset_bed_merge_svindel
-#
+
 # Merge callerset variants from multiple sources for one sample.
 rule variant_sampleset_bed_merge_svindel:
     input:
@@ -30,8 +40,6 @@ rule variant_sampleset_bed_merge_svindel:
         bed_indel='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/indel_{svtype}.bed.gz'
     wildcard_constraints:
         svtype='ins|del'
-    params:
-        mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config, 'svindel')
     run:
 
         df = pd.concat(
@@ -46,8 +54,7 @@ rule variant_sampleset_bed_merge_svindel:
         df.loc[df['SVLEN'] >= 50].to_csv(output.bed_sv, sep='\t', index=False, compression='gzip')
         df.loc[df['SVLEN'] < 50].to_csv(output.bed_indel, sep='\t', index=False, compression='gzip')
 
-# variant_sampleset_bed_merge
-#
+
 # Merge callerset variants from multiple sources for one sample.
 rule variant_sampleset_bed_merge:
     input:
@@ -59,8 +66,6 @@ rule variant_sampleset_bed_merge:
         bed='results/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/{varsvtype}.bed.gz'
     wildcard_constraints:
         varsvtype='sv_inv|sv_dup|snv_snv'
-    params:
-        mem=lambda wildcards: svpoplib.sampleset.cluster_param_anno_mem(wildcards, config, wildcards.varsvtype.split('_')[0], wildcards.varsvtype.split('_')[1])
     run:
 
         df = pd.concat(
@@ -75,8 +80,6 @@ rule variant_sampleset_bed_merge:
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 
-# variant_sampleset_bed_merge_part
-#
 # Get a set of variants merged from multiple samples.
 rule variant_sampleset_bed_merge_part:
     input:
@@ -95,15 +98,11 @@ rule variant_sampleset_bed_merge_part:
             wildcards
         ) if svpoplib.sampleset.is_read_seq(wildcards, config) else [],
         tsv_part='results/variant/sampleset/{sourcename}/partition_table.tsv.gz'
-
     output:
         bed=temp(
             'temp/variant/sampleset/{sourcename}/{sample}/{filter}/all/bed/{vartype}_{svtype}/part_{part}.bed.gz'
         )
-    params:
-        mem=lambda wildcards: svpoplib.sampleset.cluster_param_mem(wildcards, config),
-        rt=lambda wildcards: svpoplib.sampleset.cluster_param_rt(wildcards, config)
-    threads: lambda wildcards: svpoplib.sampleset.cluster_param_cpu(wildcards, config)
+    threads: 8
     run:
 
         # Get sample and input list
@@ -137,8 +136,6 @@ rule variant_sampleset_bed_merge_part:
         df.to_csv(output.bed, sep='\t', index=False, compression='gzip')
 
 
-# variant_sampleset_batch_table
-#
 # Assign each chromosome to a batch.
 rule variant_sampleset_batch_table:
     output:
@@ -173,8 +170,6 @@ rule variant_sampleset_batch_table:
         df.to_csv(output.tsv_part, sep='\t', index=True, compression='gzip')
 
 
-# variant_sampleset_fa_merge
-#
 # Merge FASTA files for sampleset.
 rule variant_sampleset_fa_merge:
     input:
@@ -207,7 +202,7 @@ rule variant_sampleset_fa_merge:
         sampleset_entry = svpoplib.sampleset.get_config_entry(wildcards.sourcename, wildcards.sample, config)
 
         with Bio.bgzf.BgzfWriter(output.fa, 'wb') as out_file:
-            SeqIO.write(
+            Bio.SeqIO.write(
                 svpoplib.sampleset.fa_write_func(
                     df, wildcards, sampleset_entry, fa_input_pattern, config
                 ),

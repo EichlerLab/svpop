@@ -54,8 +54,8 @@ rule variant_caller_anno_altmap_bed:
         bed='results/variant/caller/{sourcename}/{sample}/{filter}/all/anno/altmap/altmap-{mapper}_{vartype}_{svtype}.bed.gz'
     wildcard_constraints:
         mapper='minimap2',
-        vartype='\w+',
-        svtype='\w+'
+        vartype=r'\w+',
+        svtype=r'\w+'
     run:
 
         bed_record_list = list()

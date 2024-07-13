@@ -891,7 +891,8 @@ def vcf_tsv_to_bed(
         'CHROM': '#CHROM',
         'REF': 'VCF_REF',
         'POS': 'VCF_POS',
-        'ALT': 'VCF_ALT'
+        'ALT': 'VCF_ALT',
+        'ID': 'VCF_ID'
     }
 
     REQUIRED_COLS = {'CHROM', 'POS', 'REF', 'ALT'}

@@ -32,7 +32,7 @@ rule tracks_sv_bed:
         # Filter columns that have track annotations
         field_set = set(
             pd.read_csv(
-                os.path.join(SVPOP_DIR, 'files/tracks/ucsc_track_fields.tsv'),
+                os.path.join(PIPELINE_DIR, 'files/tracks/ucsc_track_fields.tsv'),
                 sep='\t', header=0
             )['FIELD']
         )

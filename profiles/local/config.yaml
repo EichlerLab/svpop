@@ -1,0 +1,18 @@
+---
+latency-wait: 60
+keep-going: True
+rerun-incomplete: True
+printshellcmds: False
+rerun-triggers: "mtime"
+
+# Set threads
+set-threads:
+  - var_intersect_by_merge=8
+  - var_intersect_bymerge_svset_diff=4
+  - variant_caller_anno_altmap_minimap2_map=4
+  - variant_callerset_merge_chrom=8
+  - variant_dv_tsv_to_bed=6
+  - variant_sampleset_bed_merge_part=8
+  - variant_smrtsv_bed_correct_indel_calls=4
+  - variant_varset_bed=6
+  - varset_set_hgsvc1_bed_all_samples=6

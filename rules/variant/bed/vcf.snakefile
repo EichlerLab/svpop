@@ -496,7 +496,7 @@ rule variant_bed_vcf_tsv_to_bed_merge:
             shutil.copyfile(input.tsv_filt[0], output.tsv_filt)
 
 
-# variant_dv_tsv_to_bed
+# variant_bed_vcf_tsv_to_bed
 #
 # TSV to BED.
 rule variant_bed_vcf_tsv_to_bed:
@@ -509,7 +509,6 @@ rule variant_bed_vcf_tsv_to_bed:
         callertype=VARIANT_BED_VCF_TYPE_PATTERN,
         batch=r'\d+'
     params:
-        mem='6000',
         chunk_size=5000  # DataFrame chunk size
     threads: 6
     run:

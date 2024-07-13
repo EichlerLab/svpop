@@ -144,7 +144,7 @@ rule variant_anno_caller_region_band_intersect:
         svtype='ins|del|inv|dup|snv|rgn|sub'
     shell:
         """{{\n"""
-        """    echo -e $(cut -f 1-4 <(zcat {input.bed}) | head -n 1) "\\t" $(head -n 1 <(zcat {input.bands})) | sed -re 's/\s+/\t/g';\n"""
+        """    echo -e $(cut -f 1-4 <(zcat {input.bed}) | head -n 1) "\\t" $(head -n 1 <(zcat {input.bands})) | sed -re 's/\\s+/\t/g';\n"""
         """    cut -f 1-4 <(zcat {input.bed}) | bedtools intersect -a stdin -b {input.bands} -sorted -loj;\n"""
         """}} | gzip > {output.bed}"""
 

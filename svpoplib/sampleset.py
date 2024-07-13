@@ -11,25 +11,6 @@ import svpoplib.sm
 from Bio import SeqIO
 
 
-# Default values (should be configurable)
-
-# Default resource values
-DEFAULT_RESOURCES = {
-    'sampleset': {
-        'cpu': '8',
-        'mem': '24576',
-        'rt': '72:00:00',
-        'anno_mem': '24576'
-    },
-    'callerset': {
-        'cpu': '4',
-        'mem': '12288',
-        'rt': '48:00:00',
-        'anno_mem': '8192'
-    }
-}
-
-
 def get_config_entry(sampleset_name, sample_list_name, config):
     """
     Get config entry for this sampleset and check it.
@@ -198,83 +179,6 @@ def merge_annotations(df_merge, sampleset_input, sampleset_entry, sort_columns=[
     # Return
     return df_anno
 
-
-def cluster_param_cpu(wildcards, config):
-    """
-    Get number of cores to be allocated for variant merge jobs.
-    """
-
-    return int(
-        get_merge_strategy(
-            get_config_entry(wildcards.sourcename, wildcards.sample, config),
-            wildcards.vartype,
-            wildcards.svtype,
-            config
-        ).get('cpu', DEFAULT_RESOURCES['sampleset']['cpu'])
-    )
-
-
-def cluster_param_mem(wildcards, config):
-    """
-    Get amount of memory to be allocated for variant merge jobs.
-    """
-
-    return \
-        get_merge_strategy(
-            get_config_entry(wildcards.sourcename, wildcards.sample, config),
-            wildcards.vartype,
-            wildcards.svtype,
-            config
-        ).get('mem', DEFAULT_RESOURCES['sampleset']['mem'])
-
-
-def cluster_param_rt(wildcards, config):
-    """
-    Get cluster runtime to be allocated for variant merge jobs.
-    """
-
-    return \
-        get_merge_strategy(
-            get_config_entry(wildcards.sourcename, wildcards.sample, config),
-            wildcards.vartype,
-            wildcards.svtype,
-            config
-        ).get('rt', DEFAULT_RESOURCES['sampleset']['rt'])
-
-
-def cluster_param_anno_mem(wildcards, config, vartype=None, svtype=None):
-    """
-    Get amount of memory to be allocated for callerset/sampleset annotation merge jobs.
-
-    :param wildcards: Wildcards.
-    :param config: Config.
-    :param vartype: Variant type in case it's not in wildcards (i.e. svindel merge step). If not None, overrides
-        `wildcards.vartype` if present. The variant type must be in `wildcards` or this parameter.
-    :param vartype: SV type in case it's not in wildcards. If not None, overrides
-        `wildcards.svtype` if present. The type must be in `wildcards` or this parameter.
-    """
-
-    if vartype is None:
-        if wildcards.get('vartype', None) is None:
-            raise RuntimeError('"vartype" not found in wildcards or vartype argument')
-
-        vartype = wildcards.vartype
-
-    if svtype is None:
-        if wildcards.get('svtype', None) is None:
-            raise RuntimeError('"svtype" not found in wildcards or svtype argument')
-
-        svtype = wildcards.svtype
-
-    return \
-        get_merge_strategy(
-            get_config_entry(wildcards.sourcename, wildcards.sample, config),
-            vartype,
-            svtype,
-            config
-        ).get('anno_mem', DEFAULT_RESOURCES['sampleset']['anno_mem'])
-
-
 def get_merge_strategy(sampleset_entry, vartype, svtype, config):
     """
     Get the merge strategy string for this set entry.
@@ -292,8 +196,6 @@ def get_merge_strategy(sampleset_entry, vartype, svtype, config):
     # Key formats
     # "merge": "strategy-def"
     # "merge": {"vartype1,vartype2:svtype1,svtype2": "strategy-def"}
-    # "merge": {"vartype1,vartype2:svtype1,svtype2": {"strategy": "strategy-def", "cpu": "...", "mem": "..."}}
-    # "merge": {"vartype1,vartype2": {"strategy": "strategy-def", "cpu": "...", "mem": "..."}}
 
     if 'sampleset_name' in sampleset_entry:
         set_name = sampleset_entry['sampleset_name']
@@ -426,36 +328,11 @@ def get_merge_strategy(sampleset_entry, vartype, svtype, config):
                 )
             )
 
-        merge_entry = merge_entry_dict[best_match]
-
-        if issubclass(merge_entry.__class__, dict):
-
-            if "strategy" not in merge_entry.keys():
-                raise RuntimeError('Missing "strategy" in {} "{}" with key "{}"'.format(
-                    set_type, set_name, best_match
-                ))
-
-            merge_strategy = merge_entry['strategy']
-
-            merge_cpu = merge_entry.get('cpu', DEFAULT_RESOURCES[set_type]['cpu'])
-            merge_mem = merge_entry.get('mem', DEFAULT_RESOURCES[set_type]['mem'])
-            merge_rt = merge_entry.get('rt', DEFAULT_RESOURCES[set_type]['rt'])
-            anno_mem = merge_entry.get('anno_mem', DEFAULT_RESOURCES[set_type]['anno_mem'])
-
-        else:
-            merge_strategy = merge_entry
-            merge_cpu = DEFAULT_RESOURCES[set_type]['cpu']
-            merge_mem = DEFAULT_RESOURCES[set_type]['mem']
-            merge_rt = DEFAULT_RESOURCES[set_type]['rt']
-            anno_mem = DEFAULT_RESOURCES[set_type]['anno_mem']
+        merge_strategy = merge_entry_dict[best_match]
 
     else:
         # Same merge strategy for all vartype/svtype's and default resources
         merge_strategy = merge_entry_dict
-        merge_cpu = DEFAULT_RESOURCES[set_type]['cpu']
-        merge_mem = DEFAULT_RESOURCES[set_type]['mem']
-        merge_rt = DEFAULT_RESOURCES[set_type]['rt']
-        anno_mem = DEFAULT_RESOURCES[set_type]['anno_mem']
 
     # Allow pre-defined strategies
     merge_strategy = svpoplib.svmerge.get_merge_def(merge_strategy, config)
@@ -463,10 +340,6 @@ def get_merge_strategy(sampleset_entry, vartype, svtype, config):
     # Build merge dict
     merge_dict = {
         'strategy': merge_strategy,
-        'cpu': merge_cpu,
-        'mem': merge_mem,
-        'rt': merge_rt,
-        'anno_mem': anno_mem,
         'set_type': set_type,
         'set_name': set_name
     }
