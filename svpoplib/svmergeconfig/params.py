@@ -126,6 +126,10 @@ class MergeConfig(object):
         self.spec_list = list()
         self.default_matcher = None
 
+        self.multi_target = False  # If True, target sequences can be matched by multiple sources (not removed for each match)
+
+        self.extern_matcher = False  # Set to True if an external matcher is used (incompatible with multi_target)
+
         # Set REF/ALT flag (check REF and ALT for SNVs) based on the strategy name
         self.refalt = self.strategy in {'nrsnv', 'nrsnp'}
 
@@ -149,25 +153,40 @@ class MergeConfig(object):
             if self.strategy == 'nr':
                 if spec_ast['type'] == 'exact':
                     spec = MergeSpecExact(spec_ast['val_list'])
+
                 elif spec_ast['type'] == 'ro':
                     spec = MergeSpecRo(spec_ast['val_list'])
+
                 elif spec_ast['type'] == 'szro':
                     spec = MergeSpecSzro(spec_ast['val_list'])
+
                 elif spec_ast['type'] == 'distance':
                     spec = MergeSpecDistance(spec_ast['val_list'])
+
                 elif spec_ast['type'] == 'truvari':
                     spec = MergeSpecTruvari(spec_ast['val_list'])
+                    self.extern_matcher = True
+
+                elif spec_ast['type'] == 'multitgt':
+                    self.multi_target = True
+
                 elif spec_ast['type'] == 'match':
                     self.default_matcher = MergeSpecMatch(spec_ast['val_list'])
+
                 else:
                     raise RuntimeError(f'MergeConfig {self.strategy}: Merge specification type at {index + 1} is unknown: {spec_ast["type"]}')
 
             elif self.strategy in {'nrsnv', 'nrsnp'}:
                 if spec_ast['type'] == 'exact':
                     spec = MergeSpecExact(spec_ast['val_list'])
+
                 elif spec_ast['type'] == 'distance':
                     raise RuntimeError('MergeSpecDistance is not yet implemented')
                     #spec = MergeSpecDistance(spec_ast['val_list'])
+
+                elif spec_ast['type'] == 'multitgt':
+                    self.multi_target = True
+
                 else:
                     raise RuntimeError(f'MergeConfig {self.strategy}: Merge specification type at {index + 1} is unknown: {spec_ast["type"]}')
 
@@ -203,6 +222,10 @@ class MergeConfig(object):
         # Set fields
         # self.read_seq = any([spec.read_seq for spec in self.spec_list])
         self.vcf_temp = any([spec.vcf_temp for spec in self.spec_list])
+
+        # Check parameter sanity
+        if self.extern_matcher and self.multi_target:
+            raise RuntimeError('MergeConfig: External matcher (Truvari, etc) is not compatible with multi-target (multitgt) matches')
 
         return
 
@@ -667,6 +690,21 @@ class MergeSpecTruvari(MergeSpec):
 
         return
 
+class MergeSpecMultitgt(MergeSpec):
+    """
+    Param set: Multi-target (allow target variants to match multiple sources).
+    """
+
+    def __init__(self, arg_list):
+        super().__init__(
+            'multitgt',
+            arg_list,
+            [
+            ],
+            False
+        )
+
+        return
 
 class MergeSpecMatch(MergeSpec):
     """

@@ -225,6 +225,42 @@ Whether computed by alignment or Jaccard, the similarity score must meet or exce
 | ksize | int | 9 | 0 < ksize | K-mer size for Jaccard |
 
 
+#### Multi-target matches (multitgt)
+
+SV-Pop allows a source to match multiple target variants. By default, once a match is made, the matched variant in
+both callsets (source and target) are not allowed to match any other variants. In some cases, such as redundant variant
+calls are present and each must be matched to the best variant in a nonredundant callset. For example, graph-based VCFs
+write one record for each sequence of an indel or SV. For example, if an SV is in two samples and there's a SNP
+difference, current decomposed graph-to-VCF tools emit one record for each SV allele. Intersecting a callset with
+a redundant callset with default parameters will find the best match of these alleles, but will leave the others
+unmatched. To intersect a nonredundant callset with a redandant one (i.e. multiple alleles in different variant
+records), then a semi-redundant merge must be allowed.
+
+The merge parameter "multitgt" will allow one source variant to match with multiple target variants and is only allowed
+in a two-sample merge where the first sample is redundant (e.g. decomposed grap VCF) and the second sample is
+nonredundant (e.g. a single sample or a nonredundant merge of many samples). In this mode, matched target variants are
+allowed to match other source variants instead of being restricted to only one. Add this parameter anywhere in the
+configuration string as its own parameter (e.g. "nr::ro(0.5):multitgt"). "multitgt" applies to the whole merge no matter
+what order it is found in the configuration string.
+
+#### Recommended parameters
+
+These parameters have been developed over the years to produce high-quality predictable merges across a wide rangce of
+variant types.
+
+Note: If the callset does not have sequence-resolved SVs and indels (full sequence is not in the callset), then drop
+the whole "match()" parameter.
+
+* SVs and indels: "nr::exact:ro(0.5):szro(0.8,200):szro(0.8,unlimited,3):match(0.8)"
+  1) exact: Exact size and position.
+  2) ro: 50% reciprocal-overlap (large SVs).
+  3) szro: within 200 bp and 80% size overlap (indels and small SVs).
+  4) szro: Within 3x SVLEN and 80% size overlap (heavily shifted tandem duplications & triplications).
+  5) match: Enforce 80% sequence identity for all steps.
+* SNVs: "nrsnv::exact"
+  1) Exact size and position. Enforce REF and ALT matching (not case sensitive)
+
+
 ## Configuring merges
 
 The configuration file has three sections that control merges.

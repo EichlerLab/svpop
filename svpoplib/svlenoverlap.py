@@ -22,6 +22,7 @@ def nearest_by_svlen_overlap(
         match_alt=False,
         align_match_prop=None,
         aligner=None,
+        target_nr=True
 ):
     """
     For each variant in df_source, get the nearest variant in df_target. Both dataframes must contain fields
@@ -60,6 +61,8 @@ def nearest_by_svlen_overlap(
     :param match_alt: "ALT" column must match between two variants.
     :param align_match_prop: Minimum matched base proportion in alignment or None to not match.
     :param aligner: Configured aligner for matching sequences. Required if align_match_prop is not None.
+    :param target_nr: If `True` (default), targets may match only one source. If `False`, the same target
+        may support multiple source variants.
 
     :return: A dataframe with "ID", "TARGET_ID", "OFFSET", "RO", "SZRO", "OFFSZ", and "MATCH"
     """
@@ -284,7 +287,8 @@ def nearest_by_svlen_overlap(
         'match_ref': match_ref,
         'match_alt': match_alt,
         'aligner': aligner,
-        'align_match_prop': align_match_prop
+        'align_match_prop': align_match_prop,
+        'target_nr': target_nr
     }
 
     if threads > 1 and len(chrom_list) > 1:
@@ -353,7 +357,8 @@ def _overlap_worker(
         restrict_samples,
         priority, priority_ascending,
         match_ref, match_alt,
-        aligner, align_match_prop
+        aligner, align_match_prop,
+        target_nr=True
 ):
 
     # Get dataframes
@@ -530,7 +535,8 @@ def _overlap_worker(
         overlap_list.append(max_row)
 
         # Remove from target pool (cannot support more than one variant)
-        df_target_chr.drop(max_row['TARGET_ID'], inplace=True)
+        if target_nr:
+            df_target_chr.drop(max_row['TARGET_ID'], inplace=True)
 
         if df_target_chr.shape[0] == 0:
             break  # No more target matches to process

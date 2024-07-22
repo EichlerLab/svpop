@@ -50,7 +50,7 @@ def get_merge_def(def_name, config, default_none=False):
     return config['merge_def'].get(def_name, None if default_none else def_name)
 
 
-def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=None, threads=1, ref_filename=None):
+def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=None, threads=1, ref_filename=None, verbose=False):
     """
     Merge variants from multiple samples.
 
@@ -64,6 +64,7 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
     :param threads: Number of threads to use for intersecting variants.
     :param ref_filename: Reference FASTA filename. Not required for built-in SV-Pop merge strategies, but is required
         for merge strategies using temporary VCF files (e.g. Truvari).
+    :param verbose: Print progress if True.
 
     :return: A Pandas dataframe of a BED file with the index set to the ID column.
     """
@@ -85,7 +86,8 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
         return merge_variants_nr(
             bed_list, sample_names, merge_config,
             fa_list=fa_list, subset_chrom=subset_chrom, threads=threads,
-            ref_filename=ref_filename
+            ref_filename=ref_filename,
+            verbose=verbose
         )
     else:
         raise RuntimeError('Unrecognized merge strategy "{}": {}'.format(merge_config.strategy, strategy))
@@ -154,6 +156,12 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
     if len(set(sample_names)) != n_samples:
         raise RuntimeError('Sample names may not be duplicated')
 
+    # Check target_nr (merge_config.multi_target)
+    if merge_config.multi_target and n_samples != 2:
+        raise RuntimeError(f'Non-redundant merge (parameter target_nr=False) is only defined for two samples: Found {n_samples} samples in this merge')
+
+    target_nr = not merge_config.multi_target
+
     # Discover variant types (needed to determine if sequences are needed for variant comparisons)
     svtype_set = set()
 
@@ -165,20 +173,14 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
         print(merge_config.__repr__(pretty=True))
 
     # Check fa_list if sequences are required
-    seq_in_col = False
+    is_read_seq = merge_config.is_read_seq(svtype_set)
 
-    if merge_config.is_read_seq(svtype_set):
-        if fa_list is None:
-            seq_in_col = True
-            fa_list = [None] * n_samples
-
-        elif len(fa_list) != n_samples:
-            n_fa = len(fa_list)
-
-            raise RuntimeError(f'Non-redundant merge requires variant sequences, but fa_list is not the same length as the number of samples: expected {n_samples}, fa_list length {n_fa}')
-
-    else:
+    if fa_list is None or not is_read_seq:
         fa_list = [None] * n_samples
+
+    elif len(fa_list) != n_samples:
+        raise RuntimeError(f'Non-redundant merge requires variant sequences, but fa_list is not the same length as the number of samples: expected {n_samples}, fa_list length {len(fa_list)}')
+
 
     # Set required columns for variant DataFrames
     col_list = ['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN']
@@ -186,10 +188,6 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
     if merge_config.refalt:
         col_list += ['REF']
         col_list += ['ALT']
-
-    if seq_in_col:
-        col_list += ['SEQ']
-
 
     # Note:
     # The first time a variant is found, it is added to the merge set (df), and it is supported by itself. The overlap
@@ -203,14 +201,14 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
     if verbose:
         print('Merging: {}'.format(sample_name))
 
-    df = read_variant_table(bed_list[0], sample_name, subset_chrom, fa_list[0], col_list)
+    df = read_variant_table(bed_list[0], sample_name, subset_chrom, fa_list[0], col_list + (['SEQ'] if is_read_seq and fa_list[0] is None else []))
 
-    if seq_in_col:
-        if 'SEQ' not in df.columns:
-            raise RuntimeError(f'Merge requires variant sequences, but none were provided through FASTA files or as SEQ columns: {bed_list[0]}')
+    if is_read_seq and 'SEQ' not in df.columns:
+        raise RuntimeError(f'Merge requires variant sequences, but none were provided through FASTA files or as SEQ columns: {bed_list[0]}')
+
+    df['SAMPLE'] = sample_name
 
     # Add tracking columns
-    df['SAMPLE'] = sample_name
     df['SUPPORT_SAMPLE'] = sample_name
     df['SUPPORT_ID'] = df['ID']
 
@@ -246,12 +244,14 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
         if verbose:
             print('Merging: {}'.format(sample_name))
 
-        df_next = read_variant_table(bed_list[index], sample_name, subset_chrom, fa_list[index], col_list)
+        df_next = read_variant_table(bed_list[index], sample_name, subset_chrom, fa_list[index], col_list + (['SEQ'] if is_read_seq and fa_list[index] is None else []))
+
+        if is_read_seq and 'SEQ' not in df.columns:
+            raise RuntimeError(f'Merge requires variant sequences, but none were provided through FASTA files or as SEQ columns: {bed_list[0]}')
+
         df_next['SAMPLE'] = sample_name
 
-        if seq_in_col:
-            if 'SEQ' not in df_next.columns:
-                raise RuntimeError(f'Merge requires variant sequences, but none were provided through FASTA files or as SEQ columns: {bed_list[index]}')
+        df_next = read_variant_table(bed_list[index], sample_name, subset_chrom, fa_list[index], col_list)
 
         ## Build intersect support table for each intersect test (exact, RO, etc) ##
         support_table_list = list()
@@ -288,6 +288,7 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
                     match_alt=merge_spec.refalt,
                     align_match_prop=merge_spec.align_match_prop,
                     aligner=merge_spec.aligner,
+                    target_nr=target_nr,
                     verbose=verbose
                 )
 
@@ -305,6 +306,7 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
                     match_alt=merge_spec.refalt,
                     align_match_prop=merge_spec.align_match_prop,
                     aligner=merge_spec.aligner,
+                    target_nr=target_nr,
                     verbose=verbose
                 )
 
@@ -323,7 +325,8 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
                     match_ref=merge_spec.refalt,
                     match_alt=merge_spec.refalt,
                     align_match_prop=merge_spec.align_match_prop,
-                    aligner=merge_spec.aligner
+                    aligner=merge_spec.aligner,
+                    target_nr=target_nr,
                 )
 
             elif merge_spec.spec_type == 'truvari':
@@ -338,21 +341,23 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
                     pctovl=merge_spec.pctovl,
                     align_match_prop=merge_spec.align_match_prop,
                     aligner=merge_spec.aligner,
-                    ref_filename=ref_filename
+                    ref_filename=ref_filename,
+                    target_nr=target_nr
                 )
 
             else:
-                raise RuntimeError(f'Unknown merge specification type: {spec_type}')
+                raise RuntimeError(f'Unknown merge specification type: {merge_spec.spec_type}')
 
             # Append support variants and subset (do not match already matched variants)
             if df_support is not None:
                 support_table_list.append(df_support)
 
                 id_set = set(df_support['ID'])
-                id_next_set = set(df_support['TARGET_ID'])
-
                 df_sub = df_sub.loc[df_sub['ID'].apply(lambda val: val not in id_set)]
-                df_next_sub = df_next_sub.loc[df_next_sub['ID'].apply(lambda val: val not in id_next_set)]
+
+                if target_nr:
+                    id_next_set = set(df_support['TARGET_ID'])
+                    df_next_sub = df_next_sub.loc[df_next_sub['ID'].apply(lambda val: val not in id_next_set)]
 
         # Clean
         del(df_sub)
@@ -920,7 +925,8 @@ def get_support_table(
         match_alt=False,
         align_match_prop=None,
         aligner=None,
-        verbose=False
+        verbose=False,
+        target_nr=True
     ):
     """
     Get a table describing matched variants between `df` and `df_next` and columns of evidence for support.
@@ -937,6 +943,8 @@ def get_support_table(
     :param align_match_prop: Minimum matched base proportion in alignment.
     :param aligner: Configured aligner for matching sequences.
     :param verbose: Print progress if True.
+    :param target_nr: If `True` (default), targets may match only one source. If `False`, the same target
+        may support multiple source variants.
 
     See `svpoplib.svlenoverlap.nearest_by_svlen_overlap` for a description of the returned columns.
 
@@ -1055,7 +1063,8 @@ def get_support_table(
                     'match_ref': match_ref,
                     'match_alt': match_alt,
                     'aligner': aligner,
-                    'align_match_prop': align_match_prop
+                    'align_match_prop': align_match_prop,
+                    'target_nr': target_nr
                 }
 
                 # Setup callback handler
@@ -1172,13 +1181,14 @@ def get_support_table(
             priority=['RO', 'SZRO', 'OFFSET', 'OFFSZ', 'MATCH'],
             threads=threads,
             match_ref=match_ref,
-            match_alt=match_alt
+            match_alt=match_alt,
+            target_nr=target_nr
         )
 
     return df_support if df_support.shape[0] > 0 else None
 
 
-def get_support_table_exact(df, df_next, align_match_prop=None, aligner=None, match_ref=None, match_alt=None):
+def get_support_table_exact(df, df_next, align_match_prop=None, aligner=None, match_ref=None, match_alt=None, target_nr=True):
     """
     Get an intersect table of exact breakpoint matches.
 
@@ -1189,6 +1199,8 @@ def get_support_table_exact(df, df_next, align_match_prop=None, aligner=None, ma
     :param aligner: Alignment tool for comparing sequences (svpoplib.aligner.ScoreAligner).
     :param match_ref: Match REF if True (SNVs).
     :param match_alt: Match ALT if True (SNVs).
+    :param target_nr: If `True` (default), targets may match only one source. If `False`, the same target
+        may support multiple source variants.
 
     :return: Return a support table with exact matches.
     """
@@ -1318,7 +1330,9 @@ def get_support_table_exact(df, df_next, align_match_prop=None, aligner=None, ma
         ))
 
         index_1 += 1
-        index_2 += 1
+
+        if target_nr:
+            index_2 += 1
 
     # Merge match dataframe
     if df_match_list:
@@ -1327,7 +1341,10 @@ def get_support_table_exact(df, df_next, align_match_prop=None, aligner=None, ma
         return None
 
 
-def get_support_table_truvari(df, df_next, refdist, pctseq, pctsize, pctovl, ref_filename, align_match_prop, aligner):
+def get_support_table_truvari(df, df_next, refdist, pctseq, pctsize, pctovl, ref_filename, align_match_prop, aligner, target_nr=True):
+
+    if not target_nr:
+        raise RuntimeError('Merge strategy "truvari" requires target_nr=True (redundant target intersect is not supported)')
 
     if ref_filename is None or not os.path.isfile(ref_filename):
         raise RuntimeError('Merge strategy "truvari" requires a reference file')

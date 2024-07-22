@@ -95,7 +95,7 @@ def intersect_get_input(pattern, wildcards, config):
     ]
 
 
-def run_intersect(bed_list, strategy, fa_list=None, threads=1, ref_filename=None):
+def run_intersect(bed_list, strategy, fa_list=None, threads=1, ref_filename=None, verbose=False):
     """
     Intersect two callsets and generate a table of matching and non-matching variants.
 
@@ -105,6 +105,7 @@ def run_intersect(bed_list, strategy, fa_list=None, threads=1, ref_filename=None
     :param threads: Number of threads to use for the match.
     :param ref_filename: Reference FASTA filename. Not required for built-in SV-Pop merge strategies, but is required
         for merge strategies using temporary VCF files (e.g. Truvari).
+    :param verbose: Print progress if True.
 
     :return: Table of matching and non-matching variants.
     """
@@ -123,7 +124,8 @@ def run_intersect(bed_list, strategy, fa_list=None, threads=1, ref_filename=None
         strategy=strategy,
         threads=threads,
         fa_list=fa_list,
-        ref_filename=ref_filename
+        ref_filename=ref_filename,
+        verbose=verbose,
     )
 
     support_col_list = [col for col in df.columns if col in MERGE_INFO_FIELD_LIST]
