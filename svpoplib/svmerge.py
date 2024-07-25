@@ -166,7 +166,7 @@ def merge_variants_nr(bed_list, sample_names, merge_config, fa_list=None, subset
     svtype_set = set()
 
     for filename in bed_list:
-        svtype_set |= set(pd.read_csv(filename, sep='\t', usecols=['SVTYPE'], nrows=10000)['SVTYPE'])
+        svtype_set |= set(pd.read_csv(filename, sep='\t', usecols=['SVTYPE'], nrows=10000)['SVTYPE'] if not isinstance(filename, pd.DataFrame) else filename['SVTYPE'])
 
     # Report parameters
     if verbose:
