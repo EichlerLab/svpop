@@ -244,8 +244,8 @@ rule var_intersect_by_merge:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
     threads: 8
     wildcard_constraints:
-        vartype='sv|indel|snv|sub|rgn',
-        svtype='ins|del|inv|dup|sub|snv|rgn'
+        vartype='sv|indel|sub|rgn',
+        svtype='inv|dup|sub|rgn'
     run:
 
         # Intersect
@@ -257,15 +257,41 @@ rule var_intersect_by_merge:
             ref_filename=config['reference']
         )
 
-        # Read SV set
-        df_a = pd.read_csv(input.bed[0], sep='\t', usecols=('ID', 'SVLEN'))
-        df_b = pd.read_csv(input.bed[1], sep='\t', usecols=('ID', 'SVLEN'))
+        # Write
+        df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')
 
-        sv_set_a = set(df_a.loc[df_a['SVLEN'] >= 50, 'ID'])
-        sv_set_b = set(df_b.loc[df_b['SVLEN'] >= 50, 'ID'])
+        df.to_csv(
+            output.tsv, sep='\t', index=False, compression='gzip'
+        )
 
-        del(df_a)
-        del(df_b)
+# var_intersect_by_merge
+#
+# Overlap variants: SNV
+# svindel: Rule "var_intersect_by_merge_svindel" has higher priority.
+rule var_intersect_by_merge_snv:
+    input:
+        bed=lambda wildcards: svpoplib.intersect.intersect_get_input(
+            [
+                'results/variant/{sourcetype_a}/{sourcename_a}/{sample_a}/{filter_a}/{svset_a}/bed/{vartype}_{svtype}.bed.gz',
+                'results/variant/{sourcetype_b}/{sourcename_b}/{sample_b}/{filter_b}/{svset_b}/bed/{vartype}_{svtype}.bed.gz'
+            ], wildcards, config
+        )
+    output:
+        tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
+    threads: 8
+    wildcard_constraints:
+        vartype='snv',
+        svtype='snv'
+    run:
+
+        # Intersect
+        df = svpoplib.intersect.run_intersect(
+            input.bed,
+            svpoplib.svmerge.get_merge_def(wildcards.merge_def, config),
+            None,  # No FASTA
+            threads=threads,
+            ref_filename=config['reference']
+        )
 
         # Write
         df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')

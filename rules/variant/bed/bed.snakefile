@@ -100,10 +100,12 @@ rule variant_caller_extern_get_bed:
         df = pd.read_csv(input.bed, sep='\t')
 
         # Check for required fields
-        required_cols = ['#CHROM', 'POS', 'END', 'SVTYPE', 'SVLEN']
+        required_cols = ['#CHROM', 'POS', 'END', 'SVTYPE']
 
         if wildcards.vartype == 'snv':
             required_cols += ['REF', 'ALT']
+        else:
+            required_cols += ['SVLEN']
 
         missing_cols = [col for col in required_cols if col not in df.columns]
 
@@ -124,7 +126,8 @@ rule variant_caller_extern_get_bed:
             )
 
         # Positive SVLEN (in case it slips by)
-        df['SVLEN'] = np.abs(df['SVLEN'])
+        if 'SVLEN' in df.columns:
+            df['SVLEN'] = np.abs(df['SVLEN'])
 
         # Filter by type
         df = df.loc[df['SVTYPE'] == wildcards.svtype.upper()]
