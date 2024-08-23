@@ -726,6 +726,9 @@ def version_id_name(name, id_set):
     :return: Versioned name
     """
 
+    if name not in id_set:
+        return name
+
     # Get current variant version (everything after "." if present, 1 by default)
     if not re.match(r'.*\.\d+$', name):
         name_version = 1
