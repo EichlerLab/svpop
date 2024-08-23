@@ -4,7 +4,6 @@ Variant processing and comparison functions.
 
 import collections
 import intervaltree
-import multiprocessing
 import numpy as np
 import os
 import pandas as pd
@@ -707,26 +706,7 @@ def version_id(id_col, existing_id_set=None):
         name = id_col.iloc[index]
 
         if name in dup_set:
-
-            # Get current variant version (everything after "." if present, 1 by default)
-            if not re.match(r'.*\.\d+$', name):
-                name_version = 1
-                tok = [name]
-
-            else:
-                try:
-                    tok = name.rsplit('.', 1)
-                    name_version = int(tok[1]) + 1
-
-                except ValueError:
-                    raise RuntimeError(f'Error de-duplicating variant ID field: Split "{name}" on "." and expected to find an integer at the end')
-
-            # Find unique name
-            new_name = '.'.join([tok[0], str(name_version)])
-
-            while new_name in id_set:
-                name_version += 1
-                new_name = '.'.join([tok[0], str(name_version)])
+            new_name = version_id_name(name, id_set)
 
             # Add to map
             id_col.iloc[index] = new_name
@@ -734,6 +714,39 @@ def version_id(id_col, existing_id_set=None):
 
     # Append new variants
     return id_col
+
+
+def version_id_name(name, id_set):
+    """
+    Version an ID (name).
+
+    :param name: Variant ID to version.
+    :param id_set: Set of existing variant IDs.
+
+    :return: Versioned name
+    """
+
+    # Get current variant version (everything after "." if present, 1 by default)
+    if not re.match(r'.*\.\d+$', name):
+        name_version = 1
+        tok = [name]
+
+    else:
+        try:
+            tok = name.rsplit('.', 1)
+            name_version = int(tok[1]) + 1
+
+        except ValueError:
+            raise RuntimeError(f'Error de-duplicating variant ID field: Split "{name}" on "." and expected to find an integer at the end')
+
+    # Find unique name
+    new_name = '.'.join([tok[0], str(name_version)])
+
+    while new_name in id_set:
+        name_version += 1
+        new_name = '.'.join([tok[0], str(name_version)])
+
+    return new_name
 
 
 def check_unique_ids(df, message=''):
