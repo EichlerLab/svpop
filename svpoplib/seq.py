@@ -92,10 +92,8 @@ def bed_to_seqrecord_iter(df, record_set=None, require_all=True, skip_na=True, s
     if require_all and record_set is not None and found_set != record_set:
         missing_set = record_set - found_set
 
-        raise RuntimeError('Missing {} records when parsing {} {}: {}{}'.format(
+        raise RuntimeError('Missing {} records: {}{}'.format(
             len(missing_set),
-            input_format.upper(),
-            fa_file_name,
             ', '.join(sorted(missing_set)[:3]),
             '...' if len(missing_set) > 3 else ''
         ))
