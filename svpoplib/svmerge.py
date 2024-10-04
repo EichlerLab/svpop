@@ -829,7 +829,6 @@ def read_variant_table(
     :return: Prepared variant DataFrame.
     """
 
-
     # Ensure column list contains required columns
     head_cols = ['#CHROM', 'POS', 'END', 'ID', 'SVTYPE', 'SVLEN']
     col_list = head_cols + [col for col in col_list if col not in head_cols]
@@ -854,6 +853,9 @@ def read_variant_table(
             raise RuntimeError(f'Error getting variant table from an existing DataFrame: Missing columns: {", ".join(missing_cols)}')
 
         df['#CHROM'] = df['#CHROM'].astype(str)
+
+        if subset_chrom is not None:
+            df = df.loc[df['#CHROM'].isin(subset_chrom)]
 
     # Read SEQ column
     if fa_file_name is not None:
