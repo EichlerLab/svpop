@@ -78,6 +78,7 @@ External tools SV-Pop may call:<br />
 1. RepeatMasker: Annotating SV sequences (optional)
 1. TRF: Annotating SV sequneces (optional).
 
+The easiest way to install these is to use conda. If distributing over Slurm, include `snakemake-executor-plugin-slurm`.
 
 ## Configuration
 
@@ -191,76 +192,31 @@ PARAMS: Additional parameters:
 
 ## Running SV-Pop
 
-There are two ways to run SV-Pop.
+To run SV-Pop, first install SV-Pop to a directory (called the "PIPELINE_DIR" in this guide). Then, change to a working
+directory that will contain results (called "WORKING_DIR"). Place configuration files in this WORKING_DIR location
+(config JSON and samples TSV, see above). Lastly, link `Snakefile` and `profiles` to the WORKING_DIR:
 
-1. Run scripts: Execute through `rundist` and `runlocal`. This requires a little more configuration, but allows SV-Pop
-   to be quickly executed for a number of projects. This is the recommended way to run SV-Pop.
-1. Snakemake direct: Execute by calling snakemake directly.
+```
+cd WORKING_DIR
 
-Both methods are outlined below.
+ln -s /path/to/PIPELINE_DIR/Snakefile ./
+ln -s /path/to/PIPELINE_DIR/profiles ./
+```
 
-Always run SV-Pop from a clean working directory containing only `config`, `rundist`, and `runlocal`. Do not execute
-from the install directory.
+To run, execute `snakemake` directly. It can be run locally or distributed over a cluster. SV-Pop has profiles setup
+for local and for Slurm. To exeucute over Slurm, `snakemake-executor-plugin-slurm` must be installed with snakemake.
 
+Local:
+`snakemake --profile profiles/local -c CORES TARGET`
 
-### Run scripts
+Slurm:
+`snakemake --profile profiles/slurm --executor slurm -j JOBS TARGET`
 
-To execute via run scripts, go to the run directory and link `rundist` and `runlocal` from the install directory.
+TARGET is the SV-Pop target (file names) to generate. See `TARGETS.md` for a list of target output files.
 
-Example:
+CORES is the maximum number of cores to consume (local) and JOBS is the maximum number of consecutive jobs to schedule
+(slurm). As jobs complete, the next jobs are scheduled.
 
-    ln -s /path/to/PAV/1.0.0/rundist ./
-    ln -s /path/to/PAV/1.0.0/runlocal ./
-
-`rundist` will be used to distribute over a cluster, and `runlocal` will be used to run the pipeline in the current
-session. Configuring `rundist` will require some knowledge for distributing over a cluster.
-
-Both scripts setup some control variables and pass control over to a user-defined script. `rundist` will search for
-`config/rundist.sh`, and `runlocal` will search for `config/runlocal.sh`. It first searches the run directory, then
-it searches the install directory. Once found, it calls that script to carry out calling Snakemake. Generally,
-you would add your run scripts to the install config directory so it could be run for any number of projects. Some runs
-may need custom resources not typical for other projects, and for those, you can override the script in the PAV
-install directory with one in the run directory.
-
-Examples for what your `config/rundist.sh` and `config/runlocal.sh` might look like are in comments at the bottom of
-`rundist` and `runlocal`.
-
-After the symbolic link is created and your `config/rundist.sh` and/or `config/runlocal.sh` are in place, PAV is run:
-
-    ./rundist 20 results/variant/...
-
-    ./runlocal 20 results/variant/...
-
-Where "results/variant/..." is the path to the desired output file.
-
-The first number (20 in the example) is the number of concurrent jobs. Everything else is passed to Snakemake as a
-target, and there may be multiple targets.
-
-See `TARGETS.md` for a list of target output files.
-
-### Snakemake direct
-
-Examples in this section will assume shell variable `SVPOP` is set to the install directory (directory with
-`Snakemake` in it).
-
-To run a single sample, request any output file from Snakemake.
-
-For example:
-
-    snakemake -s ${SVPOP}/Snakefile results/variant/...
-
-
-## Running targets
-
-There is no uniform endpoint for SV-Pop. Desired output files are requested by running a Snakemake command,
-and the output is generated. That output may be a set of variant calls, merged variants for multiple samples and/or
-callers, annotations, or plots.
-
-Example:
-
-    ./rundist 20 results/variant/caller/pbsv/HG00733/all/all/bed/sv_ins.bed.gz
-
-This file requests variants from caller pbsv in BED format for HG00733.
 
 ### Wildcards
 
@@ -284,19 +240,6 @@ The above path contains definitions for several wildcards:
 1. svtype: Subtype of variant (snv, ins, del, inv, dup, rgn, sub).
 
 Annotations will have custom parameter wildcards that determine their behavior.
-
-
-### Built-in filters
-
-The "{filter}" wildcard is typically "all" or "lc" (an hg38 filter).
-
-1. hg38
-    1. lc: Drops low-confidence regions determined by Audano 2019 (PMID 30661756) on CLR data. May be outdated for modern
-       technology.
-    1. lcy: lc and drops chrY.
-
-### Custom filters
-
 
 
 ## Annotations
