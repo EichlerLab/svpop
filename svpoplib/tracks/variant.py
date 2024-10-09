@@ -73,6 +73,30 @@ def report_status(message, verbose):
 
 
 def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_description, field_table_file_name=None, verbose=True, reset_index=True):
+    """
+    Convert a dataframe to BED and AutoSQL files ready for UCSC bedToBigBed.
+
+    :param df: BED DataFrame.
+    :param df_fai: Table (pd.Series) of reference sequence sizes.
+    :param bed_file_name: Output BED file name.
+    :param as_file_name: Output AutoSQL file name.
+    :param track_name: Track name.
+    :param track_description: Track description.
+    :param field_table_file_name: Name of a file describing track fields.
+    :param verbose: Print extra verbose information if True.
+    :param reset_index: Reset DataFrame index if True.
+    """
+
+    # Check coordinates
+    oob_id = df.loc[
+        df.apply(lambda row: np.max([row['END'], row['POS']]) > df_fai[row['#CHROM']], axis=1),
+        'ID'
+    ]
+
+    if oob_id.shape[0] > 0:
+        n = oob_id.shape[0]
+        id_list = ', '.join(oob_id[:3]) + ('...' if n > 3 else '')
+        raise RuntimeError(f'Found {n} records with coordinates outside reference bounds: {id_list}')
 
     # Reset index
     if reset_index:
