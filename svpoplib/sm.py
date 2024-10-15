@@ -18,7 +18,10 @@ def nlset(named_list, key, value=None, wildcards=None):
         `wildcards` as its only parameter.
     """
 
-    if value is None:
+    if key is None:
+        raise RuntimeError('Key cannot be None')
+
+    if value is None and '=' in key:
         key, value = key.split('=', 1)
 
         value = value.strip()
@@ -31,6 +34,8 @@ def nlset(named_list, key, value=None, wildcards=None):
         if len(value) > 2:
             if (value[0] == value[-1]) and (value[0] in {'"', '\''}):
                 value = value[1:-1]
+    else:
+        value = None
 
     if callable(value):
         # Input function
@@ -42,10 +47,10 @@ def nlset(named_list, key, value=None, wildcards=None):
     else:
         # Format
         if wildcards is not None:
-            if type(value) == str:
+            if isinstance(value, str):
                 value = re.sub(r'\{([^,\}]+),[^\}]+\}', r'{\1}', value)  # Remove regex qualifiers from wildcards
                 value = value.format(**wildcards)  # Format wildcards into value
-            elif type(value) == list:
+            elif isinstance(value, list):
                 value = [
                     re.sub(r'\{([^,\}]+),[^\}]+\}', r'{\1}', item).format(**wildcards) for item in value
                 ]
