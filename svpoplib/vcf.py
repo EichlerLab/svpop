@@ -259,6 +259,7 @@ def ref_base(df, ref_fa):
     # Open and update records
     with pysam.FastaFile(ref_fa) as ref_file:
         for index, row in df.iterrows():
+
             if row['SVTYPE'] in {'INS', 'DEL', 'INSDEL', 'DUP', 'INV'}:
                 yield ref_file.fetch(row['#CHROM'], row['POS'] + (-1 if row['POS'] > 0 else 0), row['POS']).upper()
 
