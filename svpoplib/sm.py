@@ -3,7 +3,32 @@ Tools for managing Snakemake resources.
 """
 
 import re
-import snakemake
+
+
+def strip_and_format(value, wildcards=None):
+    if value is None:
+        return value
+
+    # Strip whitespace and commas
+    value = value.strip()
+
+    while value.endswith(','):
+        value = value[:-1]
+
+    # Remove regex qualifiers
+    value = re.sub(r'\{([^,\}]+),[^\}]+\}', r'{\1}', value)
+
+    # Strip quotes
+    value = re.sub(r"""^\s*(['"]+)\s*(.+)\s*\1\s*$""", r'\2', value)
+
+    # Remove temp()
+    value = re.sub(r"""^(temp\s*\((['"]+)(.+)\s*\2\s*\))?\s*,*\s*$""", r'\3', value)
+
+    # Format
+    if wildcards is not None:
+        value = value.format(**wildcards)
+
+    return value
 
 
 def nlset(named_list, key, value=None, wildcards=None):
@@ -21,23 +46,12 @@ def nlset(named_list, key, value=None, wildcards=None):
     if key is None:
         raise RuntimeError('Key cannot be None')
 
-    if value is None and '=' in key:
+    if value is None and isinstance(key, str) and '=' in key:
         key, value = key.split('=', 1)
 
-        value = value.strip()
+        value = strip_and_format(value, wildcards)
 
-        # Remove commas from the end
-        while value.endswith(','):
-            value = value[:-1]
-
-        # Remove quotes around the value (parsing key="value" or key='value')
-        if len(value) > 2:
-            if (value[0] == value[-1]) and (value[0] in {'"', '\''}):
-                value = value[1:-1]
-    else:
-        value = None
-
-    if callable(value):
+    elif value is not None and callable(value):
         # Input function
         if wildcards is None:
             raise RuntimeError('Cannot execute input function with wildcards = None')
@@ -46,33 +60,17 @@ def nlset(named_list, key, value=None, wildcards=None):
 
     else:
         # Format
-        if wildcards is not None:
-            if isinstance(value, str):
-                value = re.sub(r'\{([^,\}]+),[^\}]+\}', r'{\1}', value)  # Remove regex qualifiers from wildcards
-                value = value.format(**wildcards)  # Format wildcards into value
-            elif isinstance(value, list):
-                value = [
-                    re.sub(r'\{([^,\}]+),[^\}]+\}', r'{\1}', item).format(**wildcards) for item in value
-                ]
+        if isinstance(value, str):
+            strip_and_format(value, wildcards)
+        elif isinstance(value, (list, tuple, set)):
+            value = [
+                strip_and_format(item, wildcards) for item in value
+            ]
 
-    # Set value
-    snake_version_tok = [int(val) for val in snakemake.__version__.split('.')]
+    # Add key if missing
+    if key not in named_list.keys():
+        named_list.append(value)
+        named_list._add_name(key)
 
-    if snake_version_tok[0] > 5 or (snake_version_tok[0] == 5 and snake_version_tok[1] >= 4):
-        # Add key if missing
-        if key not in named_list.keys():
-            named_list.append(value)
-            named_list._add_name(key)
-
-        setattr(named_list, key, value)
-        named_list[named_list._names[key][0]] = value
-
-    else:
-        # Add key if missing
-        if key not in named_list.keys().keys():
-            named_list.append(None)
-            named_list.add_name(key)
-
-        # Set value
-        setattr(named_list, key, value)
-        named_list[named_list._names[key][0]] = value
+    setattr(named_list, key, value)
+    named_list[named_list._names[key][0]] = value
