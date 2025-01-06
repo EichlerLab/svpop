@@ -70,8 +70,8 @@ def header_list(
         df_ref,
         info_fields,
         format_fields,
-        alt_fields = [],
-        filter_fields = [],
+        alt_fields = tuple(),
+        filter_fields = tuple(),
         vcf_version='4.2',
         file_date=None,
         variant_source='SV-Pop',
@@ -345,11 +345,11 @@ class VariantVcfTable:
                 raise RuntimeError(f'Missing sequence data to construct VCF: No variant FASTA given and no SEQ column in variant table.')
 
             # FASTA cannot be empty
-            if not os.isfile(fa_filename) or os.stat(fa_filename).st_size == 0:
+            if not os.path.isfile(fa_filename) or os.stat(fa_filename).st_size == 0:
                 raise RuntimeError(f'Missing sequence data to construct VCF: Variant FASTA is missing or empty: {fa_filename}')
 
             # Get Sequence from FASTA and assign to SEQ column (not for SNVs)
-            with svpoplib.seq.PlainOrGzReader(ref_filename, 'rt') as fa_in:
+            with svpoplib.seq.PlainOrGzReader(fa_filename, 'rt') as fa_in:
                 df_seq_dict = {
                     record.name: str(record.seq) for record in Bio.SeqIO.parse(fa_in, 'fasta')
                 }
@@ -367,8 +367,6 @@ class VariantVcfTable:
             df_null_seq = df.loc[pd.isnull(df['SEQ'])]
 
             if df_null_seq.shape[0] > 0:
-                id_list = ', '.join(df_null_seq.iloc[:3]['ID'])
-
                 raise RuntimeError(
                     'Missing FASTA sequence for {} variants: {}{}'.format(
                         df_null_seq.shape[0],
@@ -488,11 +486,11 @@ class VariantVcfTable:
 
     def write(self, out_file, df_ref=None):
         for line in header_list(
-            df_ref,
-            self.info_header_list,
-            self.format_header_list,
-            self.alt_header_list,
-            self.filter_header_list,
+            df_ref=df_ref,
+            info_fields=self.info_header_list,
+            format_fields=self.format_header_list,
+            alt_fields=self.alt_header_list,
+            filter_fields=self.filter_header_list,
             variant_source=f'SV-Pop {svpoplib.constants.VERSION}',
             ref_filename=self.ref_filename
         ):

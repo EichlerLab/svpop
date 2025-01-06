@@ -182,7 +182,7 @@ rule var_intersect_by_merge_svindel:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/svindel_{svtype}/intersect.tsv.gz',
         tsv_sv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/sv_{svtype}/intersect.tsv.gz',
         tsv_indel='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/indel_{svtype}/intersect.tsv.gz'
-    threads: 8
+    # threads: 8
     wildcard_constraints:
         svtype='ins|del'
     run:
@@ -242,7 +242,7 @@ rule var_intersect_by_merge:
         )
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
-    threads: 8
+    # threads: 8
     wildcard_constraints:
         vartype='sv|indel|sub|rgn',
         svtype='inv|dup|sub|rgn'
@@ -278,7 +278,7 @@ rule var_intersect_by_merge_snv:
         )
     output:
         tsv='results/variant/intersect/{sourcetype_a}+{sourcename_a}+{sample_a}/{sourcetype_b}+{sourcename_b}+{sample_b}/{merge_def}/{filter}/{svset}/{vartype}_{svtype}/intersect.tsv.gz'
-    threads: 8
+    # threads: 8
     wildcard_constraints:
         vartype='snv',
         svtype='snv'
