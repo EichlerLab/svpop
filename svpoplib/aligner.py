@@ -151,6 +151,13 @@ class ScoreAligner:
 
         return
 
+    def __getattr__(self, name):
+
+        try:
+            return self.__dict__[f'_{self.__class__.__name__}__{name}']
+        except KeyError:
+            raise AttributeError(f'Unknown attribute: {name}')
+
     def score_align(self, seq_a, seq_b):
         """
         Get max score aligning two sequences. Only returns the score, not the alignment.

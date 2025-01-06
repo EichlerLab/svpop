@@ -220,12 +220,12 @@ rule variant_anno_reg_all_reg:
         df.set_index('ID', inplace=True)
 
         # Add annotations
-        df.loc[set(pd.read_csv(input.cpg, sep='\t', header=0, usecols=('ID',), squeeze=True)), 'CPG_ISLAND'] = True
-        df.loc[set(pd.read_csv(input.h3k27ac, sep='\t', header=0, usecols=('ID',), squeeze=True)), 'ENCODE_H3K27AC'] = True
-        df.loc[set(pd.read_csv(input.h3k4me3, sep='\t', header=0, usecols=('ID',), squeeze=True)), 'ENCODE_H3K4ME3'] = True
-        df.loc[set(pd.read_csv(input.h3k4me1, sep='\t', header=0, usecols=('ID',), squeeze=True)), 'ENCODE_H3K4ME1'] = True
-        df.loc[set(pd.read_csv(input.dhs, sep='\t', header=0, usecols=('ID',), squeeze=True)), 'DHS'] = True
-        df.loc[set(pd.read_csv(input.oreganno, sep='\t', header=0, usecols=('ID',), squeeze=True)), 'OREGANNO'] = True
+        df.loc[list(set(pd.read_csv(input.cpg, sep='\t', header=0, usecols=('ID',), squeeze=True))), 'CPG_ISLAND'] = True
+        df.loc[list(set(pd.read_csv(input.h3k27ac, sep='\t', header=0, usecols=('ID',), squeeze=True))), 'ENCODE_H3K27AC'] = True
+        df.loc[list(set(pd.read_csv(input.h3k4me3, sep='\t', header=0, usecols=('ID',), squeeze=True))), 'ENCODE_H3K4ME3'] = True
+        df.loc[list(set(pd.read_csv(input.h3k4me1, sep='\t', header=0, usecols=('ID',), squeeze=True))), 'ENCODE_H3K4ME1'] = True
+        df.loc[list(set(pd.read_csv(input.dhs, sep='\t', header=0, usecols=('ID',), squeeze=True))), 'DHS'] = True
+        df.loc[list(set(pd.read_csv(input.oreganno, sep='\t', header=0, usecols=('ID',), squeeze=True))), 'OREGANNO'] = True
 
         # Clear empty records
         df = df.loc[df.apply(any, axis=1)]

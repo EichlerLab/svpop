@@ -26,15 +26,16 @@ rule vcf_write_vcf:
 
         # Get VCF table and headers
         vcf_tab = svpoplib.vcf.VariantVcfTable(
-            pd.read_csv(input.bed, sep='\t'),
-            wildcards.sample,
-            config['reference'],
-            wildcards.altfmt
+            df=pd.read_csv(input.bed, sep='\t'),
+            sample=wildcards.sample,
+            ref_filename=config['reference'],
+            fa_filename=input.fa,
+            altfmt=wildcards.altfmt
         )
 
         # Write VCF
         with Bio.bgzf.open(output.vcf, 'wt') as out_file:
-            vcf_tab.write(df_ref, out_file)
+            vcf_tab.write(out_file, df_ref)
 
         # Write tabix index if possible
         try:

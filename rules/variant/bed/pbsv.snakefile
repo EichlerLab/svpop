@@ -98,11 +98,11 @@ rule variant_pbsv_bed_tab_to_bed_dupinv:
         df['FAIL_REASON'] = np.nan
         fail_set = set(df.loc[df['FILTER'] != 'PASS'].index)
 
-        df.loc[fail_set, 'FAIL_REASON'] = 'FILTER != PASS'
+        df.loc[list(fail_set), 'FAIL_REASON'] = 'FILTER != PASS'
 
         # Remove filtered variants
         df.loc[
-            fail_set
+            list(fail_set)
         ].sort_values(
             ['#CHROM', 'POS']
         ).to_csv(
@@ -191,23 +191,23 @@ rule variant_pbsv_bed_tsv_to_bed_sv:
             axis=1
         )].index)
 
-        df.loc[fail_set_nseq, 'FAIL_REASON'] = 'SEQ N proportion'
+        df.loc[list(fail_set_nseq), 'FAIL_REASON'] = 'SEQ N proportion'
 
         # Fail set: INS in N
         fail_set_ins_n = set(df.loc[(df['SVTYPE'] == 'INS') & (df['REF'].apply(lambda val: val.upper() == 'N'))].index)
 
-        df.loc[fail_set_ins_n, 'FAIL_REASON'] = 'INS in N'
+        df.loc[list(fail_set_ins_n), 'FAIL_REASON'] = 'INS in N'
 
         # Fail set: Not PASS in FILTER
         fail_set_filter = set(df.loc[df['FILTER'] != 'PASS'].index)
 
-        df.loc[fail_set_filter, 'FAIL_REASON'] = 'FILTER != PASS'
+        df.loc[list(fail_set_filter), 'FAIL_REASON'] = 'FILTER != PASS'
 
         fail_set = fail_set_nseq | fail_set_ins_n | fail_set_filter
 
         # Remove filtered variants
         df.loc[
-            fail_set
+            list(fail_set)
         ].sort_values(
             ['#CHROM', 'POS']
         ).to_csv(
