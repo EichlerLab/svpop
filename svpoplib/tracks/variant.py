@@ -88,15 +88,16 @@ def make_bb_track(df, df_fai, bed_file_name, as_file_name, track_name, track_des
     """
 
     # Check coordinates
-    oob_id = df.loc[
-        df.apply(lambda row: np.max([row['END'], row['POS']]) > df_fai[row['#CHROM']], axis=1),
-        'ID'
-    ]
+    if df.shape[0] > 0:
+        oob_id = df.loc[
+            df.apply(lambda row: np.max([row['END'], row['POS']]) > df_fai[row['#CHROM']], axis=1),
+            'ID'
+        ]
 
-    if oob_id.shape[0] > 0:
-        n = oob_id.shape[0]
-        id_list = ', '.join(oob_id[:3]) + ('...' if n > 3 else '')
-        raise RuntimeError(f'Found {n} records with coordinates outside reference bounds: {id_list}')
+        if oob_id.shape[0] > 0:
+            n = oob_id.shape[0]
+            id_list = ', '.join(oob_id[:3]) + ('...' if n > 3 else '')
+            raise RuntimeError(f'Found {n} records with coordinates outside reference bounds: {id_list}')
 
     # Reset index
     if reset_index:
