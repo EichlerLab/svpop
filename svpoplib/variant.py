@@ -846,9 +846,9 @@ def vcf_tsv_to_bed(
     :param compute_af: Compute AC, AN, and AF if `True`. If any of the fields are present from INFO and this parameter
         is `None` (default), then do not compute or overwrite any of them. If `False`, do not compute AC, AN, and AF.
     :param filter_pass_set: Set of string values for acceptable filters in the FILTER column. Variants with FILTER
-        values (";" deliminated) must match all values in this set to pass. If this parameter is an empty set or None,
-        all values in the FILTER column are accepted. Note that missing FILTER values in the VCF are filled in with "."
-        before checking this set (i.e. add "." to this set accept those). Default set contains "PASS" and ".".
+        values (";" delimited in the VCF) must match all values in this set to pass. If this parameter is an empty set
+        or None, all values in the FILTER column are accepted. Note that missing FILTER values in the VCF are filled in
+        with "." before checking this set (i.e. add "." to this set accept those). Default set contains "PASS" and ".".
     :param cnv_deldup: If True, translate CNVs to DEL and DUP based on the CN field.
     :param strict_sample: Strictly require the sample name to match in the sample column even if the VCF contains
         only one sample column. If the sample is not present, VCF parsing fails.

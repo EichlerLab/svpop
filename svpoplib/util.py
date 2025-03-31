@@ -94,10 +94,10 @@ def as_bool(val, none_val=None):
     # Handle None
     if val is None:
         if none_val is None:
-            raise RuntimeError('None value cannot be interpreted as a boolean')
+            raise ValueError('None value cannot be interpreted as a boolean')
 
         if not issubclass(none_val.__class__, bool):
-            raise RuntimeError('as_bool() got a None value and a non-bool None-replacement value: {}'.format(str(none_val.__class__)))
+            raise ValueError('as_bool() got a None value and a non-bool None-replacement value: {}'.format(str(none_val.__class__)))
 
         return none_val
 

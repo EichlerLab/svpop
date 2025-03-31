@@ -37,6 +37,7 @@ set-resources:
   - depth_data_sample_wiggle:runtime=480
   - gt_call_table:mem_mb=4096
   - gt_call_table:runtime=720
+  - var_intersect_combined_insdel:mem_mb=4096
   - intersect_nearest_distance_table:mem_mb=20480
   - intersect_nearest_distance_table:runtime=1440
   - intersect_nearest_ra_distance_table:mem_mb=20480
