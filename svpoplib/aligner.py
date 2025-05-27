@@ -84,7 +84,7 @@ class ScoreAligner:
 
     def __init__(self,
         match=2.0, mismatch=-1.0, gap_open=-1.0, gap_extend=-0.25,
-        map_limit=20000, jaccard_kmer=9,
+        map_limit=2000, jaccard_kmer=9,
         rotate_min=3
     ):
 
