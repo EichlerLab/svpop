@@ -79,7 +79,10 @@ def merge_variants(bed_list, sample_names, strategy, fa_list=None, subset_chrom=
         raise RuntimeError('Cannot merge 0 samples')
 
     # Parse parameters
-    merge_config = svpoplib.svmergeconfig.params.get_merge_config(strategy)
+    if isinstance(strategy, svpoplib.svmergeconfig.params.MergeConfig):
+        merge_config = strategy
+    else:
+        merge_config = svpoplib.svmergeconfig.params.get_merge_config(strategy)
 
     # Run
     if merge_config.strategy in {'nr', 'nrsnv', 'nrsnp'}:
