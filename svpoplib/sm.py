@@ -61,7 +61,7 @@ def nlset(named_list, key, value=None, wildcards=None):
     else:
         # Format
         if isinstance(value, str):
-            strip_and_format(value, wildcards)
+            value = strip_and_format(value, wildcards)
         elif isinstance(value, (list, tuple, set)):
             value = [
                 strip_and_format(item, wildcards) for item in value
