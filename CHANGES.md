@@ -1,7 +1,38 @@
 # Changes
 
-## 3.5
-* Switching to a Snakemake profile method for setting resources.
+## 3.4.11
+* ScoreAligner default parameters match ParamSpec.
+* merge_variants now accepts a svpoplib.svmergeconfig.params.MergeConfig object for its "strategy" argument.
+* Corrected bug in svpoaplib.sm.nlset (values were not properly stripped).
+
+## 3.4.10
+* Updated default match parameter (limit = 2000, was 4000)
+
+## 3.4.9
+* Updated for Pandas API changes
+
+## 3.4.8
+* Fixed reference base for inversions.
+* Added VCF to reference allele generator.
+* Updating nlset to handle None.
+
+## 3.4.7
+* svpoplib.tracks.variant.make_bb_track checks for out-of-bound coordinates.
+
+## 3.4.6
+* Fixed minor issues with merging BED files and lists of variant tables.
+* Fixed bug in merging when chromosomes are not subset.
+* Separated svpoplib.variant.version_id_name() from version_id() (supports single-ID operations).
+* Documentation updates.
+
+## 3.4.5
+* Altering pipeline constants for Snakemake distribution with resources.
+
+## 3.4.4
+* Added flag rule for VCF.
+* Better support for sample lists and VCFs.
+* Fixed regex strings that should be raw.
+* Updated callerset support.
 
 ## 3.4.3
 * Removed references to numpy primitives (np.int, np.float, etc.)
